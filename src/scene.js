@@ -1,41 +1,29 @@
 import * as THREE from "three";
-import { CSS2DObject, CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js";
-import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
-import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
-import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
-import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+
+const TAU = Math.PI * 2;
 
 const WORLD_DATA = {
   machine: {
     title: "DREAM MACHINE",
     subtitle: "PERCEIVE · MODEL · PREDICT",
-    color: 0x4e91ef,
-    accent: "#4e91ef",
-    position: [-3.72, 1.72, 0.05],
-    label: [-1.7, 0, 0]
+    color: 0x3f8fe8,
+    position: [-4.35, 1.67, 0.05]
   },
   maker: {
     title: "DREAM MAKER",
     subtitle: "INTEND · ACT · BECOME",
-    color: 0x51cabd,
-    accent: "#51cabd",
-    position: [3.72, 1.72, 0.05],
-    label: [1.7, 0, 0]
+    color: 0x45c7b7,
+    position: [4.35, 1.67, 0.05]
   },
   world: {
     title: "DREAM WORLD",
     subtitle: "MATTER · STRUCTURE · EMERGE",
-    color: 0x9163ed,
-    accent: "#9163ed",
-    position: [0, -2.05, 0.42],
-    label: [0, -1.28, 0]
+    color: 0x8859e8,
+    position: [0, -2.38, 0.34]
   }
 };
 
-const TAU = Math.PI * 2;
-const tempVector = new THREE.Vector3();
-
-function seededRandom(seed = 0x51f15e) {
+function randomGenerator(seed = 0x44d2b1) {
   let value = seed >>> 0;
   return () => {
     value += 0x6d2b79f5;
@@ -46,78 +34,117 @@ function seededRandom(seed = 0x51f15e) {
   };
 }
 
-function makeGlowTexture() {
+function detectProfile() {
+  const mobile = matchMedia("(pointer: coarse)").matches || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+  const memory = navigator.deviceMemory || 4;
+  const cores = navigator.hardwareConcurrency || 4;
+  const constrained = mobile || memory <= 4 || cores <= 4;
+
+  return {
+    name: constrained ? "balanced" : "high",
+    mobile,
+    antialias: !constrained,
+    pixelRatio: constrained ? 1 : 1.35,
+    fieldDetail: constrained ? 2 : 3,
+    facetDetail: constrained ? 1 : 2,
+    portalDetail: constrained ? 1 : 2,
+    curveSegments: constrained ? 84 : 128,
+    constellationPoints: constrained ? 135 : 220,
+    orbitParticles: constrained ? 34 : 58,
+    platformSegments: constrained ? 48 : 72
+  };
+}
+
+function createGlowTexture(size = 128) {
   const canvas = document.createElement("canvas");
-  canvas.width = 256;
-  canvas.height = 256;
+  canvas.width = size;
+  canvas.height = size;
   const context = canvas.getContext("2d");
-  const gradient = context.createRadialGradient(128, 128, 0, 128, 128, 128);
+  const half = size / 2;
+  const gradient = context.createRadialGradient(half, half, 0, half, half, half);
   gradient.addColorStop(0, "rgba(255,255,255,1)");
-  gradient.addColorStop(0.055, "rgba(255,255,255,.98)");
-  gradient.addColorStop(0.16, "rgba(230,235,255,.74)");
-  gradient.addColorStop(0.42, "rgba(188,179,255,.18)");
-  gradient.addColorStop(1, "rgba(150,150,255,0)");
+  gradient.addColorStop(0.06, "rgba(255,255,255,1)");
+  gradient.addColorStop(0.16, "rgba(247,245,255,.85)");
+  gradient.addColorStop(0.42, "rgba(188,176,255,.28)");
+  gradient.addColorStop(1, "rgba(135,142,255,0)");
   context.fillStyle = gradient;
-  context.fillRect(0, 0, 256, 256);
+  context.fillRect(0, 0, size, size);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
 }
 
-function makeRayTexture() {
+function createRayTexture() {
   const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 32;
+  canvas.width = 256;
+  canvas.height = 16;
   const context = canvas.getContext("2d");
-  const gradient = context.createLinearGradient(0, 0, 512, 0);
-  gradient.addColorStop(0, "rgba(255,255,255,0)");
-  gradient.addColorStop(0.4, "rgba(255,255,255,.08)");
-  gradient.addColorStop(0.49, "rgba(255,255,255,.92)");
-  gradient.addColorStop(0.51, "rgba(255,255,255,.92)");
-  gradient.addColorStop(0.6, "rgba(255,255,255,.08)");
-  gradient.addColorStop(1, "rgba(255,255,255,0)");
-  const vertical = context.createLinearGradient(0, 0, 0, 32);
-  context.fillStyle = gradient;
-  context.fillRect(0, 0, 512, 32);
+  const horizontal = context.createLinearGradient(0, 0, 256, 0);
+  horizontal.addColorStop(0, "rgba(255,255,255,0)");
+  horizontal.addColorStop(0.42, "rgba(255,255,255,.12)");
+  horizontal.addColorStop(0.5, "rgba(255,255,255,1)");
+  horizontal.addColorStop(0.58, "rgba(255,255,255,.12)");
+  horizontal.addColorStop(1, "rgba(255,255,255,0)");
+  context.fillStyle = horizontal;
+  context.fillRect(0, 0, 256, 16);
   context.globalCompositeOperation = "destination-in";
+  const vertical = context.createLinearGradient(0, 0, 0, 16);
   vertical.addColorStop(0, "rgba(255,255,255,0)");
   vertical.addColorStop(0.5, "rgba(255,255,255,1)");
   vertical.addColorStop(1, "rgba(255,255,255,0)");
   context.fillStyle = vertical;
-  context.fillRect(0, 0, 512, 32);
+  context.fillRect(0, 0, 256, 16);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
 }
 
-function createVertexColors(geometry, baseColor, random, variation = 0.12) {
-  const position = geometry.getAttribute("position");
+function applyFacetColors(geometry, baseColor, random, spread = 0.24) {
+  const source = geometry.index ? geometry.toNonIndexed() : geometry;
+  const position = source.getAttribute("position");
   const colors = [];
   const base = new THREE.Color(baseColor);
+  const white = new THREE.Color(0xf7f4ff);
+  const navy = new THREE.Color(0x271a67);
 
   for (let index = 0; index < position.count; index += 3) {
-    const tint = base.clone();
-    tint.offsetHSL((random() - 0.5) * variation * 0.25, (random() - 0.5) * variation, (random() - 0.42) * variation);
-    for (let vertex = 0; vertex < 3; vertex += 1) colors.push(tint.r, tint.g, tint.b);
+    const selector = random();
+    const faceColor = base.clone();
+    if (selector > 0.78) faceColor.lerp(white, 0.35 + random() * 0.35);
+    else if (selector < 0.2) faceColor.lerp(navy, 0.28 + random() * 0.32);
+    else faceColor.offsetHSL((random() - 0.5) * 0.045, (random() - 0.5) * spread, (random() - 0.5) * spread);
+    for (let vertex = 0; vertex < 3; vertex += 1) colors.push(faceColor.r, faceColor.g, faceColor.b);
   }
 
+  source.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  source.computeVertexNormals();
+  return source;
+}
+
+function createSegmentsFromLoops(loopDefinitions, segments) {
+  const positions = [];
+  const colors = [];
+  loopDefinitions.forEach(({ radiusX, radiusZ, y = 0, color = 0xffffff, tilt = 0, phase = 0 }) => {
+    const tint = new THREE.Color(color);
+    for (let index = 0; index < segments; index += 1) {
+      const a = phase + (index / segments) * TAU;
+      const b = phase + ((index + 1) / segments) * TAU;
+      const point = (angle) => {
+        const x = Math.cos(angle) * radiusX;
+        const z = Math.sin(angle) * radiusZ;
+        return [x, y + z * Math.sin(tilt), z * Math.cos(tilt)];
+      };
+      positions.push(...point(a), ...point(b));
+      for (let vertex = 0; vertex < 2; vertex += 1) colors.push(tint.r, tint.g, tint.b);
+    }
+  });
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  return geometry;
 }
 
-function createLineLoop(radiusX, radiusZ, height, material, segments = 260, phase = 0) {
-  const points = [];
-  for (let index = 0; index < segments; index += 1) {
-    const angle = (index / segments) * TAU + phase;
-    points.push(new THREE.Vector3(
-      Math.cos(angle) * radiusX,
-      height + Math.sin(angle * 2.0 + phase) * 0.025,
-      Math.sin(angle) * radiusZ
-    ));
-  }
-  return new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(points), material);
-}
-
-function disposeObject(root) {
+function disposeTree(root) {
   root.traverse((object) => {
     object.geometry?.dispose?.();
     if (Array.isArray(object.material)) object.material.forEach((material) => material.dispose?.());
@@ -128,892 +155,577 @@ function disposeObject(root) {
 export class DreamUnityScene {
   constructor(container) {
     this.container = container;
-    this.random = seededRandom();
+    this.profile = detectProfile();
+    this.random = randomGenerator();
     this.clock = new THREE.Clock();
     this.portals = new Map();
-    this.portalLabels = new Map();
-    this.interactiveTargets = [];
+    this.interactive = [];
     this.orbits = [];
-    this.motionObjects = [];
+    this.floaters = [];
     this.pointers = new Map();
+    this.targetRotation = new THREE.Vector2(0.015, 0);
+    this.targetScale = 1;
+    this.baseScale = 1;
     this.selectedWorld = null;
-    this.targetRotation = new THREE.Vector2(0.02, 0);
-    this.rotationVelocity = new THREE.Vector2();
-    this.targetCameraZ = 12.1;
-    this.baseCameraZ = 12.1;
-    this.focusPoint = new THREE.Vector3(0, 0.15, 0);
-    this.bloomPulse = 0;
-    this.hasInteracted = false;
     this.dragDistance = 0;
-    this.initialPinchDistance = 0;
-    this.initialPinchZ = 0;
-    this.reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    this.maxPixelRatio = /Mobi|Android/i.test(navigator.userAgent) ? 1.35 : 1.85;
-    this.frameSamples = [];
-    this.lastFrameTime = performance.now();
-    this.adapted = false;
+    this.pinchDistance = 0;
+    this.pinchScale = 1;
+    this.lastInteraction = performance.now();
+    this.reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    this.paused = false;
     this.destroyed = false;
+    this.frame = 0;
+    this.lastMetricTime = performance.now();
+    this.metricFrames = 0;
+    this.fps = 60;
+    this.adapted = false;
+    this.lowFpsSamples = 0;
+    this.animateOrbitParticles = true;
 
     this.#initialize();
   }
 
   #initialize() {
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0xf0f2f7);
-
-    this.camera = new THREE.PerspectiveCamera(39, 1, 0.1, 80);
-    this.camera.position.set(0, 0.28, this.targetCameraZ);
+    this.camera = new THREE.PerspectiveCamera(38, 1, 0.1, 60);
+    this.cameraTarget = new THREE.Vector3(0, -0.42, 0);
+    this.camera.position.set(0, 1.2, 12.8);
+    this.camera.lookAt(this.cameraTarget);
 
     this.renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: false,
+      alpha: true,
+      antialias: this.profile.antialias,
       powerPreference: "high-performance",
-      stencil: false
+      precision: "mediump",
+      stencil: false,
+      preserveDrawingBuffer: false,
+      failIfMajorPerformanceCaveat: false
     });
-    this.renderer.setClearColor(0xf0f2f7, 1);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.maxPixelRatio));
+    this.renderer.setClearColor(0xf5f6fa, 0);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.22;
-    this.renderer.domElement.setAttribute("aria-label", "Interactive Dream Unity three-world field");
+    this.renderer.toneMapping = THREE.NoToneMapping;
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, this.profile.pixelRatio));
     this.renderer.domElement.tabIndex = 0;
+    this.renderer.domElement.setAttribute("aria-label", "Interactive Dream Unity three-world field");
     this.container.append(this.renderer.domElement);
 
-    this.labelRenderer = new CSS2DRenderer();
-    this.labelRenderer.domElement.className = "label-layer";
-    this.container.append(this.labelRenderer.domElement);
+    this.glowTexture = createGlowTexture();
+    this.rayTexture = createRayTexture();
 
-    this.composer = new EffectComposer(this.renderer);
-    this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.76, 0.62, 0.69);
-    this.composer.addPass(this.bloom);
-    this.composer.addPass(new OutputPass());
-
-    this.glowTexture = makeGlowTexture();
-    this.rayTexture = makeRayTexture();
-    this.#createEnvironment();
     this.#createLights();
-    this.#createDistantWorld();
+    this.#createScenery();
 
-    this.unity = new THREE.Group();
-    this.unity.name = "Dream Unity Field";
-    this.scene.add(this.unity);
+    this.system = new THREE.Group();
+    this.system.name = "Dream Unity System";
+    this.scene.add(this.system);
 
-    this.#createUnityField();
-    this.#createConstellationNetwork();
+    this.#createField();
+    this.#createConstellations();
     this.#createPlatform();
-    this.#createCentralCrystal();
+    this.#createCore();
     this.#createPortals();
-    this.#createOrbitalSystem();
-    this.#createFloatingFragments();
+    this.#createOrbits();
+    this.#createFragments();
     this.#bindInteraction();
     this.#resize();
-
-    requestAnimationFrame(() => this.#animate());
-  }
-
-  #createEnvironment() {
-    const canvas = document.createElement("canvas");
-    canvas.width = 1024;
-    canvas.height = 512;
-    const context = canvas.getContext("2d");
-    const gradient = context.createLinearGradient(0, 0, 0, 512);
-    gradient.addColorStop(0, "#e9ebf4");
-    gradient.addColorStop(0.42, "#ffffff");
-    gradient.addColorStop(0.58, "#f8f4fb");
-    gradient.addColorStop(1, "#cfd9e4");
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, 1024, 512);
-
-    const lights = [
-      [160, 190, 150, "rgba(119,179,255,.38)"],
-      [520, 150, 190, "rgba(255,255,255,.92)"],
-      [820, 210, 170, "rgba(108,231,215,.34)"],
-      [655, 350, 110, "rgba(168,123,255,.25)"]
-    ];
-
-    lights.forEach(([x, y, radius, color]) => {
-      const light = context.createRadialGradient(x, y, 0, x, y, radius);
-      light.addColorStop(0, color);
-      light.addColorStop(1, "rgba(255,255,255,0)");
-      context.fillStyle = light;
-      context.fillRect(x - radius, y - radius, radius * 2, radius * 2);
-    });
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.mapping = THREE.EquirectangularReflectionMapping;
-    texture.colorSpace = THREE.SRGBColorSpace;
-    const pmrem = new THREE.PMREMGenerator(this.renderer);
-    this.environmentTexture = pmrem.fromEquirectangular(texture).texture;
-    this.scene.environment = this.environmentTexture;
-    texture.dispose();
-    pmrem.dispose();
+    this.#render();
+    this.animationFrame = requestAnimationFrame((time) => this.#animate(time));
   }
 
   #createLights() {
-    const hemisphere = new THREE.HemisphereLight(0xffffff, 0xaab8cc, 2.15);
-    this.scene.add(hemisphere);
+    this.scene.add(new THREE.AmbientLight(0xffffff, 1.65));
 
-    const key = new THREE.DirectionalLight(0xfffbff, 3.0);
-    key.position.set(-4, 8, 7);
+    const key = new THREE.DirectionalLight(0xffffff, 2.7);
+    key.position.set(-4, 7, 8);
     this.scene.add(key);
 
-    const fill = new THREE.DirectionalLight(0xd8f9ff, 1.8);
-    fill.position.set(6, 3, 5);
-    this.scene.add(fill);
+    const cool = new THREE.DirectionalLight(0xbfeaff, 1.5);
+    cool.position.set(6, 2, 5);
+    this.scene.add(cool);
 
-    const violet = new THREE.PointLight(0x8965ff, 8.5, 12, 2);
-    violet.position.set(0, 0.4, 2.1);
+    const violet = new THREE.PointLight(0x8761ff, 3.4, 9, 2);
+    violet.position.set(0, 0.65, 2.4);
     this.scene.add(violet);
   }
 
-  #createDistantWorld() {
+  #createScenery() {
     this.scenery = new THREE.Group();
-    this.scenery.name = "Material Horizon";
     this.scene.add(this.scenery);
 
     const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(50, 36),
-      new THREE.MeshPhysicalMaterial({
-        color: 0xe8edf3,
-        metalness: 0.42,
-        roughness: 0.26,
-        transparent: true,
-        opacity: 0.74,
-        envMapIntensity: 0.75
-      })
+      new THREE.PlaneGeometry(32, 24),
+      new THREE.MeshLambertMaterial({ color: 0xe9edf4, transparent: true, opacity: 0.78 })
     );
     floor.rotation.x = -Math.PI / 2;
-    floor.position.set(0, -3.22, -3.5);
+    floor.position.set(0, -3.18, -4.2);
     this.scenery.add(floor);
 
-    const mountainMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0xe8ecf2,
-      roughness: 0.48,
-      metalness: 0.08,
-      flatShading: true,
+    const mountainMaterial = new THREE.MeshLambertMaterial({
+      color: 0xe1e6ee,
       transparent: true,
-      opacity: 0.9,
-      envMapIntensity: 0.6
+      opacity: 0.78,
+      flatShading: true
     });
-
-    const mountainData = [
-      [-8.6, -2.25, -10, 3.0, 5.2, 1.2],
-      [-5.7, -2.7, -11, 2.0, 3.7, 1.0],
-      [6.2, -2.45, -11, 2.5, 4.5, 1.1],
-      [9.0, -2.25, -10, 3.2, 5.4, 1.25],
-      [0, -3.1, -14, 1.2, 2.6, 0.7]
+    const mountains = [
+      [-8.6, -2.3, -10, 3.0, 4.8], [-5.9, -2.65, -11, 2.1, 3.4],
+      [6.1, -2.55, -11, 2.3, 3.8], [8.9, -2.25, -10, 3.1, 5.1]
     ];
-
-    mountainData.forEach(([x, y, z, radius, height, depth], index) => {
-      const mountain = new THREE.Mesh(new THREE.ConeGeometry(radius, height, 6, 2), mountainMaterial);
-      mountain.position.set(x, y, z);
-      mountain.scale.z = depth;
-      mountain.rotation.y = index * 0.63;
-      this.scenery.add(mountain);
+    mountains.forEach(([x, y, z, radius, height], index) => {
+      const mesh = new THREE.Mesh(new THREE.ConeGeometry(radius, height, 5, 1), mountainMaterial);
+      mesh.position.set(x, y, z);
+      mesh.scale.z = 0.72;
+      mesh.rotation.y = index * 0.61;
+      this.scenery.add(mesh);
     });
 
-    const spireMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0xdde5ef,
-      metalness: 0.38,
-      roughness: 0.08,
-      transmission: 0.5,
-      thickness: 1.3,
-      ior: 1.62,
+    const crystalMaterial = new THREE.MeshPhongMaterial({
+      color: 0xc9d5e7,
+      specular: 0xffffff,
+      shininess: 110,
       transparent: true,
-      opacity: 0.75,
-      envMapIntensity: 1.4
+      opacity: 0.68,
+      flatShading: true
     });
-
-    const spires = [
-      [-7.1, -1.85, -1.4, 0.48, 3.1],
-      [7.4, -1.82, -1.8, 0.62, 3.5],
-      [-6.0, -2.7, 1.0, 0.16, 0.85],
-      [6.0, -2.72, 0.2, 0.18, 0.95]
-    ];
-
+    const spires = [[-7.15, -1.85, -1.8, 0.43, 3.1], [7.25, -1.72, -2.0, 0.56, 3.55], [-5.8, -2.6, 0.3, 0.15, 0.9], [5.95, -2.6, 0.2, 0.18, 1.0]];
     spires.forEach(([x, y, z, radius, height], index) => {
-      const spire = new THREE.Group();
-      const body = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.62, radius, height * 0.68, 5), spireMaterial);
-      const tip = new THREE.Mesh(new THREE.ConeGeometry(radius * 0.62, height * 0.32, 5), spireMaterial);
-      body.position.y = -height * 0.16;
-      tip.position.y = height * 0.34;
-      spire.add(body, tip);
+      const spire = new THREE.Mesh(new THREE.ConeGeometry(radius, height, 5), crystalMaterial);
       spire.position.set(x, y, z);
-      spire.rotation.y = index * 0.57;
+      spire.rotation.y = index * 0.72;
       this.scenery.add(spire);
     });
   }
 
-  #createUnityField() {
+  #createField() {
     this.field = new THREE.Group();
-    this.field.position.y = 0.18;
-    this.unity.add(this.field);
+    this.field.position.y = 0.2;
+    this.system.add(this.field);
 
-    const shell = new THREE.Mesh(
-      new THREE.SphereGeometry(4.18, 64, 40),
-      new THREE.MeshPhysicalMaterial({
-        color: 0xf7f8ff,
-        roughness: 0.08,
-        metalness: 0.02,
-        transmission: 0.18,
-        thickness: 0.22,
-        transparent: true,
-        opacity: 0.055,
-        side: THREE.BackSide,
-        depthWrite: false,
-        envMapIntensity: 1.1
-      })
-    );
-    shell.renderOrder = -2;
-    this.field.add(shell);
-
-    const geodesic = new THREE.IcosahedronGeometry(4.2, 4);
-    const wire = new THREE.LineSegments(
-      new THREE.WireframeGeometry(geodesic),
+    const fieldGeometry = new THREE.IcosahedronGeometry(4.22, this.profile.fieldDetail);
+    const fieldWire = new THREE.LineSegments(
+      new THREE.WireframeGeometry(fieldGeometry),
       new THREE.LineBasicMaterial({
-        color: 0x9ca8cb,
+        color: 0xa8acd1,
         transparent: true,
-        opacity: 0.055,
+        opacity: 0.11,
         blending: THREE.AdditiveBlending,
         depthWrite: false
       })
     );
-    wire.renderOrder = -1;
-    this.field.add(wire);
+    this.field.add(fieldWire);
 
-    const fieldPoints = new THREE.Points(
-      geodesic,
+    const fieldDots = new THREE.Points(
+      fieldGeometry,
       new THREE.PointsMaterial({
-        color: 0xc8c8e9,
-        size: 0.018,
+        color: 0xb5b9db,
+        size: 0.026,
         transparent: true,
-        opacity: 0.34,
+        opacity: 0.48,
         blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        sizeAttenuation: true
+        depthWrite: false
       })
     );
-    this.field.add(fieldPoints);
-    const longitudeMaterial = new THREE.LineBasicMaterial({
-      color: 0xc2bddf,
-      transparent: true,
-      opacity: 0.065,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false
-    });
+    this.field.add(fieldDots);
 
-    for (let index = 0; index < 9; index += 1) {
-      const loop = createLineLoop(4.23, 4.23, 0, longitudeMaterial, 220, index * 0.13);
-      loop.rotation.x = Math.PI / 2;
-      loop.rotation.y = (index / 9) * Math.PI;
-      this.field.add(loop);
+    const longitudeLoops = [];
+    for (let index = 0; index < 7; index += 1) {
+      longitudeLoops.push({
+        radiusX: 4.23,
+        radiusZ: 4.23,
+        y: 0,
+        tilt: Math.PI / 2,
+        phase: index * 0.19,
+        color: index % 2 ? 0xc9c3df : 0xb5c4dc
+      });
     }
+    const longitudes = new THREE.LineSegments(
+      createSegmentsFromLoops(longitudeLoops, this.profile.mobile ? 56 : 88),
+      new THREE.LineBasicMaterial({
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.08,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      })
+    );
+    this.field.add(longitudes);
+
+    const halo = this.#glowSprite(0xc8c5ed, 9.2, 0.16);
+    halo.position.z = -1.5;
+    this.field.add(halo);
   }
 
-  #createConstellationNetwork() {
-    const pointCount = 390;
+  #createConstellations() {
     const points = [];
-    const pointArray = [];
     const colors = [];
-    const palette = [new THREE.Color(0x8ab6ef), new THREE.Color(0xb69bf1), new THREE.Color(0x8edbd1)];
+    const connections = [];
+    const palette = [new THREE.Color(0x6da6eb), new THREE.Color(0x9a77e7), new THREE.Color(0x6fcbbf)];
 
-    for (let index = 0; index < pointCount; index += 1) {
-      const radius = Math.pow(this.random(), 0.72) * 4.0;
+    for (let index = 0; index < this.profile.constellationPoints; index += 1) {
+      const radius = Math.pow(this.random(), 0.65) * 3.92;
       const theta = this.random() * TAU;
-      const phi = Math.acos(2 * this.random() - 1);
+      const phi = Math.acos(this.random() * 2 - 1);
       const point = new THREE.Vector3(
         radius * Math.sin(phi) * Math.cos(theta),
-        radius * Math.cos(phi),
+        radius * Math.cos(phi) + 0.2,
         radius * Math.sin(phi) * Math.sin(theta)
       );
       points.push(point);
-      pointArray.push(point.x, point.y, point.z);
-      const color = palette[index % palette.length].clone().lerp(new THREE.Color(0xffffff), this.random() * 0.42);
-      colors.push(color.r, color.g, color.b);
+      const tint = palette[index % palette.length].clone().lerp(new THREE.Color(0xffffff), 0.25 + this.random() * 0.3);
+      colors.push(tint.r, tint.g, tint.b);
     }
 
-    const pointGeometry = new THREE.BufferGeometry();
-    pointGeometry.setAttribute("position", new THREE.Float32BufferAttribute(pointArray, 3));
-    pointGeometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-    const stars = new THREE.Points(
-      pointGeometry,
-      new THREE.PointsMaterial({
-        vertexColors: true,
-        size: 0.026,
-        transparent: true,
-        opacity: 0.58,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        sizeAttenuation: true
-      })
-    );
-
-    const segments = [];
     for (let index = 0; index < points.length; index += 1) {
-      let nearest = null;
-      let nearestDistance = 1.18;
-      const searchLimit = Math.min(points.length, index + 24);
-      for (let candidate = index + 1; candidate < searchLimit; candidate += 1) {
-        const distance = points[index].distanceTo(points[candidate]);
-        if (distance < nearestDistance) {
-          nearestDistance = distance;
-          nearest = points[candidate];
+      let closest = null;
+      let distance = 1.22;
+      for (let candidate = index + 1; candidate < Math.min(points.length, index + 13); candidate += 1) {
+        const candidateDistance = points[index].distanceTo(points[candidate]);
+        if (candidateDistance < distance) {
+          closest = points[candidate];
+          distance = candidateDistance;
         }
       }
-      if (nearest) segments.push(points[index].x, points[index].y, points[index].z, nearest.x, nearest.y, nearest.z);
+      if (closest) connections.push(points[index].x, points[index].y, points[index].z, closest.x, closest.y, closest.z);
     }
 
-    const lineGeometry = new THREE.BufferGeometry();
-    lineGeometry.setAttribute("position", new THREE.Float32BufferAttribute(segments, 3));
-    const connections = new THREE.LineSegments(
-      lineGeometry,
-      new THREE.LineBasicMaterial({
-        color: 0xa6abd1,
-        transparent: true,
-        opacity: 0.105,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false
-      })
-    );
-
-    this.constellations = new THREE.Group();
-    this.constellations.add(connections, stars);
-    this.constellations.position.y = 0.16;
-    this.unity.add(this.constellations);
-  }
-
-  #createCentralCrystal() {
-    this.crystal = new THREE.Group();
-    this.crystal.position.set(0, 0.55, 0.1);
-    this.unity.add(this.crystal);
-
-    const crystalGeometry = new THREE.OctahedronGeometry(1.52, 3).toNonIndexed();
-    const position = crystalGeometry.getAttribute("position");
-    for (let index = 0; index < position.count; index += 1) {
-      const x = position.getX(index);
-      const y = position.getY(index);
-      const z = position.getZ(index);
-      const perturbation = 1 + Math.sin(x * 7.31 + y * 4.73 + z * 6.17) * 0.018;
-      position.setXYZ(index, x * perturbation * 1.11, y * perturbation * 1.13, z * perturbation * 0.96);
-    }
-    crystalGeometry.computeVertexNormals();
-    createVertexColors(crystalGeometry, 0x765ad3, this.random, 0.3);
-
-    const shell = new THREE.Mesh(
-      crystalGeometry,
-      new THREE.MeshPhysicalMaterial({
+    const pointsGeometry = new THREE.BufferGeometry().setFromPoints(points);
+    pointsGeometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+    this.constellations = new THREE.Points(
+      pointsGeometry,
+      new THREE.PointsMaterial({
         vertexColors: true,
-        flatShading: true,
-        roughness: 0.06,
-        metalness: 0.08,
-        transmission: 0.34,
-        thickness: 1.65,
-        ior: 1.78,
-        dispersion: 0.16,
-        iridescence: 0.42,
-        iridescenceIOR: 1.38,
-        clearcoat: 1,
-        clearcoatRoughness: 0.06,
+        size: 0.035,
         transparent: true,
-        opacity: 0.91,
-        envMapIntensity: 2.4,
-        side: THREE.DoubleSide
-      })
-    );
-    shell.name = "Unity Crystal";
-    shell.renderOrder = 3;
-    this.crystal.add(shell);
-
-    const inner = new THREE.Mesh(
-      new THREE.OctahedronGeometry(0.92, 1),
-      new THREE.MeshStandardMaterial({
-        color: 0x6c4bc9,
-        emissive: new THREE.Color().setRGB(0.64, 0.38, 1.36),
-        emissiveIntensity: 2.35,
-        roughness: 0.2,
-        metalness: 0.08,
-        flatShading: true,
-        transparent: true,
-        opacity: 0.66
-      })
-    );
-    inner.scale.set(1.08, 1.12, 0.94);
-    inner.rotation.set(0.18, 0.35, 0.08);
-    this.crystal.add(inner);
-    this.crystalInner = inner;
-
-    const edgeGeometry = new THREE.WireframeGeometry(new THREE.OctahedronGeometry(1.24, 3));
-    const edges = new THREE.LineSegments(
-      edgeGeometry,
-      new THREE.LineBasicMaterial({
-        color: 0xd9d3ff,
-        transparent: true,
-        opacity: 0.24,
+        opacity: 0.72,
         blending: THREE.AdditiveBlending,
         depthWrite: false
       })
     );
-    edges.scale.set(1.1, 1.14, 0.95);
-    this.crystal.add(edges);
-    this.crystalEdges = edges;
+    this.system.add(this.constellations);
 
-    const flare = this.#createFlare(0xa990ff, 2.75, true);
-    flare.position.z = 1.1;
-    this.crystal.add(flare);
-    this.centralFlare = flare;
-
-    const vertical = this.#createRay(0xb5a5ff, 0.12, 6.8);
-    vertical.rotation.z = Math.PI / 2;
-    vertical.position.z = 1.18;
-    this.crystal.add(vertical);
-    const horizontal = this.#createRay(0xc8c1ff, 0.08, 8.8);
-    horizontal.position.z = 1.16;
-    this.crystal.add(horizontal);
-
-    const coreLight = new THREE.PointLight(0x8a63ff, 9, 8, 2);
-    coreLight.position.set(0, 0, 1.4);
-    this.crystal.add(coreLight);
-
-    const axisMaterial = new THREE.LineBasicMaterial({
-      color: 0xbbaeff,
-      transparent: true,
-      opacity: 0.36,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false
-    });
-    const axis = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, -3.85, 0), new THREE.Vector3(0, 4.05, 0)]),
-      axisMaterial
-    );
-    this.crystal.add(axis);
-
-    for (let index = 0; index < 7; index += 1) {
-      const bead = new THREE.Mesh(
-        new THREE.OctahedronGeometry(0.045 + index * 0.008, 0),
-        new THREE.MeshBasicMaterial({
-          color: index % 2 ? 0x8e73da : 0xe8e4ff,
-          transparent: true,
-          opacity: 0.72,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false
-        })
-      );
-      bead.position.y = 1.76 + index * 0.34;
-      bead.position.z = 0.03;
-      this.crystal.add(bead);
-      this.motionObjects.push({ object: bead, baseY: bead.position.y, phase: index * 0.8, amplitude: 0.035 });
-    }
-
-    const title = document.querySelector(".intro");
-    title?.addEventListener("click", () => this.resetFocus());
-  }
-
-  #createPortals() {
-    Object.entries(WORLD_DATA).forEach(([key, data], index) => {
-      const portal = this.#createPortal(key, data, index);
-      portal.position.set(...data.position);
-      portal.userData.baseY = data.position[1];
-      portal.userData.phase = index * 1.9;
-      this.unity.add(portal);
-      this.portals.set(key, portal);
-    });
-  }
-
-  #createPortal(key, data, index) {
-    const group = new THREE.Group();
-    group.name = data.title;
-    group.userData.key = key;
-    group.userData.targetScale = 1;
-
-    const outer = new THREE.Mesh(
-      new THREE.SphereGeometry(0.83, 40, 28),
-      new THREE.MeshPhysicalMaterial({
-        color: data.color,
-        roughness: 0.04,
-        metalness: 0.03,
-        transmission: 0.54,
-        thickness: 0.78,
-        ior: 1.47,
-        iridescence: 0.24,
-        clearcoat: 1,
-        clearcoatRoughness: 0.04,
-        transparent: true,
-        opacity: 0.55,
-        envMapIntensity: 2.0,
-        depthWrite: false
-      })
-    );
-    outer.renderOrder = 4;
-    group.add(outer);
-
-    const innerGeometry = new THREE.IcosahedronGeometry(0.65, 3).toNonIndexed();
-    createVertexColors(innerGeometry, data.color, this.random, 0.3);
-    const inner = new THREE.Mesh(
-      innerGeometry,
-      new THREE.MeshPhysicalMaterial({
-        vertexColors: true,
-        flatShading: true,
-        roughness: 0.11,
-        metalness: 0.14,
-        transmission: 0.14,
-        thickness: 0.42,
-        clearcoat: 0.8,
-        transparent: true,
-        opacity: 0.88,
-        envMapIntensity: 1.8
-      })
-    );
-    inner.userData.portal = key;
-    group.add(inner);
-    this.interactiveTargets.push(inner, outer);
-    outer.userData.portal = key;
-
-    const wire = new THREE.LineSegments(
-      new THREE.WireframeGeometry(new THREE.IcosahedronGeometry(0.69, 2)),
-      new THREE.LineBasicMaterial({
-        color: new THREE.Color(data.color).lerp(new THREE.Color(0xffffff), 0.62),
-        transparent: true,
-        opacity: 0.34,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false
-      })
-    );
-    group.add(wire);
-
-    for (let ringIndex = 0; ringIndex < 5; ringIndex += 1) {
-      const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(0.95 + ringIndex * 0.12, 0.006 + ringIndex * 0.0015, 5, 128),
-        new THREE.MeshBasicMaterial({
-          color: data.color,
-          transparent: true,
-          opacity: 0.28 - ringIndex * 0.035,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false
-        })
-      );
-      ring.rotation.set(
-        (ringIndex - 2) * 0.17,
-        (ringIndex % 2 ? 1 : -1) * (0.08 + ringIndex * 0.04),
-        ringIndex * 0.13
-      );
-      ring.userData.spin = (ringIndex % 2 ? 1 : -1) * (0.08 + ringIndex * 0.025);
-      group.add(ring);
-      group.userData.rings ??= [];
-      group.userData.rings.push(ring);
-    }
-
-    const flare = this.#createFlare(data.color, 1.76, false);
-    flare.position.z = 0.78;
-    group.add(flare);
-    group.userData.flare = flare;
-
-    const light = new THREE.PointLight(data.color, 5.2, 5.5, 2);
-    light.position.z = 0.65;
-    group.add(light);
-
-    const label = this.#createPortalLabel(key, data);
-    label.position.set(...data.label);
-    group.add(label);
-    group.userData.label = label;
-    this.portalLabels.set(key, label.element);
-
-    group.rotation.z = (index - 1) * 0.035;
-    return group;
-  }
-
-  #createPortalLabel(key, data) {
-    const wrapper = document.createElement("div");
-    wrapper.className = `portal-label ${key}`;
-    wrapper.innerHTML = `
-      <span class="portal-thread" aria-hidden="true"></span>
-      <button class="portal-card" type="button" aria-label="Focus ${data.title}">
-        <span class="portal-glyph" aria-hidden="true"></span>
-        <span class="portal-copy">
-          <strong>${data.title}</strong>
-          <small>${data.subtitle}</small>
-        </span>
-      </button>
-    `;
-    wrapper.querySelector("button").addEventListener("click", (event) => {
-      event.stopPropagation();
-      this.focusWorld(key);
-    });
-    return new CSS2DObject(wrapper);
+    const connectionGeometry = new THREE.BufferGeometry();
+    connectionGeometry.setAttribute("position", new THREE.Float32BufferAttribute(connections, 3));
+    this.system.add(new THREE.LineSegments(
+      connectionGeometry,
+      new THREE.LineBasicMaterial({ color: 0x929ac4, transparent: true, opacity: 0.16, depthWrite: false })
+    ));
   }
 
   #createPlatform() {
     this.platform = new THREE.Group();
-    this.platform.position.y = -3.02;
-    this.unity.add(this.platform);
+    this.platform.position.y = -3.0;
+    this.system.add(this.platform);
 
     const base = new THREE.Mesh(
-      new THREE.CylinderGeometry(4.75, 4.94, 0.18, 128),
-      new THREE.MeshPhysicalMaterial({
-        color: 0xdce3ec,
-        metalness: 0.7,
-        roughness: 0.2,
-        clearcoat: 1,
-        clearcoatRoughness: 0.1,
-        transparent: true,
-        opacity: 0.78,
-        envMapIntensity: 1.55
-      })
+      new THREE.CylinderGeometry(4.62, 4.87, 0.18, this.profile.platformSegments),
+      new THREE.MeshPhongMaterial({ color: 0xd5dce9, specular: 0xffffff, shininess: 90, transparent: true, opacity: 0.88 })
     );
     this.platform.add(base);
 
     const glass = new THREE.Mesh(
-      new THREE.CylinderGeometry(4.48, 4.48, 0.055, 128),
-      new THREE.MeshPhysicalMaterial({
-        color: 0xf7f7ff,
-        roughness: 0.04,
-        metalness: 0.18,
-        transmission: 0.48,
-        thickness: 0.28,
-        transparent: true,
-        opacity: 0.62,
-        envMapIntensity: 1.7,
-        depthWrite: false
-      })
+      new THREE.CylinderGeometry(4.36, 4.45, 0.045, this.profile.platformSegments),
+      new THREE.MeshBasicMaterial({ color: 0xf7f4ff, transparent: true, opacity: 0.35, depthWrite: false })
     );
     glass.position.y = 0.12;
     this.platform.add(glass);
 
-    const ringColors = [0xa6b8d6, 0xb09ae5, 0x7ec9d4, 0xd7cdee];
+    const loops = [];
     for (let index = 0; index < 13; index += 1) {
-      const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(0.72 + index * 0.29, 0.008 + (index % 4 === 0 ? 0.008 : 0), 5, 160),
-        new THREE.MeshBasicMaterial({
-          color: ringColors[index % ringColors.length],
-          transparent: true,
-          opacity: index % 4 === 0 ? 0.37 : 0.16,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false
-        })
-      );
-      ring.rotation.x = Math.PI / 2;
-      ring.position.y = 0.17 + index * 0.001;
-      this.platform.add(ring);
+      loops.push({
+        radiusX: 0.68 + index * 0.29,
+        radiusZ: 0.68 + index * 0.29,
+        y: 0.17,
+        color: index % 3 === 0 ? 0x9679de : index % 3 === 1 ? 0x74b7df : 0x82c9c2
+      });
     }
-
+    const ringGeometry = createSegmentsFromLoops(loops, this.profile.mobile ? 56 : 88);
     const radialPositions = [];
-    for (let index = 0; index < 48; index += 1) {
-      const angle = (index / 48) * TAU;
-      radialPositions.push(
-        Math.cos(angle) * 0.65, 0.18, Math.sin(angle) * 0.65,
-        Math.cos(angle) * 4.28, 0.18, Math.sin(angle) * 4.28
-      );
+    const radialColors = [];
+    for (let index = 0; index < 36; index += 1) {
+      const angle = (index / 36) * TAU;
+      radialPositions.push(Math.cos(angle) * 0.55, 0.175, Math.sin(angle) * 0.55, Math.cos(angle) * 4.18, 0.175, Math.sin(angle) * 4.18);
+      for (let vertex = 0; vertex < 2; vertex += 1) radialColors.push(0.62, 0.59, 0.81);
     }
-    const radialGeometry = new THREE.BufferGeometry();
-    radialGeometry.setAttribute("position", new THREE.Float32BufferAttribute(radialPositions, 3));
+    const existingPosition = Array.from(ringGeometry.getAttribute("position").array);
+    const existingColors = Array.from(ringGeometry.getAttribute("color").array);
+    ringGeometry.setAttribute("position", new THREE.Float32BufferAttribute([...existingPosition, ...radialPositions], 3));
+    ringGeometry.setAttribute("color", new THREE.Float32BufferAttribute([...existingColors, ...radialColors], 3));
     this.platform.add(new THREE.LineSegments(
-      radialGeometry,
-      new THREE.LineBasicMaterial({
-        color: 0xb8addb,
+      ringGeometry,
+      new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.42, blending: THREE.AdditiveBlending, depthWrite: false })
+    ));
+
+    const platformGlow = new THREE.Mesh(
+      new THREE.CircleGeometry(4.18, this.profile.platformSegments),
+      new THREE.MeshBasicMaterial({
+        color: 0xa489f0,
         transparent: true,
         opacity: 0.1,
         blending: THREE.AdditiveBlending,
-        depthWrite: false
-      })
-    ));
-
-    const projection = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.58, 1.38, 2.0, 64, 1, true),
-      new THREE.MeshBasicMaterial({
-        color: 0x9977eb,
-        transparent: true,
-        opacity: 0.035,
-        blending: THREE.AdditiveBlending,
-        side: THREE.DoubleSide,
-        depthWrite: false
+        depthWrite: false,
+        side: THREE.DoubleSide
       })
     );
-    projection.position.y = 1.14;
-    this.platform.add(projection);
+    platformGlow.rotation.x = -Math.PI / 2;
+    platformGlow.position.y = 0.15;
+    this.platform.add(platformGlow);
   }
 
-  #createOrbitalSystem() {
-    const paths = [
+  #createCore() {
+    this.core = new THREE.Group();
+    this.core.position.set(0, 0.58, 0.18);
+    this.system.add(this.core);
+
+    const outerGeometry = applyFacetColors(
+      new THREE.OctahedronGeometry(1.66, this.profile.facetDetail),
+      0x6942c7,
+      this.random,
+      0.34
+    );
+    const outer = new THREE.Mesh(
+      outerGeometry,
+      new THREE.MeshPhongMaterial({
+        vertexColors: true,
+        flatShading: true,
+        specular: 0xffffff,
+        shininess: 120,
+        transparent: true,
+        opacity: 0.88,
+        side: THREE.DoubleSide
+      })
+    );
+    outer.scale.set(1.12, 1.09, 0.93);
+    outer.name = "Unity Crystal";
+    this.core.add(outer);
+
+    const inner = new THREE.Mesh(
+      new THREE.OctahedronGeometry(1.18, 0),
+      new THREE.MeshPhongMaterial({
+        color: 0x44208f,
+        emissive: 0x2d106c,
+        emissiveIntensity: 0.95,
+        specular: 0xe5d9ff,
+        shininess: 100,
+        flatShading: true,
+        transparent: true,
+        opacity: 0.94
+      })
+    );
+    inner.scale.set(1.13, 1.12, 0.9);
+    inner.rotation.set(0.13, 0.29, 0.05);
+    this.core.add(inner);
+    this.coreInner = inner;
+
+    const wire = new THREE.LineSegments(
+      new THREE.WireframeGeometry(new THREE.OctahedronGeometry(1.7, this.profile.facetDetail)),
+      new THREE.LineBasicMaterial({ color: 0xe6dfff, transparent: true, opacity: 0.44, blending: THREE.AdditiveBlending, depthWrite: false })
+    );
+    wire.scale.set(1.12, 1.09, 0.93);
+    this.core.add(wire);
+    this.coreWire = wire;
+
+    const glow = this.#glowSprite(0x9a78ff, 4.7, 0.9);
+    glow.position.z = 0.75;
+    this.core.add(glow);
+    this.coreGlow = glow;
+    this.core.add(this.#raySprite(0xc5b6ff, 7.4, 0.13, false));
+    this.core.add(this.#raySprite(0xc5b6ff, 5.8, 0.11, true));
+
+    const axisGeometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, -3.7, 0.05), new THREE.Vector3(0, 3.8, 0.05)]);
+    this.core.add(new THREE.Line(axisGeometry, new THREE.LineBasicMaterial({ color: 0xac95ed, transparent: true, opacity: 0.42, blending: THREE.AdditiveBlending })));
+
+    for (let index = 0; index < 6; index += 1) {
+      const bead = new THREE.Mesh(
+        new THREE.OctahedronGeometry(0.045 + index * 0.006, 0),
+        new THREE.MeshBasicMaterial({ color: index % 2 ? 0xffffff : 0x9a79e2, transparent: true, opacity: 0.88 })
+      );
+      bead.position.y = 1.85 + index * 0.35;
+      bead.userData.baseY = bead.position.y;
+      this.core.add(bead);
+      this.floaters.push({ object: bead, phase: index * 0.8, amplitude: 0.035 });
+    }
+  }
+
+  #createPortals() {
+    Object.entries(WORLD_DATA).forEach(([key, data], index) => {
+      const portal = new THREE.Group();
+      portal.name = data.title;
+      portal.position.set(...data.position);
+      portal.userData.baseY = data.position[1];
+      portal.userData.phase = index * 2.1;
+      portal.userData.targetScale = 1;
+
+      const geometry = applyFacetColors(
+        new THREE.IcosahedronGeometry(0.73, this.profile.portalDetail),
+        data.color,
+        this.random,
+        0.28
+      );
+      const sphere = new THREE.Mesh(
+        geometry,
+        new THREE.MeshPhongMaterial({
+          vertexColors: true,
+          flatShading: true,
+          specular: 0xffffff,
+          shininess: 105,
+          transparent: true,
+          opacity: 0.96
+        })
+      );
+      sphere.userData.world = key;
+      portal.add(sphere);
+      this.interactive.push(sphere);
+
+      const inner = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(0.52, 1),
+        new THREE.MeshBasicMaterial({ color: new THREE.Color(data.color).multiplyScalar(0.55), transparent: true, opacity: 0.68, wireframe: true })
+      );
+      inner.rotation.set(0.2, 0.3, 0.1);
+      portal.add(inner);
+
+      const shell = new THREE.Mesh(
+        new THREE.SphereGeometry(0.86, this.profile.mobile ? 18 : 26, this.profile.mobile ? 12 : 18),
+        new THREE.MeshBasicMaterial({ color: data.color, transparent: true, opacity: 0.13, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })
+      );
+      shell.userData.world = key;
+      portal.add(shell);
+      this.interactive.push(shell);
+
+      const rings = [];
+      for (let ringIndex = 0; ringIndex < 3; ringIndex += 1) {
+        const ring = new THREE.Mesh(
+          new THREE.TorusGeometry(0.96 + ringIndex * 0.12, 0.009, 4, this.profile.mobile ? 54 : 80),
+          new THREE.MeshBasicMaterial({ color: data.color, transparent: true, opacity: 0.46 - ringIndex * 0.1, blending: THREE.AdditiveBlending, depthWrite: false })
+        );
+        ring.rotation.set((ringIndex - 1) * 0.2, (ringIndex % 2 ? 1 : -1) * 0.12, ringIndex * 0.15);
+        ring.userData.speed = (ringIndex % 2 ? 1 : -1) * (0.15 + ringIndex * 0.05);
+        ring.userData.baseRotationZ = ring.rotation.z;
+        rings.push(ring);
+        portal.add(ring);
+      }
+      portal.userData.rings = rings;
+
+      const glow = this.#glowSprite(data.color, 2.55, 0.78);
+      glow.position.z = 0.65;
+      portal.add(glow);
+      portal.userData.glow = glow;
+      portal.add(this.#raySprite(data.color, 3.7, 0.1, false));
+      portal.add(this.#raySprite(data.color, 2.8, 0.075, true));
+
+      this.portals.set(key, portal);
+      this.system.add(portal);
+    });
+  }
+
+  #createOrbits() {
+    const definitions = [
       {
-        color: 0x4e92ef,
-        speed: 0.028,
-        phase: 0.02,
-        points: [
-          [-4.35, 1.65, 0.2], [-2.6, 3.12, -0.42], [0.1, 2.15, 0.8],
-          [3.7, 0.25, 0.1], [1.45, -2.48, 0.68], [-2.92, -1.35, -0.18]
-        ]
+        color: 0x438ee9,
+        speed: 0.026,
+        points: [[-4.15, 1.6, 0.1], [-2.5, 3.02, -0.35], [0, 2.0, 0.72], [3.55, 0.18, 0.1], [1.45, -2.45, 0.56], [-2.9, -1.28, -0.12]]
       },
       {
-        color: 0x54cfc0,
-        speed: -0.023,
-        phase: 0.34,
-        points: [
-          [4.35, 1.67, 0.12], [2.5, 3.1, -0.3], [-0.15, 2.05, 0.82],
-          [-3.6, 0.2, -0.08], [-1.48, -2.52, 0.78], [3.0, -1.28, -0.1]
-        ]
+        color: 0x45c8ba,
+        speed: -0.022,
+        points: [[4.15, 1.62, 0.1], [2.45, 3.0, -0.28], [0, 2.03, 0.78], [-3.55, 0.2, 0.05], [-1.42, -2.46, 0.62], [2.95, -1.22, -0.08]]
       },
       {
-        color: 0x9565ea,
-        speed: 0.019,
-        phase: 0.68,
-        points: [
-          [-3.62, 1.08, 0.9], [-2.4, -1.92, 0.26], [0, -2.48, 0.58],
-          [2.5, -1.82, 0.16], [3.6, 1.04, 0.82], [0, 0.62, -1.05]
-        ]
+        color: 0x8859e8,
+        speed: 0.018,
+        points: [[-3.58, 1.06, 0.7], [-2.34, -1.75, 0.18], [0, -2.48, 0.48], [2.38, -1.74, 0.16], [3.58, 1.08, 0.68], [0, 0.54, -0.92]]
       }
     ];
 
-    paths.forEach((path, index) => this.#createOrbit(path, index));
-
-    const ringGroup = new THREE.Group();
-    ringGroup.position.y = 0.26;
-    ringGroup.rotation.set(0.08, 0.02, -0.025);
-    this.unity.add(ringGroup);
-    this.saturnRings = ringGroup;
-
-    for (let index = 0; index < 19; index += 1) {
-      const radius = 1.95 + index * 0.13;
-      const line = createLineLoop(
-        radius,
-        radius * (0.31 + index * 0.004),
-        (index - 9) * 0.012,
-        new THREE.LineBasicMaterial({
-          color: index % 3 === 0 ? 0xc2aaf1 : 0xd9d8e7,
-          transparent: true,
-          opacity: index % 3 === 0 ? 0.23 : 0.105,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false
-        }),
-        300,
-        index * 0.07
+    definitions.forEach((definition, orbitIndex) => {
+      const curve = new THREE.CatmullRomCurve3(
+        definition.points.map((point) => new THREE.Vector3(...point)),
+        true,
+        "centripetal",
+        0.42
       );
-      ringGroup.add(line);
-    }
-  }
+      const group = new THREE.Group();
+      group.name = `Possibility Orbit ${orbitIndex + 1}`;
 
-  #createOrbit(path, index) {
-    const curve = new THREE.CatmullRomCurve3(
-      path.points.map((point) => new THREE.Vector3(...point)),
-      true,
-      "centripetal",
-      0.45
-    );
-    const group = new THREE.Group();
-    group.name = `Causal Orbit ${index + 1}`;
-    this.unity.add(group);
+      const aura = new THREE.Mesh(
+        new THREE.TubeGeometry(curve, this.profile.curveSegments, 0.045, 3, true),
+        new THREE.MeshBasicMaterial({ color: definition.color, transparent: true, opacity: 0.13, blending: THREE.AdditiveBlending, depthWrite: false })
+      );
+      group.add(aura);
 
-    const aura = new THREE.Mesh(
-      new THREE.TubeGeometry(curve, 360, 0.032, 6, true),
-      new THREE.MeshBasicMaterial({
-        color: path.color,
-        transparent: true,
-        opacity: 0.09,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false
-      })
-    );
-    group.add(aura);
+      const filament = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(curve.getSpacedPoints(this.profile.curveSegments * 2)),
+        new THREE.LineBasicMaterial({ color: new THREE.Color(definition.color).lerp(new THREE.Color(0xffffff), 0.35), transparent: true, opacity: 0.78, blending: THREE.AdditiveBlending, depthWrite: false })
+      );
+      group.add(filament);
 
-    const filament = new THREE.Mesh(
-      new THREE.TubeGeometry(curve, 360, 0.008, 5, true),
-      new THREE.MeshBasicMaterial({
-        color: new THREE.Color(path.color).lerp(new THREE.Color(0xffffff), 0.42),
-        transparent: true,
-        opacity: 0.56,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false
-      })
-    );
-    group.add(filament);
-
-    const particleCount = 94;
-    const positions = new Float32Array(particleCount * 3);
-    const phases = new Float32Array(particleCount);
-    for (let particle = 0; particle < particleCount; particle += 1) {
-      phases[particle] = (particle / particleCount + this.random() * 0.018) % 1;
-      const point = curve.getPointAt(phases[particle]);
-      positions.set([point.x, point.y, point.z], particle * 3);
-    }
-
-    const particleGeometry = new THREE.BufferGeometry();
-    particleGeometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    const particles = new THREE.Points(
-      particleGeometry,
-      new THREE.PointsMaterial({
-        color: new THREE.Color(path.color).lerp(new THREE.Color(0xffffff), 0.5),
-        size: 0.042,
-        transparent: true,
-        opacity: 0.78,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        sizeAttenuation: true
-      })
-    );
-    group.add(particles);
-
-    this.orbits.push({ curve, group, particles, phases, speed: path.speed, phase: path.phase });
-  }
-
-  #createFloatingFragments() {
-    const material = new THREE.MeshPhysicalMaterial({
-      color: 0xdad7f0,
-      roughness: 0.08,
-      metalness: 0.22,
-      transmission: 0.46,
-      thickness: 0.35,
-      transparent: true,
-      opacity: 0.72,
-      envMapIntensity: 1.4
+      const positions = new Float32Array(this.profile.orbitParticles * 3);
+      const phases = new Float32Array(this.profile.orbitParticles);
+      for (let index = 0; index < phases.length; index += 1) {
+        phases[index] = index / phases.length;
+        const point = curve.getPointAt(phases[index]);
+        positions.set([point.x, point.y, point.z], index * 3);
+      }
+      const particleGeometry = new THREE.BufferGeometry();
+      particleGeometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+      const particles = new THREE.Points(
+        particleGeometry,
+        new THREE.PointsMaterial({ color: 0xffffff, size: this.profile.mobile ? 0.045 : 0.055, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false })
+      );
+      group.add(particles);
+      this.orbits.push({ curve, particles, phases, speed: definition.speed, offset: orbitIndex * 0.31 });
+      this.system.add(group);
     });
 
-    const placements = [
-      [-5.1, -1.9, 0.4, 0.14], [5.25, -2.05, -0.1, 0.11], [-4.75, 0.2, -2.2, 0.08],
-      [4.85, 0.55, -2.4, 0.09], [-2.3, -2.62, 1.4, 0.12], [2.55, -2.61, 1.2, 0.09],
-      [-1.82, 3.45, -0.3, 0.07], [1.96, 3.38, 0.2, 0.06]
-    ];
+    const ringDefinitions = [];
+    for (let index = 0; index < 14; index += 1) {
+      ringDefinitions.push({
+        radiusX: 1.95 + index * 0.14,
+        radiusZ: (1.95 + index * 0.14) * 0.35,
+        y: 0.63 + (index - 7) * 0.012,
+        tilt: 0.09,
+        phase: index * 0.09,
+        color: index % 3 === 0 ? 0xb190e8 : index % 3 === 1 ? 0x9cc2e1 : 0xd2cadf
+      });
+    }
+    this.saturnRings = new THREE.LineSegments(
+      createSegmentsFromLoops(ringDefinitions, this.profile.mobile ? 58 : 92),
+      new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.38, blending: THREE.AdditiveBlending, depthWrite: false })
+    );
+    this.system.add(this.saturnRings);
+  }
 
+  #createFragments() {
+    const material = new THREE.MeshPhongMaterial({ color: 0xd4d6ec, specular: 0xffffff, shininess: 100, transparent: true, opacity: 0.82, flatShading: true });
+    const placements = [[-5.0, -1.85, 0.2, 0.13], [5.05, -1.9, 0.1, 0.12], [-4.72, 0.1, -1.7, 0.08], [4.82, 0.3, -1.8, 0.08], [-2.3, -2.62, 1.0, 0.11], [2.45, -2.61, 1.1, 0.09]];
     placements.forEach(([x, y, z, size], index) => {
       const fragment = new THREE.Mesh(new THREE.OctahedronGeometry(size, 0), material);
-      fragment.scale.y = 1.65;
       fragment.position.set(x, y, z);
-      fragment.rotation.set(index * 0.41, index * 0.73, index * 0.19);
-      this.unity.add(fragment);
-      this.motionObjects.push({
-        object: fragment,
-        baseY: y,
-        phase: index * 0.71,
-        amplitude: 0.045 + (index % 3) * 0.012,
-        spin: 0.04 + index * 0.003
-      });
+      fragment.scale.y = 1.6;
+      fragment.userData.baseY = y;
+      fragment.rotation.set(index * 0.4, index * 0.7, index * 0.2);
+      fragment.userData.baseRotationY = fragment.rotation.y;
+      this.system.add(fragment);
+      this.floaters.push({ object: fragment, phase: index * 0.75, amplitude: 0.045, spin: 0.08 });
     });
   }
 
-  #createFlare(color, scale, strong) {
-    const group = new THREE.Group();
+  #glowSprite(color, scale, opacity) {
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
       map: this.glowTexture,
       color,
       transparent: true,
-      opacity: strong ? 0.94 : 0.82,
+      opacity,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       depthTest: false,
       toneMapped: false
     }));
     sprite.scale.set(scale, scale, 1);
-    group.add(sprite);
-
-    const rayX = this.#createRay(color, strong ? 0.11 : 0.065, scale * 3.1);
-    rayX.position.z = 0.03;
-    const rayY = this.#createRay(color, strong ? 0.1 : 0.052, scale * 2.25);
-    rayY.rotation.z = Math.PI / 2;
-    rayY.position.z = 0.02;
-    group.add(rayX, rayY);
-    return group;
+    sprite.userData.baseScale = scale;
+    return sprite;
   }
 
-  #createRay(color, opacity, length) {
-    const material = new THREE.SpriteMaterial({
+  #raySprite(color, length, opacity, vertical) {
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
       map: this.rayTexture,
       color,
       transparent: true,
@@ -1022,68 +734,90 @@ export class DreamUnityScene {
       depthWrite: false,
       depthTest: false,
       toneMapped: false
-    });
-    const ray = new THREE.Sprite(material);
-    ray.scale.set(length, Math.max(0.05, length * 0.055), 1);
-    return ray;
+    }));
+    sprite.scale.set(length, Math.max(0.06, length * 0.055), 1);
+    sprite.material.rotation = vertical ? Math.PI / 2 : 0;
+    sprite.position.z = 0.86;
+    return sprite;
   }
 
   #bindInteraction() {
     this.onResize = () => this.#resize();
+    this.onVisibility = () => {
+      this.paused = document.hidden;
+      if (!this.paused) this.clock.getDelta();
+    };
     this.onPointerDown = (event) => this.#pointerDown(event);
     this.onPointerMove = (event) => this.#pointerMove(event);
     this.onPointerUp = (event) => this.#pointerUp(event);
     this.onWheel = (event) => this.#wheel(event);
     this.onKeyDown = (event) => this.#keyDown(event);
+    this.onContextLost = (event) => {
+      event.preventDefault();
+      this.paused = true;
+      window.dispatchEvent(new CustomEvent("dreamunity:contextlost"));
+    };
+    this.onContextRestored = () => {
+      this.paused = false;
+      this.#render();
+      window.dispatchEvent(new CustomEvent("dreamunity:contextrestored"));
+    };
+
     window.addEventListener("resize", this.onResize, { passive: true });
-    this.renderer.domElement.addEventListener("pointerdown", this.onPointerDown);
-    this.renderer.domElement.addEventListener("pointermove", this.onPointerMove);
-    this.renderer.domElement.addEventListener("pointerup", this.onPointerUp);
-    this.renderer.domElement.addEventListener("pointercancel", this.onPointerUp);
-    this.renderer.domElement.addEventListener("wheel", this.onWheel, { passive: false });
-    this.renderer.domElement.addEventListener("keydown", this.onKeyDown);
+    document.addEventListener("visibilitychange", this.onVisibility, { passive: true });
+    const canvas = this.renderer.domElement;
+    canvas.addEventListener("pointerdown", this.onPointerDown);
+    canvas.addEventListener("pointermove", this.onPointerMove);
+    canvas.addEventListener("pointerup", this.onPointerUp);
+    canvas.addEventListener("pointercancel", this.onPointerUp);
+    canvas.addEventListener("wheel", this.onWheel, { passive: false });
+    canvas.addEventListener("keydown", this.onKeyDown);
+    canvas.addEventListener("webglcontextlost", this.onContextLost);
+    canvas.addEventListener("webglcontextrestored", this.onContextRestored);
   }
 
   #pointerDown(event) {
-    this.hasInteracted = true;
     this.dragDistance = 0;
-    this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY });
+    this.lastInteraction = performance.now();
+    this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     this.renderer.domElement.setPointerCapture?.(event.pointerId);
     this.container.classList.add("is-dragging");
-
+    document.body.classList.add("is-orbiting");
     if (this.pointers.size === 2) {
       const pointers = [...this.pointers.values()];
-      this.initialPinchDistance = Math.hypot(pointers[0].x - pointers[1].x, pointers[0].y - pointers[1].y);
-      this.initialPinchZ = this.targetCameraZ;
+      this.pinchDistance = Math.hypot(pointers[0].x - pointers[1].x, pointers[0].y - pointers[1].y);
+      this.pinchScale = this.targetScale;
     }
   }
 
   #pointerMove(event) {
     const pointer = this.pointers.get(event.pointerId);
     if (!pointer) return;
-    const deltaX = event.clientX - pointer.x;
-    const deltaY = event.clientY - pointer.y;
+    const dx = event.clientX - pointer.x;
+    const dy = event.clientY - pointer.y;
     pointer.x = event.clientX;
     pointer.y = event.clientY;
-    this.dragDistance += Math.abs(deltaX) + Math.abs(deltaY);
+    this.dragDistance += Math.abs(dx) + Math.abs(dy);
+    this.lastInteraction = performance.now();
 
     if (this.pointers.size === 1) {
-      this.targetRotation.y += deltaX * 0.0042;
-      this.targetRotation.x = THREE.MathUtils.clamp(this.targetRotation.x + deltaY * 0.0024, -0.32, 0.32);
-      this.rotationVelocity.set(deltaY * 0.0007, deltaX * 0.00115);
+      this.targetRotation.y = THREE.MathUtils.clamp(this.targetRotation.y + dx * 0.0035, -0.58, 0.58);
+      this.targetRotation.x = THREE.MathUtils.clamp(this.targetRotation.x + dy * 0.0021, -0.24, 0.24);
     } else if (this.pointers.size === 2) {
       const pointers = [...this.pointers.values()];
       const distance = Math.hypot(pointers[0].x - pointers[1].x, pointers[0].y - pointers[1].y);
-      const ratio = this.initialPinchDistance / Math.max(distance, 1);
-      this.targetCameraZ = THREE.MathUtils.clamp(this.initialPinchZ * ratio, this.baseCameraZ * 0.76, this.baseCameraZ * 1.32);
+      this.targetScale = THREE.MathUtils.clamp(this.pinchScale * (distance / Math.max(this.pinchDistance, 1)), this.baseScale * 0.84, this.baseScale * 1.13);
     }
   }
 
   #pointerUp(event) {
-    const pointer = this.pointers.get(event.pointerId);
+    const shouldPick = this.dragDistance < 8;
     this.pointers.delete(event.pointerId);
-    if (this.pointers.size === 0) this.container.classList.remove("is-dragging");
-    if (pointer && this.dragDistance < 8) this.#pick(event);
+    if (this.pointers.size === 0) {
+      this.container.classList.remove("is-dragging");
+      window.setTimeout(() => document.body.classList.remove("is-orbiting"), 450);
+    }
+    if (shouldPick) this.#pick(event);
   }
 
   #pick(event) {
@@ -1094,202 +828,200 @@ export class DreamUnityScene {
     );
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(pointer, this.camera);
-    const hit = raycaster.intersectObjects(this.interactiveTargets, false)[0];
-    if (hit?.object.userData.portal) this.focusWorld(hit.object.userData.portal);
+    const hit = raycaster.intersectObjects(this.interactive, false)[0];
+    if (hit?.object.userData.world) this.focusWorld(hit.object.userData.world);
   }
 
   #wheel(event) {
     event.preventDefault();
-    this.hasInteracted = true;
-    this.targetCameraZ = THREE.MathUtils.clamp(
-      this.targetCameraZ + event.deltaY * 0.0045,
-      this.baseCameraZ * 0.76,
-      this.baseCameraZ * 1.32
-    );
+    this.lastInteraction = performance.now();
+    this.targetScale = THREE.MathUtils.clamp(this.targetScale - event.deltaY * 0.00045, this.baseScale * 0.84, this.baseScale * 1.13);
   }
 
   #keyDown(event) {
-    const step = 0.13;
-    if (event.key === "ArrowLeft") this.targetRotation.y -= step;
-    if (event.key === "ArrowRight") this.targetRotation.y += step;
-    if (event.key === "ArrowUp") this.targetRotation.x = Math.max(-0.32, this.targetRotation.x - step * 0.5);
-    if (event.key === "ArrowDown") this.targetRotation.x = Math.min(0.32, this.targetRotation.x + step * 0.5);
+    if (event.key === "ArrowLeft") this.targetRotation.y -= 0.1;
+    if (event.key === "ArrowRight") this.targetRotation.y += 0.1;
+    if (event.key === "ArrowUp") this.targetRotation.x -= 0.06;
+    if (event.key === "ArrowDown") this.targetRotation.x += 0.06;
     if (event.key === "Escape") this.resetFocus();
+    this.targetRotation.x = THREE.MathUtils.clamp(this.targetRotation.x, -0.24, 0.24);
+    this.targetRotation.y = THREE.MathUtils.clamp(this.targetRotation.y, -0.58, 0.58);
+    this.lastInteraction = performance.now();
   }
 
   focusWorld(key) {
     if (!WORLD_DATA[key]) return;
     this.selectedWorld = key;
-    this.bloomPulse = 1;
-    this.hasInteracted = true;
+    this.lastInteraction = performance.now();
     this.portals.forEach((portal, portalKey) => {
-      portal.userData.targetScale = portalKey === key ? 1.19 : 0.92;
-      this.portalLabels.get(portalKey)?.classList.toggle("is-active", portalKey === key);
+      portal.userData.targetScale = portalKey === key ? 1.18 : 0.92;
     });
+    this.targetRotation.y = key === "machine" ? 0.08 : key === "maker" ? -0.08 : 0;
+    this.targetRotation.x = key === "world" ? -0.04 : 0.025;
     window.dispatchEvent(new CustomEvent("dreamunity:worldfocus", { detail: { key, ...WORLD_DATA[key] } }));
   }
 
   resetFocus() {
     this.selectedWorld = null;
-    this.bloomPulse = 0.38;
-    this.portals.forEach((portal, key) => {
-      portal.userData.targetScale = 1;
-      this.portalLabels.get(key)?.classList.remove("is-active");
-    });
+    this.portals.forEach((portal) => { portal.userData.targetScale = 1; });
+    this.targetRotation.set(0.015, 0);
+    this.targetScale = this.baseScale;
     window.dispatchEvent(new CustomEvent("dreamunity:unityfocus"));
   }
 
   #resize() {
-    const width = Math.max(this.container.clientWidth, 1);
-    const height = Math.max(this.container.clientHeight, 1);
+    const width = Math.max(1, this.container.clientWidth);
+    const height = Math.max(1, this.container.clientHeight);
     const aspect = width / height;
-    this.baseCameraZ = aspect < 0.72 ? 15.7 : aspect < 1.0 ? 13.8 : aspect > 2 ? 12.8 : 12.1;
-    if (!this.hasInteracted) this.targetCameraZ = this.baseCameraZ;
     this.camera.aspect = aspect;
-    this.camera.fov = aspect < 0.72 ? 43 : 39;
+    this.camera.fov = aspect < 0.68 ? 44 : aspect < 1 ? 41 : 38;
+    this.camera.position.y = aspect < 0.68 ? 1.35 : 1.2;
+    this.camera.position.z = aspect < 0.68 ? 16.1 : aspect < 1 ? 14.4 : aspect > 2 ? 13.15 : 12.8;
+    this.camera.lookAt(this.cameraTarget);
     this.camera.updateProjectionMatrix();
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.maxPixelRatio));
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, this.profile.pixelRatio));
     this.renderer.setSize(width, height, false);
-    this.labelRenderer.setSize(width, height);
-    this.composer.setPixelRatio(Math.min(window.devicePixelRatio, this.maxPixelRatio));
-    this.composer.setSize(width, height);
-    this.bloom.radius = aspect < 0.72 ? 0.5 : 0.62;
-
-    const mobile = width < 650;
-    const compact = width < 900;
-    this.unity.scale.setScalar(mobile ? 0.77 : compact ? 0.9 : 1);
-    Object.entries(WORLD_DATA).forEach(([key, data]) => {
-      const label = this.portals.get(key)?.userData.label;
-      if (!label) return;
-      if (mobile && key === "machine") label.position.set(1.48, -0.2, 0);
-      else if (mobile && key === "maker") label.position.set(-1.48, -0.2, 0);
-      else if (mobile && key === "world") label.position.set(0, -1.18, 0);
-      else label.position.set(...data.label);
-    });
+    this.baseScale = width < 650 ? 0.75 : width < 950 ? 0.89 : 1;
+    if (!this.selectedWorld && Math.abs(this.targetScale - 1) < 0.2) this.targetScale = this.baseScale;
+    this.system.scale.setScalar(this.baseScale);
+    this.#render();
   }
 
-  #adaptQuality(now) {
-    const delta = now - this.lastFrameTime;
-    this.lastFrameTime = now;
-    if (delta > 0 && delta < 120) this.frameSamples.push(delta);
-    if (this.frameSamples.length < 150 || this.adapted) return;
-    const average = this.frameSamples.reduce((sum, value) => sum + value, 0) / this.frameSamples.length;
-    if (average > 24 && this.maxPixelRatio > 1.05) {
-      this.maxPixelRatio = 1;
+  #updateMetrics(time) {
+    this.metricFrames += 1;
+    const duration = time - this.lastMetricTime;
+    if (duration < 1000) return;
+    this.fps = Math.round((this.metricFrames * 1000) / duration);
+    this.metricFrames = 0;
+    this.lastMetricTime = time;
+
+    this.lowFpsSamples = this.fps < 43 ? this.lowFpsSamples + 1 : Math.max(0, this.lowFpsSamples - 1);
+    if (this.lowFpsSamples >= 2 && this.profile.pixelRatio > 1) {
+      this.profile.pixelRatio = 1;
+      this.adapted = true;
       this.#resize();
-      document.getElementById("calibration-status")?.replaceChildren("ADAPTIVE");
+    } else if (this.lowFpsSamples >= 4 && this.animateOrbitParticles) {
+      this.animateOrbitParticles = false;
+      this.adapted = true;
+    } else if (this.lowFpsSamples >= 6 && this.profile.pixelRatio > 0.86) {
+      this.profile.pixelRatio = 0.86;
+      this.adapted = true;
+      this.#resize();
     }
-    this.adapted = true;
-    this.frameSamples.length = 0;
+
+    const info = this.renderer.info.render;
+    window.dispatchEvent(new CustomEvent("dreamunity:metrics", {
+      detail: { fps: this.fps, calls: info.calls, triangles: info.triangles, profile: this.profile.name }
+    }));
   }
 
-  #animate() {
+  #animate(time) {
     if (this.destroyed) return;
-    requestAnimationFrame(() => this.#animate());
-    const elapsed = this.clock.getElapsedTime();
-    const now = performance.now();
-    this.#adaptQuality(now);
+    this.animationFrame = requestAnimationFrame((nextTime) => this.#animate(nextTime));
+    if (this.paused) return;
+    const delta = Math.min(this.clock.getDelta(), 0.05);
+    const elapsed = this.clock.elapsedTime;
+    this.frame += 1;
 
-    if (!this.hasInteracted && !this.reducedMotion) {
-      this.targetRotation.y = Math.sin(elapsed * 0.105) * 0.075;
-      this.targetRotation.x = 0.015 + Math.sin(elapsed * 0.071) * 0.018;
-    } else if (this.pointers.size === 0) {
-      this.targetRotation.x += this.rotationVelocity.x;
-      this.targetRotation.y += this.rotationVelocity.y;
-      this.rotationVelocity.multiplyScalar(0.94);
-      this.targetRotation.x = THREE.MathUtils.clamp(this.targetRotation.x, -0.32, 0.32);
+    if (!this.selectedWorld && performance.now() - this.lastInteraction > 1800) {
+      this.targetRotation.x = THREE.MathUtils.damp(this.targetRotation.x, 0.015, 1.1, delta);
+      this.targetRotation.y = THREE.MathUtils.damp(this.targetRotation.y, 0, 1.1, delta);
+      this.targetScale = THREE.MathUtils.damp(this.targetScale, this.baseScale, 1.1, delta);
     }
 
-    this.unity.rotation.x = THREE.MathUtils.lerp(this.unity.rotation.x, this.targetRotation.x, 0.045);
-    this.unity.rotation.y = THREE.MathUtils.lerp(this.unity.rotation.y, this.targetRotation.y, 0.045);
-
-    this.camera.position.z = THREE.MathUtils.lerp(this.camera.position.z, this.targetCameraZ, 0.07);
-    const desiredFocus = new THREE.Vector3(0, 0.14, 0);
-    if (this.selectedWorld) {
-      const portal = this.portals.get(this.selectedWorld);
-      portal.getWorldPosition(tempVector);
-      desiredFocus.x = tempVector.x * 0.1;
-      desiredFocus.y = 0.14 + tempVector.y * 0.075;
-    }
-    this.focusPoint.lerp(desiredFocus, 0.045);
-    this.camera.lookAt(this.focusPoint);
+    this.system.rotation.x = THREE.MathUtils.damp(this.system.rotation.x, this.targetRotation.x, 5.1, delta);
+    this.system.rotation.y = THREE.MathUtils.damp(this.system.rotation.y, this.targetRotation.y, 5.1, delta);
+    const scale = THREE.MathUtils.damp(this.system.scale.x, this.targetScale, 5.1, delta);
+    this.system.scale.setScalar(scale);
 
     if (!this.reducedMotion) {
-      this.crystal.rotation.y += 0.0012;
-      this.crystalInner.rotation.y -= 0.0032;
-      this.crystalInner.rotation.x = 0.18 + Math.sin(elapsed * 0.31) * 0.035;
-      this.crystalEdges.rotation.y += 0.0017;
-      this.field.rotation.y += 0.00012;
-      this.constellations.rotation.y -= 0.00018;
-      this.saturnRings.rotation.y += 0.0002;
-    }
+      this.core.rotation.y = elapsed * 0.084;
+      this.coreInner.rotation.y = 0.29 - elapsed * 0.162;
+      this.coreWire.rotation.y = elapsed * 0.108;
+      this.field.rotation.y = elapsed * 0.0078;
+      this.constellations.rotation.y = -elapsed * 0.0096;
+      this.saturnRings.rotation.y = elapsed * 0.0102;
+      const coreGlowScale = this.coreGlow.userData.baseScale * (1 + Math.sin(elapsed * 1.3) * 0.045);
+      this.coreGlow.scale.set(coreGlowScale, coreGlowScale, 1);
 
-    const corePulse = 1 + Math.sin(elapsed * 1.12) * 0.045;
-    this.centralFlare.scale.setScalar(corePulse);
+      this.portals.forEach((portal) => {
+        portal.position.y = portal.userData.baseY + Math.sin(elapsed * 0.7 + portal.userData.phase) * 0.045;
+        portal.rotation.y = elapsed * 0.09 + portal.userData.phase * 0.045;
+        const portalScale = THREE.MathUtils.damp(portal.scale.x, portal.userData.targetScale, 6.4, delta);
+        portal.scale.setScalar(portalScale);
+        const glowScale = portal.userData.glow.userData.baseScale * (1 + Math.sin(elapsed * 1.2 + portal.userData.phase) * 0.055);
+        portal.userData.glow.scale.set(glowScale, glowScale, 1);
+        portal.userData.rings.forEach((ring) => {
+          ring.rotation.z = ring.userData.baseRotationZ + elapsed * ring.userData.speed * 0.36;
+        });
+      });
 
-    this.portals.forEach((portal) => {
-      const phase = portal.userData.phase;
-      if (!this.reducedMotion) {
-        portal.position.y = portal.userData.baseY + Math.sin(elapsed * 0.58 + phase) * 0.055;
-        portal.rotation.y += 0.0017 + phase * 0.0001;
-        portal.userData.rings.forEach((ring, index) => {
-          ring.rotation.z += ring.userData.spin * 0.006;
-          ring.rotation.x += Math.sin(elapsed * 0.21 + index) * 0.00035;
+      if (this.animateOrbitParticles && (!this.profile.mobile || this.frame % 2 === 0)) {
+        this.orbits.forEach((orbit) => {
+          const positions = orbit.particles.geometry.getAttribute("position");
+          for (let index = 0; index < orbit.phases.length; index += 1) {
+            const phase = (orbit.phases[index] + elapsed * orbit.speed + orbit.offset + 1) % 1;
+            const point = orbit.curve.getPointAt(phase);
+            positions.setXYZ(index, point.x, point.y, point.z);
+          }
+          positions.needsUpdate = true;
         });
       }
-      const currentScale = portal.scale.x;
-      const nextScale = THREE.MathUtils.lerp(currentScale, portal.userData.targetScale, 0.08);
-      portal.scale.setScalar(nextScale);
-      portal.userData.flare.scale.setScalar(1 + Math.sin(elapsed * 1.25 + phase) * 0.06);
-    });
 
-    this.orbits.forEach((orbit) => {
-      const positions = orbit.particles.geometry.getAttribute("position");
-      for (let particle = 0; particle < orbit.phases.length; particle += 1) {
-        const phase = (orbit.phases[particle] + elapsed * orbit.speed + orbit.phase + 1) % 1;
-        const point = orbit.curve.getPointAt(phase);
-        positions.setXYZ(particle, point.x, point.y, point.z);
-      }
-      positions.needsUpdate = true;
-    });
-
-    this.motionObjects.forEach(({ object, baseY, phase, amplitude, spin }) => {
-      if (!this.reducedMotion) {
-        object.position.y = baseY + Math.sin(elapsed * 0.43 + phase) * amplitude;
-        if (spin) object.rotation.y += spin * 0.01;
-      }
-    });
-
-    this.bloomPulse *= 0.94;
-    this.bloom.strength = 0.72 + Math.sin(elapsed * 0.72) * 0.045 + this.bloomPulse * 0.34;
-    const harmony = Math.round(98 + Math.sin(elapsed * 0.33) * 2);
-    const harmonyNode = document.getElementById("harmony-value");
-    if (harmonyNode && harmonyNode.textContent !== `${harmony}%`) harmonyNode.textContent = `${harmony}%`;
-
-    this.composer.render();
-    this.labelRenderer.render(this.scene, this.camera);
-
-    if (!this.firstFrameRendered) {
-      this.firstFrameRendered = true;
-      window.dispatchEvent(new CustomEvent("dreamunity:ready"));
+      this.floaters.forEach(({ object, phase, amplitude, spin = 0 }) => {
+        object.position.y = object.userData.baseY + Math.sin(elapsed * 0.55 + phase) * amplitude;
+        object.rotation.y = (object.userData.baseRotationY || 0) + elapsed * spin * 0.6;
+      });
     }
+
+    this.#render();
+    this.#updateMetrics(time);
+  }
+
+  #render() {
+    try {
+      this.renderer.render(this.scene, this.camera);
+      if (!this.firstFrameRendered) {
+        this.firstFrameRendered = true;
+        requestAnimationFrame(() => window.dispatchEvent(new CustomEvent("dreamunity:ready")));
+      }
+    } catch (error) {
+      this.paused = true;
+      window.dispatchEvent(new CustomEvent("dreamunity:rendererror", { detail: { message: error.message } }));
+    }
+  }
+
+  getMetrics() {
+    const info = this.renderer.info.render;
+    return {
+      fps: this.fps,
+      calls: info.calls,
+      triangles: info.triangles,
+      points: info.points,
+      profile: this.profile.name,
+      pixelRatio: this.profile.pixelRatio,
+      adapted: this.adapted
+    };
   }
 
   destroy() {
     this.destroyed = true;
+    cancelAnimationFrame(this.animationFrame);
     window.removeEventListener("resize", this.onResize);
-    this.renderer.domElement.removeEventListener("pointerdown", this.onPointerDown);
-    this.renderer.domElement.removeEventListener("pointermove", this.onPointerMove);
-    this.renderer.domElement.removeEventListener("pointerup", this.onPointerUp);
-    this.renderer.domElement.removeEventListener("pointercancel", this.onPointerUp);
-    this.renderer.domElement.removeEventListener("wheel", this.onWheel);
-    this.renderer.domElement.removeEventListener("keydown", this.onKeyDown);
-    disposeObject(this.scene);
-    this.environmentTexture?.dispose();
-    this.glowTexture?.dispose();
-    this.rayTexture?.dispose();
-    this.composer?.dispose();
-    this.renderer?.dispose();
+    document.removeEventListener("visibilitychange", this.onVisibility);
+    const canvas = this.renderer.domElement;
+    canvas.removeEventListener("pointerdown", this.onPointerDown);
+    canvas.removeEventListener("pointermove", this.onPointerMove);
+    canvas.removeEventListener("pointerup", this.onPointerUp);
+    canvas.removeEventListener("pointercancel", this.onPointerUp);
+    canvas.removeEventListener("wheel", this.onWheel);
+    canvas.removeEventListener("keydown", this.onKeyDown);
+    canvas.removeEventListener("webglcontextlost", this.onContextLost);
+    canvas.removeEventListener("webglcontextrestored", this.onContextRestored);
+    disposeTree(this.scene);
+    this.glowTexture.dispose();
+    this.rayTexture.dispose();
+    this.renderer.dispose();
     this.container.replaceChildren();
   }
 }

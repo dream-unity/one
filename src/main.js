@@ -49,6 +49,10 @@ const worldDescription = document.getElementById("world-description");
 const worldSteps = document.getElementById("world-steps");
 const returnUnity = document.getElementById("return-unity");
 const instructions = document.querySelector(".instructions");
+const portalButtons = [...document.querySelectorAll("[data-world]")];
+const portalLabels = [...document.querySelectorAll("[data-portal]")];
+const calibrationStatus = document.getElementById("calibration-status");
+const harmonyValue = document.getElementById("harmony-value");
 
 const audio = new UnityAudio();
 let unityScene;
@@ -69,7 +73,7 @@ function showFallback(error) {
   console.error("Dream Unity could not initialize:", error);
   fallback.hidden = false;
   boot.classList.add("is-complete");
-  document.getElementById("calibration-status").textContent = "UNAVAILABLE";
+  calibrationStatus.textContent = "UNAVAILABLE";
 }
 
 function setInformation(open) {
@@ -83,6 +87,7 @@ function showWorld(key) {
   const copy = WORLD_COPY[key];
   if (!copy) return;
   document.body.dataset.worldSelected = "true";
+  portalLabels.forEach((label) => label.classList.toggle("is-active", label.dataset.portal === key));
   worldPanel.style.setProperty("--unity", copy.color);
   worldKicker.textContent = copy.kicker;
   worldTitle.textContent = copy.title;
@@ -100,6 +105,7 @@ function showWorld(key) {
 
 function hideWorld() {
   document.body.dataset.worldSelected = "false";
+  portalLabels.forEach((label) => label.classList.remove("is-active"));
   worldPanel.classList.remove("is-visible");
   worldPanel.setAttribute("aria-hidden", "true");
 }
@@ -128,9 +134,35 @@ returnUnity.addEventListener("click", () => {
   sceneContainer.querySelector("canvas")?.focus({ preventScroll: true });
 });
 
+portalButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    unityScene?.focusWorld(button.dataset.world);
+  });
+});
+
 window.addEventListener("dreamunity:worldfocus", (event) => showWorld(event.detail.key));
 window.addEventListener("dreamunity:unityfocus", hideWorld);
 window.addEventListener("dreamunity:ready", completeBoot, { once: true });
+window.addEventListener("dreamunity:contextlost", () => {
+  calibrationStatus.textContent = "RECALIBRATING";
+  harmonyValue.textContent = "PAUSED";
+});
+window.addEventListener("dreamunity:contextrestored", () => {
+  calibrationStatus.textContent = "OPTIMAL";
+  harmonyValue.textContent = "100%";
+});
+window.addEventListener("dreamunity:rendererror", (event) => {
+  showFallback(new Error(event.detail?.message || "Rendering interrupted"));
+});
+window.addEventListener("dreamunity:metrics", (event) => {
+  const { fps, calls, triangles, profile } = event.detail;
+  const harmony = Math.max(0, Math.min(100, Math.round((fps / 60) * 100)));
+  harmonyValue.textContent = `${harmony}%`;
+  calibrationStatus.textContent = fps >= 48 ? "OPTIMAL" : "ADAPTING";
+  document.body.dataset.renderProfile = profile;
+  document.body.dataset.renderCalls = String(calls);
+  document.body.dataset.renderTriangles = String(triangles);
+});
 
 window.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
@@ -152,11 +184,12 @@ try {
   setProgress(42, "WEAVING CAUSAL ORBITS");
   unityScene = new DreamUnityScene(sceneContainer);
   window.__DREAM_UNITY__ = {
-    version: "1.0.0",
+    version: "2.0.0",
     scene: unityScene,
     worlds: Object.keys(WORLD_COPY),
     focus: (world) => unityScene.focusWorld(world),
-    reset: () => unityScene.resetFocus()
+    reset: () => unityScene.resetFocus(),
+    metrics: () => unityScene.getMetrics()
   };
   setProgress(82, "AWAKENING THREE WORLDS");
   bootFallbackTimer = window.setTimeout(completeBoot, 5000);

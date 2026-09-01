@@ -15,6 +15,8 @@ test("the front page exposes the complete Dream Unity interface", async () => {
   ]) {
     assert.match(html, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
+  assert.equal((html.match(/data-world=/g) || []).length, 3, "all three portals must be directly selectable");
+  assert.match(html, /class="visual-scaffold"/, "the resilient visual depth scaffold is missing");
 });
 
 test("all three worlds retain their intended causal stages", async () => {
@@ -27,25 +29,30 @@ test("all three worlds retain their intended causal stages", async () => {
   ]) assert.match(source, new RegExp(stage));
 });
 
-test("the deployed experience has no runtime CDN dependency", async () => {
+test("the deployed experience has no runtime CDN or font dependency", async () => {
   const [html, main, scene] = await Promise.all([read("index.html"), read("src/main.js"), read("src/scene.js")]);
-  assert.doesNotMatch(`${html}\n${main}\n${scene}`, /cdn\.jsdelivr|unpkg\.com|esm\.sh/);
+  const css = await read("styles.css");
+  assert.doesNotMatch(`${html}\n${main}\n${scene}\n${css}`, /cdn\.jsdelivr|unpkg\.com|esm\.sh|fonts\.googleapis/);
 });
 
-test("the vendored Three.js runtime and required postprocessing modules exist", async () => {
-  const requiredFiles = [
-    "vendor/three/three.module.min.js",
-    "vendor/three/addons/renderers/CSS2DRenderer.js",
-    "vendor/three/addons/postprocessing/EffectComposer.js",
-    "vendor/three/addons/postprocessing/UnrealBloomPass.js",
-    "vendor/three/addons/postprocessing/OutputPass.js",
-    "vendor/three/LICENSE"
-  ];
+test("the vendored Three.js runtime and license remain available", async () => {
+  const requiredFiles = ["vendor/three/three.module.min.js", "vendor/three/LICENSE"];
   for (const file of requiredFiles) assert.ok((await stat(new URL(`../${file}`, import.meta.url))).size > 0, `${file} is empty`);
+});
+
+test("the live renderer honors the performance architecture", async () => {
+  const scene = await read("src/scene.js");
+  assert.match(scene, /new THREE\.WebGLRenderer/);
+  assert.match(scene, /powerPreference: "high-performance"/);
+  assert.match(scene, /renderer\.render\(this\.scene, this\.camera\)/);
+  assert.match(scene, /pixelRatio: constrained \? 1 : 1\.35/);
+  assert.match(scene, /animateOrbitParticles = false/);
+  assert.doesNotMatch(scene, /EffectComposer|UnrealBloomPass|PMREMGenerator|MeshPhysicalMaterial|transmission|dispersion/);
 });
 
 test("the deployable browser bundle is self-contained", async () => {
   const runtime = await read("runtime/dream-unity.min.js");
   assert.ok(runtime.length > 400_000, "runtime bundle is unexpectedly small");
+  assert.ok(runtime.length < 650_000, "runtime bundle exceeds the performance budget");
   assert.doesNotMatch(runtime, /from\s*["']three|import\s*\(/);
 });

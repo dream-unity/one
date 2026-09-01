@@ -10,9 +10,19 @@ Dream Unity models the circulation through which possibility becomes reality and
 
 ## Experience
 
-The visualization is rendered as a genuine interactive scene: drag to orbit the unified field, scroll or pinch to zoom, and select any portal to focus its causal role. The crystalline scene, particles, refraction, orbital flows, bloom, interface and optional ambient sound are generated in the browser.
+The visualization is rendered as a genuine interactive scene: drag to orbit the unified field, scroll or pinch to zoom, and select any portal to focus its causal role. The faceted Unity crystal, three world bodies, geodesic possibility field, orbital flows, crystalline landscape, interface and optional ambient sound are generated in the browser.
 
 No image or remote 3D asset is used to imitate the central visualization.
+
+## Rendering architecture
+
+- Direct WebGL rendering with deterministic faceted materials and additive light sprites
+- Device-aware geometry, antialiasing and pixel-ratio limits
+- Automatic resolution and particle adaptation if sustained frame rate falls
+- Refresh-rate-independent motion, visibility pausing and WebGL context recovery
+- A lightweight vector depth scaffold that preserves the composition during GPU startup or recovery
+
+The runtime deliberately avoids costly transmission materials, environment-map generation and full-screen bloom passes. Visual richness comes from composition, geometry, color and layered light rather than unstable post-processing.
 
 ## Run locally
 

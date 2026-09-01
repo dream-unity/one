@@ -1,5 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600&family=Montserrat:wght@300;400;500;600&display=swap");
-
 :root {
   color-scheme: light;
   --ink: #272744;
@@ -71,6 +69,81 @@ button {
   cursor: grab;
 }
 
+.visual-scaffold {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.visual-scaffold svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.scaffold-field > :not(:first-child) {
+  fill: none;
+  stroke: #9099bd;
+  stroke-width: 0.8;
+  opacity: 0.16;
+}
+
+.scaffold-orbits path {
+  fill: none;
+  stroke-width: 1.7;
+}
+
+.scaffold-orbits .orbit-blue { stroke: url(#orbit-blue); }
+.scaffold-orbits .orbit-teal { stroke: url(#orbit-teal); }
+.scaffold-orbits .orbit-violet { stroke: #8b65e1; opacity: 0.24; }
+.scaffold-orbits .orbit-dots { stroke: #718ed0; stroke-width: 1; stroke-dasharray: 2 8; opacity: 0.3; }
+
+.scaffold-platform ellipse,
+.scaffold-platform path {
+  fill: none;
+  stroke: #7f88b3;
+  stroke-width: 0.9;
+  opacity: 0.22;
+}
+
+.scaffold-platform .platform-fill {
+  fill: rgba(255, 255, 255, 0.38);
+  stroke: #8d94b7;
+  stroke-width: 1.4;
+  opacity: 0.78;
+}
+
+.scaffold-core path,
+.scaffold-core .core-outline {
+  fill: none;
+  stroke: #8873cf;
+  stroke-width: 1;
+  opacity: 0.28;
+}
+
+.scaffold-core .core-light { opacity: 0.76; }
+.scaffold-core .core-ray { stroke: #a68eea; stroke-width: 1.15; opacity: 0.3; }
+
+.scaffold-portals circle,
+.scaffold-portals path {
+  fill: none;
+  stroke: #8095c4;
+  stroke-width: 0.9;
+  opacity: 0.24;
+}
+
+.scaffold-portals .portal-halo {
+  stroke-width: 1.35;
+  stroke-dasharray: 2 7;
+  opacity: 0.38;
+}
+
+.scaffold-portals .machine-halo { stroke: #5294e5; }
+.scaffold-portals .maker-halo { stroke: #58beb5; }
+.scaffold-portals .world-halo { stroke: #8c65df; }
+
 .scene.is-dragging {
   cursor: grabbing;
 }
@@ -91,30 +164,13 @@ button {
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse at 50% 39%, transparent 0 36%, rgba(241, 243, 250, 0.05) 52%, rgba(218, 225, 236, 0.35) 100%),
-    linear-gradient(90deg, rgba(232, 238, 245, 0.4), transparent 22% 78%, rgba(227, 235, 239, 0.42));
-  box-shadow: inset 0 0 110px rgba(94, 106, 148, 0.1);
+    radial-gradient(ellipse at 50% 39%, transparent 0 42%, rgba(241, 243, 250, 0.03) 59%, rgba(218, 225, 236, 0.22) 100%),
+    linear-gradient(90deg, rgba(232, 238, 245, 0.24), transparent 18% 82%, rgba(227, 235, 239, 0.26));
+  box-shadow: inset 0 0 90px rgba(94, 106, 148, 0.07);
 }
 
 .grain {
-  position: absolute;
-  z-index: 3;
-  inset: -70%;
-  width: 240%;
-  height: 240%;
-  opacity: 0.032;
-  pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.7'/%3E%3C/svg%3E");
-  animation: grain 10s steps(10) infinite;
-}
-
-@keyframes grain {
-  0% { transform: translate3d(0, 0, 0); }
-  20% { transform: translate3d(-2%, 3%, 0); }
-  40% { transform: translate3d(3%, -4%, 0); }
-  60% { transform: translate3d(5%, 5%, 0); }
-  80% { transform: translate3d(-5%, -2%, 0); }
-  100% { transform: translate3d(0, 0, 0); }
+  display: none;
 }
 
 .topbar {
@@ -230,7 +286,6 @@ button {
   border: 1px solid rgba(87, 91, 119, 0.16);
   background: rgba(255, 255, 255, 0.19);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 5px 22px rgba(72, 78, 111, 0.04);
-  backdrop-filter: blur(12px);
   cursor: pointer;
   transition: border-color 300ms, background 300ms, color 300ms, transform 300ms;
 }
@@ -379,38 +434,68 @@ body[data-world-selected="true"] .intro {
   letter-spacing: 0.31em;
 }
 
+.portal-interface {
+  position: absolute;
+  z-index: 13;
+  inset: 0;
+  pointer-events: none;
+}
+
 .portal-label {
-  position: relative;
+  position: absolute;
   pointer-events: auto;
   transition: opacity 450ms var(--ease), transform 650ms var(--ease);
+}
+
+.portal-label.machine {
+  top: 24.5%;
+  left: 2.1%;
+}
+
+.portal-label.maker {
+  top: 24.5%;
+  right: 2.1%;
+}
+
+.portal-label.world {
+  bottom: 7.5%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+body.is-orbiting .portal-label {
+  opacity: 0.28;
+}
+
+body[data-world-selected="true"] .portal-label:not(.is-active) {
+  opacity: 0.36;
 }
 
 .portal-card {
   position: relative;
   display: flex;
   align-items: center;
-  width: clamp(215px, 19vw, 305px);
+  width: clamp(270px, 26vw, 408px);
   height: clamp(68px, 6.8vw, 98px);
   padding: 0 clamp(21px, 2vw, 33px);
   overflow: hidden;
   color: #37394f;
   border: 1px solid rgba(82, 88, 124, 0.24);
-  background: linear-gradient(115deg, rgba(255, 255, 255, 0.43), rgba(250, 250, 255, 0.12));
+  background: linear-gradient(115deg, rgba(255, 255, 255, 0.27), rgba(250, 250, 255, 0.06));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), 0 12px 40px rgba(69, 75, 113, 0.035);
-  backdrop-filter: blur(14px) saturate(118%);
   cursor: pointer;
   transition: background 350ms, border-color 350ms, box-shadow 350ms, transform 350ms var(--ease);
 }
 
 .portal-label.machine .portal-card {
-  justify-content: flex-end;
-  text-align: right;
+  justify-content: flex-start;
+  text-align: left;
   clip-path: polygon(13px 0, 100% 0, 100% 100%, 13px 100%, 0 50%);
 }
 
 .portal-label.maker .portal-card {
-  justify-content: flex-start;
-  text-align: left;
+  justify-content: flex-end;
+  text-align: right;
   clip-path: polygon(0 0, calc(100% - 13px) 0, 100% 50%, calc(100% - 13px) 100%, 0 100%);
 }
 
@@ -490,8 +575,8 @@ body[data-world-selected="true"] .intro {
 
 .portal-card .portal-glyph::before { width: 70%; height: 1px; }
 .portal-card .portal-glyph::after { width: 1px; height: 70%; }
-.machine .portal-glyph { left: 24px; color: var(--machine); }
-.maker .portal-glyph { right: 24px; color: var(--maker); }
+.machine .portal-glyph { right: 24px; color: var(--machine); }
+.maker .portal-glyph { left: 24px; color: var(--maker); }
 .world .portal-glyph { top: 12px; left: 50%; color: var(--world); }
 
 .portal-copy strong {
@@ -997,8 +1082,8 @@ body[data-world-selected="true"] .intro {
   }
 
   .portal-copy small { margin-top: 6px; }
-  .machine .portal-glyph { left: 16px; }
-  .maker .portal-glyph { right: 16px; }
+  .machine .portal-glyph { right: 16px; }
+  .maker .portal-glyph { left: 16px; }
   .status { bottom: 20px; }
   .instructions { display: none; }
 }
@@ -1033,11 +1118,14 @@ body[data-world-selected="true"] .intro {
 
   .portal-label.machine .portal-card { padding-right: 16px; }
   .portal-label.maker .portal-card { padding-left: 16px; }
+  .portal-label.machine { top: 25%; left: 8px; }
+  .portal-label.maker { top: 25%; right: 8px; }
+  .portal-label.world { bottom: 8.5%; }
   .portal-copy strong { font-size: 7px; letter-spacing: 0.12em; }
   .portal-copy small { margin-top: 5px; font-size: 3.7px; letter-spacing: 0.11em; }
   .portal-card .portal-glyph { width: 7px; height: 7px; }
-  .machine .portal-glyph { left: 10px; }
-  .maker .portal-glyph { right: 10px; }
+  .machine .portal-glyph { right: 10px; }
+  .maker .portal-glyph { left: 10px; }
   .world .portal-glyph { top: 8px; }
   .world .portal-copy { margin-top: 5px; }
   .portal-thread { display: none; }

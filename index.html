@@ -23,6 +23,83 @@
     </div>
 
     <main id="experience" class="experience" aria-label="Dream Unity interactive visualization">
+      <div class="visual-scaffold" aria-hidden="true">
+        <svg viewBox="0 0 1536 864" preserveAspectRatio="xMidYMid slice" role="presentation">
+          <defs>
+            <radialGradient id="field-glow">
+              <stop offset="0" stop-color="#fff" stop-opacity=".72" />
+              <stop offset=".55" stop-color="#dcdaf2" stop-opacity=".14" />
+              <stop offset="1" stop-color="#b9c6df" stop-opacity="0" />
+            </radialGradient>
+            <radialGradient id="violet-glow">
+              <stop offset="0" stop-color="#fff" stop-opacity=".9" />
+              <stop offset=".14" stop-color="#ad91ff" stop-opacity=".32" />
+              <stop offset="1" stop-color="#7b62de" stop-opacity="0" />
+            </radialGradient>
+            <linearGradient id="core-left" x1="0" y1="0" x2="1" y2="1">
+              <stop stop-color="#f5efff" stop-opacity=".26" />
+              <stop offset="1" stop-color="#6040be" stop-opacity=".19" />
+            </linearGradient>
+            <linearGradient id="core-right" x1="1" y1="0" x2="0" y2="1">
+              <stop stop-color="#a996f0" stop-opacity=".2" />
+              <stop offset="1" stop-color="#39217e" stop-opacity=".16" />
+            </linearGradient>
+            <linearGradient id="orbit-blue" x1="0" x2="1">
+              <stop stop-color="#4694eb" stop-opacity=".08" />
+              <stop offset=".5" stop-color="#6f8de6" stop-opacity=".5" />
+              <stop offset="1" stop-color="#9acde5" stop-opacity=".08" />
+            </linearGradient>
+            <linearGradient id="orbit-teal" x1="1" x2="0">
+              <stop stop-color="#59cabd" stop-opacity=".08" />
+              <stop offset=".5" stop-color="#6ccbc3" stop-opacity=".48" />
+              <stop offset="1" stop-color="#8ebbe8" stop-opacity=".08" />
+            </linearGradient>
+          </defs>
+
+          <g class="scaffold-field">
+            <circle cx="768" cy="334" r="324" fill="url(#field-glow)" />
+            <circle cx="768" cy="334" r="294" />
+            <ellipse cx="768" cy="334" rx="294" ry="85" />
+            <ellipse cx="768" cy="334" rx="294" ry="163" />
+            <ellipse cx="768" cy="334" rx="102" ry="294" />
+            <ellipse cx="768" cy="334" rx="207" ry="294" />
+            <path d="M474 334c75-86 198-144 294-144s219 58 294 144c-75 86-198 144-294 144S549 420 474 334Z" />
+          </g>
+
+          <g class="scaffold-orbits">
+            <path class="orbit-blue" d="M306 220C410 72 698 145 943 335c196 152 131 311-177 302C487 630 225 457 306 220Z" />
+            <path class="orbit-teal" d="M1230 220c-98-150-390-76-635 116-194 152-130 310 176 301 282-8 538-183 459-417Z" />
+            <path class="orbit-violet" d="M318 252c32 275 251 393 452 393s424-119 449-394C1067 393 919 432 768 432S470 394 318 252Z" />
+            <path class="orbit-dots" d="M280 266C385 613 650 686 905 621c226-58 374-250 333-385" />
+          </g>
+
+          <g class="scaffold-platform">
+            <ellipse cx="768" cy="739" rx="522" ry="90" class="platform-fill" />
+            <ellipse cx="768" cy="729" rx="472" ry="67" />
+            <ellipse cx="768" cy="723" rx="390" ry="48" />
+            <ellipse cx="768" cy="718" rx="304" ry="33" />
+            <ellipse cx="768" cy="714" rx="208" ry="21" />
+            <path d="M247 739v14c17 53 247 95 521 95s504-42 521-95v-14" />
+          </g>
+
+          <g class="scaffold-core">
+            <polygon points="768,172 931,337 768,502 605,337" class="core-outline" />
+            <polygon points="768,172 768,337 605,337" fill="url(#core-left)" />
+            <polygon points="768,172 931,337 768,337" fill="url(#core-right)" />
+            <polygon points="605,337 768,337 768,502" fill="url(#core-right)" />
+            <polygon points="768,337 931,337 768,502" fill="url(#core-left)" />
+            <path d="M768 172 685 286l83 51 83-51-83-114Zm-163 165 80-51m246 51-80-51M768 502V337" />
+            <circle cx="768" cy="337" r="105" fill="url(#violet-glow)" class="core-light" />
+            <path class="core-ray" d="M548 337h440M768 112v450" />
+          </g>
+
+          <g class="scaffold-portals">
+            <g transform="translate(335 227)"><circle r="88" class="portal-halo machine-halo" /><circle r="68" /><circle r="52" /><path d="M-76 0h152M0-76v152" /></g>
+            <g transform="translate(1201 227)"><circle r="88" class="portal-halo maker-halo" /><circle r="68" /><circle r="52" /><path d="M-76 0h152M0-76v152" /></g>
+            <g transform="translate(768 631)"><circle r="77" class="portal-halo world-halo" /><circle r="60" /><circle r="45" /><path d="M-67 0h134M0-67v134" /></g>
+          </g>
+        </svg>
+      </div>
       <div id="scene" class="scene" aria-label="Interactive three-world visualization"></div>
       <div class="atmosphere" aria-hidden="true"></div>
       <div class="grain" aria-hidden="true"></div>
@@ -55,6 +132,30 @@
         <h1><span>DREAM</span> <strong>UNITY</strong></h1>
         <p>THE NEXUS OF ALL POSSIBILITIES</p>
       </section>
+
+      <nav class="portal-interface" aria-label="Choose a Dream Unity world">
+        <div class="portal-label machine" data-portal="machine">
+          <button class="portal-card" type="button" data-world="machine" aria-label="Enter Dream Machine">
+            <span class="portal-glyph" aria-hidden="true"></span>
+            <span class="portal-copy"><strong>DREAM MACHINE</strong><small>PERCEIVE · MODEL · PREDICT</small></span>
+          </button>
+          <span class="portal-thread" aria-hidden="true"></span>
+        </div>
+        <div class="portal-label maker" data-portal="maker">
+          <button class="portal-card" type="button" data-world="maker" aria-label="Enter Dream Maker">
+            <span class="portal-glyph" aria-hidden="true"></span>
+            <span class="portal-copy"><strong>DREAM MAKER</strong><small>INTEND · ACT · BECOME</small></span>
+          </button>
+          <span class="portal-thread" aria-hidden="true"></span>
+        </div>
+        <div class="portal-label world" data-portal="world">
+          <button class="portal-card" type="button" data-world="world" aria-label="Enter Dream World">
+            <span class="portal-glyph" aria-hidden="true"></span>
+            <span class="portal-copy"><strong>DREAM WORLD</strong><small>MATTER · STRUCTURE · EMERGE</small></span>
+          </button>
+          <span class="portal-thread" aria-hidden="true"></span>
+        </div>
+      </nav>
 
       <aside id="information" class="information" aria-hidden="true">
         <button id="menu-close" class="information-close" type="button" aria-label="Close information panel">×</button>
