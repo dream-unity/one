@@ -6,7 +6,8 @@
   "description": "Dream Unity — an interactive three-world visualization.",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "vite build",
+    "bundle": "esbuild src/main.js --bundle --format=iife --global-name=DreamUnityRuntime --minify --target=es2020 --outfile=runtime/dream-unity.min.js",
+    "build": "npm run bundle",
     "vendor": "node scripts/sync-vendor.mjs",
     "test": "node --test tests/*.test.mjs",
     "check": "node --check src/main.js && node --check src/scene.js && node --check src/audio.js && npm test && npm run build"
@@ -15,6 +16,7 @@
     "three": "0.185.1"
   },
   "devDependencies": {
+    "esbuild": "0.25.12",
     "vite": "7.1.4"
   }
 }

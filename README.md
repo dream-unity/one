@@ -19,6 +19,7 @@ No image or remote 3D asset is used to imitate the central visualization.
 ```bash
 npm install
 npm run vendor
+npm run build
 npm run dev
 ```
 
@@ -30,7 +31,7 @@ Open the local address printed by Vite.
 npm run check
 ```
 
-The root is deployment-ready for GitHub Pages. The Three.js runtime is vendored so the experience does not depend on a JavaScript CDN.
+The root is deployment-ready for GitHub Pages. A self-contained browser bundle and the readable Three.js source are both committed, so the experience does not depend on a JavaScript CDN or build server.
 
 ## Controls
 

@@ -11,8 +11,7 @@ test("the front page exposes the complete Dream Unity interface", async () => {
     "THE NEXUS OF ALL POSSIBILITIES",
     "FIELD CALIBRATION",
     "SYSTEM HARMONY",
-    "src/main.js",
-    "vendor/three/three.module.min.js"
+    "runtime/dream-unity.min.js"
   ]) {
     assert.match(html, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
@@ -43,4 +42,10 @@ test("the vendored Three.js runtime and required postprocessing modules exist", 
     "vendor/three/LICENSE"
   ];
   for (const file of requiredFiles) assert.ok((await stat(new URL(`../${file}`, import.meta.url))).size > 0, `${file} is empty`);
+});
+
+test("the deployable browser bundle is self-contained", async () => {
+  const runtime = await read("runtime/dream-unity.min.js");
+  assert.ok(runtime.length > 400_000, "runtime bundle is unexpectedly small");
+  assert.doesNotMatch(runtime, /from\s*["']three|import\s*\(/);
 });
