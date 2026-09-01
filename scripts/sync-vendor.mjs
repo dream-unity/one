@@ -3,6 +3,7 @@ import { dirname, resolve } from "node:path";
 
 const files = [
   ["node_modules/three/build/three.module.min.js", "vendor/three/three.module.min.js"],
+  ["node_modules/three/build/three.core.min.js", "vendor/three/three.core.min.js"],
   ["node_modules/three/examples/jsm/renderers/CSS2DRenderer.js", "vendor/three/addons/renderers/CSS2DRenderer.js"],
   ["node_modules/three/examples/jsm/postprocessing/EffectComposer.js", "vendor/three/addons/postprocessing/EffectComposer.js"],
   ["node_modules/three/examples/jsm/postprocessing/RenderPass.js", "vendor/three/addons/postprocessing/RenderPass.js"],

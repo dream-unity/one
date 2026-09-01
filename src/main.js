@@ -65,11 +65,13 @@ function setProgress(percent, status) {
 
 function completeBoot() {
   clearTimeout(bootFallbackTimer);
+  clearTimeout(window.__DREAM_UNITY_WATCHDOG__);
   setProgress(100, "FIELD CALIBRATION OPTIMAL");
   window.setTimeout(() => boot.classList.add("is-complete"), 340);
 }
 
 function showFallback(error) {
+  clearTimeout(window.__DREAM_UNITY_WATCHDOG__);
   console.error("Dream Unity could not initialize:", error);
   fallback.hidden = false;
   boot.classList.add("is-complete");

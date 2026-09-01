@@ -11,7 +11,8 @@ test("the front page exposes the complete Dream Unity interface", async () => {
     "THE NEXUS OF ALL POSSIBILITIES",
     "FIELD CALIBRATION",
     "SYSTEM HARMONY",
-    "runtime/dream-unity.min.js"
+    "src/main.js",
+    "vendor/three/three.module.min.js"
   ]) {
     assert.match(html, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
@@ -35,8 +36,21 @@ test("the deployed experience has no runtime CDN or font dependency", async () =
   assert.doesNotMatch(`${html}\n${main}\n${scene}\n${css}`, /cdn\.jsdelivr|unpkg\.com|esm\.sh|fonts\.googleapis/);
 });
 
+test("the page cannot remain trapped behind its loading screen", async () => {
+  const [html, main] = await Promise.all([read("index.html"), read("src/main.js")]);
+  assert.match(html, /__DREAM_UNITY_WATCHDOG__/);
+  assert.match(html, /setTimeout\(revealStaticExperience, 6000\)/);
+  assert.match(html, /type="module" src="\.\/src\/main\.js"/);
+  assert.match(main, /clearTimeout\(window\.__DREAM_UNITY_WATCHDOG__\)/);
+  assert.doesNotMatch(html, /<script[^>]+src="\.\/runtime\/dream-unity\.min\.js"/);
+});
+
 test("the vendored Three.js runtime and license remain available", async () => {
-  const requiredFiles = ["vendor/three/three.module.min.js", "vendor/three/LICENSE"];
+  const requiredFiles = [
+    "vendor/three/three.module.min.js",
+    "vendor/three/three.core.min.js",
+    "vendor/three/LICENSE"
+  ];
   for (const file of requiredFiles) assert.ok((await stat(new URL(`../${file}`, import.meta.url))).size > 0, `${file} is empty`);
 });
 

@@ -41,7 +41,7 @@ Open the local address printed by Vite.
 npm run check
 ```
 
-The root is deployment-ready for GitHub Pages. A self-contained browser bundle and the readable Three.js source are both committed, so the experience does not depend on a JavaScript CDN or build server.
+The root is deployment-ready for GitHub Pages. The browser loads a preloaded native-module graph backed by the committed Three.js runtime, so the experience does not depend on a JavaScript CDN or build server. A bundled artifact is also retained for verification.
 
 ## Controls
 

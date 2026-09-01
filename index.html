@@ -10,6 +10,9 @@
     />
     <title>Dream Unity — The Nexus of All Possibilities</title>
     <link rel="stylesheet" href="./styles.css" />
+    <link rel="modulepreload" href="./vendor/three/three.module.min.js" />
+    <link rel="modulepreload" href="./src/scene.js" />
+    <link rel="modulepreload" href="./src/audio.js" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='none' stroke='%236b63a8' stroke-width='3' d='M32 3 51 32 32 61 13 32zM32 3v58M13 32h38M32 3 20 32l12 29 12-29z'/%3E%3C/svg%3E" />
   </head>
   <body>
@@ -18,8 +21,8 @@
         <span></span><span></span><span></span>
       </div>
       <p>DREAM UNITY</p>
-      <div class="boot-track"><span id="boot-progress"></span></div>
-      <small id="boot-status">CALIBRATING POSSIBILITY FIELD</small>
+      <div class="boot-track"><span id="boot-progress" style="width: 8%"></span></div>
+      <small id="boot-status">LOADING UNITY CORE</small>
     </div>
 
     <main id="experience" class="experience" aria-label="Dream Unity interactive visualization">
@@ -208,6 +211,28 @@
       <div class="noscript">Dream Unity requires JavaScript to render its interactive world.</div>
     </noscript>
 
-    <script defer src="./runtime/dream-unity.min.js"></script>
+    <script>
+      (() => {
+        const revealStaticExperience = () => {
+          if (window.__DREAM_UNITY__) return;
+          const bootScreen = document.getElementById("boot");
+          const progress = document.getElementById("boot-progress");
+          const status = document.getElementById("boot-status");
+          const calibration = document.getElementById("calibration-status");
+          const harmony = document.getElementById("harmony-value");
+          if (progress) progress.style.width = "100%";
+          if (status) status.textContent = "OPENING RESILIENT VISUAL MODE";
+          if (calibration) calibration.textContent = "VISUAL MODE";
+          if (harmony) harmony.textContent = "READY";
+          document.body.dataset.renderProfile = "static";
+          window.setTimeout(() => {
+            if (bootScreen) bootScreen.classList.add("is-complete");
+          }, 180);
+        };
+        window.__DREAM_UNITY_REVEAL_STATIC__ = revealStaticExperience;
+        window.__DREAM_UNITY_WATCHDOG__ = window.setTimeout(revealStaticExperience, 6000);
+      })();
+    </script>
+    <script type="module" src="./src/main.js" onerror="window.__DREAM_UNITY_REVEAL_STATIC__ &amp;&amp; window.__DREAM_UNITY_REVEAL_STATIC__()"></script>
   </body>
 </html>
