@@ -7,10 +7,10 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "bundle": "esbuild src/main.js --bundle --format=iife --global-name=DreamUnityRuntime --minify --target=es2020 --outfile=runtime/dream-unity.min.js",
-    "build": "npm run bundle",
+    "build": "npm run bundle && node scripts/split-runtime.mjs",
     "vendor": "node scripts/sync-vendor.mjs",
     "test": "node --test tests/*.test.mjs",
-    "check": "node --check src/main.js && node --check src/scene.js && node --check src/audio.js && npm test && npm run build"
+    "check": "node --check src/main.js && node --check src/scene.js && node --check src/audio.js && node --check runtime/loader.js && node --check scripts/split-runtime.mjs && npm run build && npm test"
   },
   "dependencies": {
     "three": "0.185.1"

@@ -59,7 +59,8 @@ let unityScene;
 let bootFallbackTimer;
 
 function setProgress(percent, status) {
-  bootProgress.style.width = `${percent}%`;
+  const current = Number.parseFloat(bootProgress.style.width) || 0;
+  bootProgress.style.width = `${Math.max(current, percent)}%`;
   if (status) bootStatus.textContent = status;
 }
 

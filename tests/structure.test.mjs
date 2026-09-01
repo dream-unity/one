@@ -11,8 +11,7 @@ test("the front page exposes the complete Dream Unity interface", async () => {
     "THE NEXUS OF ALL POSSIBILITIES",
     "FIELD CALIBRATION",
     "SYSTEM HARMONY",
-    "src/main.js",
-    "vendor/three/three.module.min.js"
+    "runtime/loader.js"
   ]) {
     assert.match(html, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
@@ -37,12 +36,18 @@ test("the deployed experience has no runtime CDN or font dependency", async () =
 });
 
 test("the page cannot remain trapped behind its loading screen", async () => {
-  const [html, main] = await Promise.all([read("index.html"), read("src/main.js")]);
+  const [html, main, loader] = await Promise.all([
+    read("index.html"),
+    read("src/main.js"),
+    read("runtime/loader.js")
+  ]);
   assert.match(html, /__DREAM_UNITY_WATCHDOG__/);
   assert.match(html, /setTimeout\(revealStaticExperience, 6000\)/);
-  assert.match(html, /type="module" src="\.\/src\/main\.js"/);
+  assert.match(html, /defer src="\.\/runtime\/loader\.js"/);
   assert.match(main, /clearTimeout\(window\.__DREAM_UNITY_WATCHDOG__\)/);
   assert.doesNotMatch(html, /<script[^>]+src="\.\/runtime\/dream-unity\.min\.js"/);
+  assert.match(loader, /buffer\.byteLength !== chunk\.bytes/);
+  assert.match(loader, /totalBytes !== manifest\.totalBytes/);
 });
 
 test("the vendored Three.js runtime and license remain available", async () => {
@@ -81,4 +86,19 @@ test("the deployable browser bundle is self-contained", async () => {
   assert.ok(runtime.length > 400_000, "runtime bundle is unexpectedly small");
   assert.ok(runtime.length < 650_000, "runtime bundle exceeds the performance budget");
   assert.doesNotMatch(runtime, /from\s*["']three|import\s*\(/);
+});
+
+test("the segmented runtime reconstructs the exact production bundle", async () => {
+  const manifest = JSON.parse(await read("runtime/chunks/manifest.json"));
+  assert.ok(manifest.chunks.length >= 2, "runtime must be segmented for resilient delivery");
+  const parts = await Promise.all(manifest.chunks.map(async (chunk) => {
+    assert.ok(chunk.bytes <= 64 * 1024, `${chunk.file} exceeds the delivery ceiling`);
+    const content = await readFile(new URL(`../runtime/chunks/${chunk.file}`, import.meta.url));
+    assert.equal(content.byteLength, chunk.bytes, `${chunk.file} size differs from its manifest`);
+    return content;
+  }));
+  const reconstructed = Buffer.concat(parts);
+  const runtime = await readFile(new URL("../runtime/dream-unity.min.js", import.meta.url));
+  assert.equal(reconstructed.byteLength, manifest.totalBytes);
+  assert.deepEqual(reconstructed, runtime);
 });

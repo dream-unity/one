@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "totalBytes": 622338,
+  "chunks": [
+    {
+      "file": "dream-unity-00.chunk.js",
+      "bytes": 65536
+    },
+    {
+      "file": "dream-unity-01.chunk.js",
+      "bytes": 65536
+    },
+    {
+      "file": "dream-unity-02.chunk.js",
+      "bytes": 65536
+    },
+    {
+      "file": "dream-unity-03.chunk.js",
+      "bytes": 65536
+    },
+    {
+      "file": "dream-unity-04.chunk.js",
+      "bytes": 65536
+    },
+    {
+      "file": "dream-unity-05.chunk.js",
+      "bytes": 65536
+    },
+    {
+      "file": "dream-unity-06.chunk.js",
+      "bytes": 65536
+    },
+    {
+      "file": "dream-unity-07.chunk.js",
+      "bytes": 65536
+    },
+    {
+      "file": "dream-unity-08.chunk.js",
+      "bytes": 65536
+    },
+    {
+      "file": "dream-unity-09.chunk.js",
+      "bytes": 32514
+    }
+  ]
+}

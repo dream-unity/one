@@ -41,7 +41,7 @@ Open the local address printed by Vite.
 npm run check
 ```
 
-The root is deployment-ready for GitHub Pages. The browser loads a preloaded native-module graph backed by the committed Three.js runtime, so the experience does not depend on a JavaScript CDN or build server. A bundled artifact is also retained for verification.
+The root is deployment-ready for GitHub Pages. The tree-shaken production runtime is delivered as integrity-checked 64 KB segments, reconstructed locally, and executed only after every byte is verified. This avoids large-response truncation without a JavaScript CDN or build server.
 
 ## Controls
 
