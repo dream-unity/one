@@ -50,6 +50,18 @@ test("the live renderer honors the performance architecture", async () => {
   assert.doesNotMatch(scene, /EffectComposer|UnrealBloomPass|PMREMGenerator|MeshPhysicalMaterial|transmission|dispersion/);
 });
 
+test("the Unity crystal preserves a sharp tessellated octahedron", async () => {
+  const { createCrystalGeometry } = await import("../src/scene.js");
+  const geometry = createCrystalGeometry(1, 4);
+  const positions = geometry.getAttribute("position");
+  assert.equal(positions.count, 384, "the balanced crystal should contain 128 planar facets");
+  for (let index = 0; index < positions.count; index += 1) {
+    const l1Radius = Math.abs(positions.getX(index)) + Math.abs(positions.getY(index)) + Math.abs(positions.getZ(index));
+    assert.ok(Math.abs(l1Radius - 1) < 1e-6, "a crystal vertex was rounded away from the octahedral surface");
+  }
+  geometry.dispose();
+});
+
 test("the deployable browser bundle is self-contained", async () => {
   const runtime = await read("runtime/dream-unity.min.js");
   assert.ok(runtime.length > 400_000, "runtime bundle is unexpectedly small");

@@ -19,7 +19,7 @@ const WORLD_DATA = {
     title: "DREAM WORLD",
     subtitle: "MATTER · STRUCTURE · EMERGE",
     color: 0x8859e8,
-    position: [0, -2.38, 0.34]
+    position: [0, -2.5, 0.34]
   }
 };
 
@@ -46,7 +46,7 @@ function detectProfile() {
     antialias: !constrained,
     pixelRatio: constrained ? 1 : 1.35,
     fieldDetail: constrained ? 2 : 3,
-    facetDetail: constrained ? 1 : 2,
+    facetDetail: constrained ? 4 : 6,
     portalDetail: constrained ? 1 : 2,
     curveSegments: constrained ? 84 : 128,
     constellationPoints: constrained ? 135 : 220,
@@ -119,6 +119,48 @@ function applyFacetColors(geometry, baseColor, random, spread = 0.24) {
   source.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
   source.computeVertexNormals();
   return source;
+}
+
+function createCrystalGeometry(radius, segments) {
+  const top = new THREE.Vector3(0, radius, 0);
+  const bottom = new THREE.Vector3(0, -radius, 0);
+  const east = new THREE.Vector3(radius, 0, 0);
+  const north = new THREE.Vector3(0, 0, radius);
+  const west = new THREE.Vector3(-radius, 0, 0);
+  const south = new THREE.Vector3(0, 0, -radius);
+  const faces = [
+    [top, north, east], [top, west, north], [top, south, west], [top, east, south],
+    [bottom, east, north], [bottom, north, west], [bottom, west, south], [bottom, south, east]
+  ];
+  const positions = [];
+
+  const point = (a, b, c, i, j) => {
+    const bWeight = i / segments;
+    const cWeight = j / segments;
+    return a.clone().multiplyScalar(1 - bWeight - cWeight)
+      .addScaledVector(b, bWeight)
+      .addScaledVector(c, cWeight);
+  };
+
+  faces.forEach(([a, b, c]) => {
+    for (let i = 0; i < segments; i += 1) {
+      for (let j = 0; j < segments - i; j += 1) {
+        const p0 = point(a, b, c, i, j);
+        const p1 = point(a, b, c, i + 1, j);
+        const p2 = point(a, b, c, i, j + 1);
+        positions.push(...p0, ...p1, ...p2);
+        if (j < segments - i - 1) {
+          const p3 = point(a, b, c, i + 1, j + 1);
+          positions.push(...p1, ...p3, ...p2);
+        }
+      }
+    }
+  });
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.computeVertexNormals();
+  return geometry;
 }
 
 function createSegmentsFromLoops(loopDefinitions, segments) {
@@ -300,7 +342,7 @@ export class DreamUnityScene {
     this.field.position.y = 0.2;
     this.system.add(this.field);
 
-    const fieldGeometry = new THREE.IcosahedronGeometry(4.22, this.profile.fieldDetail);
+    const fieldGeometry = new THREE.IcosahedronGeometry(3.35, this.profile.fieldDetail);
     const fieldWire = new THREE.LineSegments(
       new THREE.WireframeGeometry(fieldGeometry),
       new THREE.LineBasicMaterial({
@@ -329,8 +371,8 @@ export class DreamUnityScene {
     const longitudeLoops = [];
     for (let index = 0; index < 7; index += 1) {
       longitudeLoops.push({
-        radiusX: 4.23,
-        radiusZ: 4.23,
+        radiusX: 3.36,
+        radiusZ: 3.36,
         y: 0,
         tilt: Math.PI / 2,
         phase: index * 0.19,
@@ -349,7 +391,7 @@ export class DreamUnityScene {
     );
     this.field.add(longitudes);
 
-    const halo = this.#glowSprite(0xc8c5ed, 9.2, 0.16);
+    const halo = this.#glowSprite(0xc8c5ed, 7.25, 0.16);
     halo.position.z = -1.5;
     this.field.add(halo);
   }
@@ -361,7 +403,7 @@ export class DreamUnityScene {
     const palette = [new THREE.Color(0x6da6eb), new THREE.Color(0x9a77e7), new THREE.Color(0x6fcbbf)];
 
     for (let index = 0; index < this.profile.constellationPoints; index += 1) {
-      const radius = Math.pow(this.random(), 0.65) * 3.92;
+      const radius = Math.pow(this.random(), 0.65) * 3.16;
       const theta = this.random() * TAU;
       const phi = Math.acos(this.random() * 2 - 1);
       const point = new THREE.Vector3(
@@ -376,7 +418,7 @@ export class DreamUnityScene {
 
     for (let index = 0; index < points.length; index += 1) {
       let closest = null;
-      let distance = 1.22;
+      let distance = 1.02;
       for (let candidate = index + 1; candidate < Math.min(points.length, index + 13); candidate += 1) {
         const candidateDistance = points[index].distanceTo(points[candidate]);
         if (candidateDistance < distance) {
@@ -412,7 +454,8 @@ export class DreamUnityScene {
 
   #createPlatform() {
     this.platform = new THREE.Group();
-    this.platform.position.y = -3.0;
+    this.platform.position.y = -3.42;
+    this.platform.scale.z = 0.5;
     this.system.add(this.platform);
 
     const base = new THREE.Mesh(
@@ -476,7 +519,7 @@ export class DreamUnityScene {
     this.system.add(this.core);
 
     const outerGeometry = applyFacetColors(
-      new THREE.OctahedronGeometry(1.66, this.profile.facetDetail),
+      createCrystalGeometry(1.66, this.profile.facetDetail),
       0x6942c7,
       this.random,
       0.34
@@ -516,7 +559,7 @@ export class DreamUnityScene {
     this.coreInner = inner;
 
     const wire = new THREE.LineSegments(
-      new THREE.WireframeGeometry(new THREE.OctahedronGeometry(1.7, this.profile.facetDetail)),
+      new THREE.WireframeGeometry(createCrystalGeometry(1.7, this.profile.facetDetail)),
       new THREE.LineBasicMaterial({ color: 0xe6dfff, transparent: true, opacity: 0.44, blending: THREE.AdditiveBlending, depthWrite: false })
     );
     wire.scale.set(1.12, 1.09, 0.93);
@@ -1026,4 +1069,4 @@ export class DreamUnityScene {
   }
 }
 
-export { WORLD_DATA };
+export { WORLD_DATA, createCrystalGeometry };
