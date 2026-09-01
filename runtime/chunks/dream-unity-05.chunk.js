@@ -1,58 +1,4 @@
-gment:`float roughnessFactor = roughness;
-#ifdef USE_ROUGHNESSMAP
-	vec4 texelRoughness = texture2D( roughnessMap, vRoughnessMapUv );
-	roughnessFactor *= texelRoughness.g;
-#endif`,roughnessmap_pars_fragment:`#ifdef USE_ROUGHNESSMAP
-	uniform sampler2D roughnessMap;
-#endif`,shadowmap_pars_fragment:`#if NUM_SPOT_LIGHT_COORDS > 0
-	varying vec4 vSpotLightCoord[ NUM_SPOT_LIGHT_COORDS ];
-#endif
-#if NUM_SPOT_LIGHT_MAPS > 0
-	uniform sampler2D spotLightMap[ NUM_SPOT_LIGHT_MAPS ];
-#endif
-#ifdef USE_SHADOWMAP
-	#if NUM_DIR_LIGHT_SHADOWS > 0
-		#if defined( SHADOWMAP_TYPE_PCF )
-			uniform sampler2DShadow directionalShadowMap[ NUM_DIR_LIGHT_SHADOWS ];
-		#else
-			uniform sampler2D directionalShadowMap[ NUM_DIR_LIGHT_SHADOWS ];
-		#endif
-		varying vec4 vDirectionalShadowCoord[ NUM_DIR_LIGHT_SHADOWS ];
-		struct DirectionalLightShadow {
-			float shadowIntensity;
-			float shadowBias;
-			float shadowNormalBias;
-			float shadowRadius;
-			vec2 shadowMapSize;
-		};
-		uniform DirectionalLightShadow directionalLightShadows[ NUM_DIR_LIGHT_SHADOWS ];
-	#endif
-	#if NUM_SPOT_LIGHT_SHADOWS > 0
-		#if defined( SHADOWMAP_TYPE_PCF )
-			uniform sampler2DShadow spotShadowMap[ NUM_SPOT_LIGHT_SHADOWS ];
-		#else
-			uniform sampler2D spotShadowMap[ NUM_SPOT_LIGHT_SHADOWS ];
-		#endif
-		struct SpotLightShadow {
-			float shadowIntensity;
-			float shadowBias;
-			float shadowNormalBias;
-			float shadowRadius;
-			vec2 shadowMapSize;
-		};
-		uniform SpotLightShadow spotLightShadows[ NUM_SPOT_LIGHT_SHADOWS ];
-	#endif
-	#if NUM_POINT_LIGHT_SHADOWS > 0
-		#if defined( SHADOWMAP_TYPE_PCF )
-			uniform samplerCubeShadow pointShadowMap[ NUM_POINT_LIGHT_SHADOWS ];
-		#elif defined( SHADOWMAP_TYPE_BASIC )
-			uniform samplerCube pointShadowMap[ NUM_POINT_LIGHT_SHADOWS ];
-		#endif
-		varying vec4 vPointShadowCoord[ NUM_POINT_LIGHT_SHADOWS ];
-		struct PointLightShadow {
-			float shadowIntensity;
-			float shadowBias;
-			float shadowNormalBias;
+lBias;
 			float shadowRadius;
 			vec2 shadowMapSize;
 			float shadowCameraNear;
@@ -1867,4 +1813,41 @@ void main() {
 	vec4 mvPosition = modelViewMatrix[ 3 ];
 	vec2 scale = vec2( length( modelMatrix[ 0 ].xyz ), length( modelMatrix[ 1 ].xyz ) );
 	#ifndef USE_SIZEATTENUATION
-		bool isPerspective = isPerspectiveMatrix( proje
+		bool isPerspective = isPerspectiveMatrix( projectionMatrix );
+		if ( isPerspective ) scale *= - mvPosition.z;
+	#endif
+	vec2 alignedPosition = ( position.xy - ( center - vec2( 0.5 ) ) ) * scale;
+	vec2 rotatedPosition;
+	rotatedPosition.x = cos( rotation ) * alignedPosition.x - sin( rotation ) * alignedPosition.y;
+	rotatedPosition.y = sin( rotation ) * alignedPosition.x + cos( rotation ) * alignedPosition.y;
+	mvPosition.xy += rotatedPosition;
+	gl_Position = projectionMatrix * mvPosition;
+	#include <logdepthbuf_vertex>
+	#include <clipping_planes_vertex>
+	#include <fog_vertex>
+}`,sprite_frag:`uniform vec3 diffuse;
+uniform float opacity;
+#include <common>
+#include <uv_pars_fragment>
+#include <map_pars_fragment>
+#include <alphamap_pars_fragment>
+#include <alphatest_pars_fragment>
+#include <alphahash_pars_fragment>
+#include <fog_pars_fragment>
+#include <logdepthbuf_pars_fragment>
+#include <clipping_planes_pars_fragment>
+void main() {
+	vec4 diffuseColor = vec4( diffuse, opacity );
+	#include <clipping_planes_fragment>
+	vec3 outgoingLight = vec3( 0.0 );
+	#include <logdepthbuf_fragment>
+	#include <map_fragment>
+	#include <alphamap_fragment>
+	#include <alphatest_fragment>
+	#include <alphahash_fragment>
+	outgoingLight = diffuseColor.rgb;
+	#include <opaque_fragment>
+	#include <tonemapping_fragment>
+	#include <colorspace_fragment>
+	#include <fog_fragment>
+}`},le={common:{diffuse:{value:new be(16777215)},opacity:{value:1},map:{value:null},mapTransform:{value:new De},alphaMap:{value:null},alphaMapTransform:{value:new De},alphaTest:{value:0}},specularmap:{specularMap:{value:null},specularMapTransform:{value:new De}},envmap:{envMap:{value:null},envMapRotation:{value:new De},reflectivity:{value:1},ior:{value:1.5},refractionRatio:{value:.98},dfgLUT:{value:null}},aomap:{aoMap:{value:null},aoMapIntensity:{value:1},aoMapTransform:{value:new De}},lightmap:{lightMap:{value:null},lightMapIntensity:{value:1},lightMapTransform:{value:new De}},
