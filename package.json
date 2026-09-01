@@ -1,0 +1,20 @@
+{
+  "name": "dream-unity-one",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Dream Unity — an interactive three-world visualization.",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "vendor": "node scripts/sync-vendor.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "check": "node --check src/main.js && node --check src/scene.js && node --check src/audio.js && npm test && npm run build"
+  },
+  "dependencies": {
+    "three": "0.185.1"
+  },
+  "devDependencies": {
+    "vite": "7.1.4"
+  }
+}
