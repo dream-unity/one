@@ -35,6 +35,14 @@ test("the deployed experience has no runtime CDN or font dependency", async () =
   assert.doesNotMatch(`${html}\n${main}\n${scene}\n${css}`, /cdn\.jsdelivr|unpkg\.com|esm\.sh|fonts\.googleapis/);
 });
 
+test("the Dream Unity title remains legible above the central crystal", async () => {
+  const css = await read("styles.css");
+  assert.match(css, /top:\s*clamp\(58px,\s*9vh,\s*84px\)/, "desktop title anchor moved away from the upper field");
+  assert.match(css, /top:\s*clamp\(56px,\s*8\.5vh,\s*72px\)/, "mobile title anchor moved away from the upper field");
+  assert.doesNotMatch(css, /top:\s*55\.2%|top:\s*54%/, "the title fell back over the crystal");
+  assert.match(css, /\.intro::before[\s\S]*?radial-gradient/, "the title lost its readability veil");
+});
+
 test("the page cannot remain trapped behind its loading screen", async () => {
   const [html, main, loader] = await Promise.all([
     read("index.html"),

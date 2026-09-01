@@ -368,14 +368,24 @@ button {
 
 .intro {
   position: absolute;
-  z-index: 8;
-  top: 55.2%;
+  z-index: 14;
+  top: clamp(58px, 9vh, 84px);
   left: 50%;
   width: min(290px, 46vw);
   transform: translate(-50%, -50%);
   text-align: center;
+  isolation: isolate;
   pointer-events: none;
   transition: opacity 500ms var(--ease), transform 700ms var(--ease);
+}
+
+.intro::before {
+  position: absolute;
+  z-index: -1;
+  inset: -20px -48px;
+  content: "";
+  background: radial-gradient(ellipse at center, rgba(250, 252, 255, 0.96) 0 42%, rgba(250, 252, 255, 0.72) 60%, transparent 79%);
+  pointer-events: none;
 }
 
 body[data-world-selected="true"] .intro {
@@ -1101,7 +1111,7 @@ body[data-world-selected="true"] .portal-label:not(.is-active) {
   .top-actions { gap: 8px; }
 
   .intro {
-    top: 54%;
+    top: clamp(56px, 8.5vh, 72px);
     width: 190px;
   }
 
