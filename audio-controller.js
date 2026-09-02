@@ -5,7 +5,15 @@ const TRACK_URL = new URL(
 
 const TARGET_VOLUME = 0.3;
 const PLAYBACK_TIMEOUT_MS = 12_000;
-const ACTIVATION_EVENTS = ["pointerdown", "touchstart", "keydown", "click"];
+const ACTIVATION_EVENTS = [
+  "pointerdown",
+  "pointerup",
+  "mousedown",
+  "touchstart",
+  "touchend",
+  "keydown",
+  "click"
+];
 
 const STATES = {
   off: {
@@ -15,15 +23,15 @@ const STATES = {
     busy: false
   },
   starting: {
-    text: "ON",
-    label: "Turn Dream Maker Eye off",
-    pressed: true,
+    text: "AUTO",
+    label: "Starting Dream Maker Eye",
+    pressed: false,
     busy: true
   },
-  armed: {
-    text: "ON",
-    label: "Turn Dream Maker Eye off; playback starts with your first interaction",
-    pressed: true,
+  blocked: {
+    text: "PLAY",
+    label: "Play Dream Maker Eye",
+    pressed: false,
     busy: false
   },
   on: {
@@ -55,7 +63,7 @@ export class DreamUnityAudioController {
       || (typeof document !== "undefined" ? document : null);
     this.defaultOn = options.defaultOn === true;
     this.player = null;
-    this.state = this.defaultOn ? "armed" : "off";
+    this.state = this.defaultOn ? "starting" : "off";
     this.operation = 0;
     this.timeout = null;
     this.wantsPlayback = this.defaultOn;
@@ -78,7 +86,7 @@ export class DreamUnityAudioController {
   }
 
   toggle() {
-    if (this.state === "starting" || this.state === "armed" || this.state === "on") {
+    if (this.state === "starting" || this.state === "on") {
       this.stop();
       return Promise.resolve(false);
     }
@@ -104,7 +112,7 @@ export class DreamUnityAudioController {
       playResult = player.play();
     } catch (error) {
       if (allowPolicyArm && this.#isAutoplayBlocked(error)) {
-        this.#armForInteraction(error, operation);
+        this.#markAutoplayBlocked(error, operation);
       } else {
         this.#fail(error, operation);
       }
@@ -132,7 +140,7 @@ export class DreamUnityAudioController {
       return true;
     } catch (error) {
       if (allowPolicyArm && this.#isAutoplayBlocked(error)) {
-        this.#armForInteraction(error, operation);
+        this.#markAutoplayBlocked(error, operation);
       } else {
         this.#fail(error, operation);
       }
@@ -168,14 +176,14 @@ export class DreamUnityAudioController {
     return player;
   }
 
-  #armForInteraction(error, operation) {
+  #markAutoplayBlocked(error, operation) {
     if (operation !== this.operation) return;
 
     this.lastError = error instanceof Error ? error : new Error(String(error));
     this.wantsPlayback = true;
     this.#clearPlaybackTimeout();
     this.player?.pause();
-    this.#setState("armed");
+    this.#setState("blocked");
     this.#installActivationFallback();
   }
 
@@ -183,14 +191,16 @@ export class DreamUnityAudioController {
     if (this.removeActivationListeners || !this.activationTarget?.addEventListener) return;
 
     const activate = (event) => {
-      if (!this.wantsPlayback || this.state !== "armed" || event.isTrusted === false) return;
+      if (!this.wantsPlayback || this.state !== "blocked" || event.isTrusted === false) return;
       if (event.type === "keydown" && ["Alt", "Control", "Meta", "Shift", "Tab"].includes(event.key)) return;
       if (this.button.contains?.(event.target)) return;
       void this.start({ allowPolicyArm: true });
     };
 
     ACTIVATION_EVENTS.forEach((eventName) => {
-      const options = eventName === "touchstart" ? { capture: true, passive: true } : true;
+      const options = /^(pointer|mouse|touch)/.test(eventName)
+        ? { capture: true, passive: true }
+        : true;
       this.activationTarget.addEventListener(eventName, activate, options);
     });
     this.removeActivationListeners = () => {
@@ -247,6 +257,7 @@ export class DreamUnityAudioController {
     this.state = state;
     this.button.disabled = false;
     this.button.dataset.audioState = state;
+    this.button.dataset.audioIntent = this.wantsPlayback ? "on" : "off";
     this.button.setAttribute("aria-pressed", String(presentation.pressed));
     this.button.setAttribute("aria-busy", String(presentation.busy));
     this.button.setAttribute("aria-label", presentation.label);
