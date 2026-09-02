@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="theme-color" content="#17140f" />
+  <meta name="description" content="Empire Dawn: First Age — an original real-time strategy game inspired by the great 1990s civilisation-building classics." />
+  <title>Empire Dawn: First Age</title>
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main id="game-shell" aria-label="Empire Dawn real-time strategy game">
+    <canvas id="game" aria-label="Game world"></canvas>
+
+    <header id="top-bar" class="hud-panel">
+      <section class="brand-lockup" aria-label="Game title">
+        <span class="brand-mark">ED</span>
+        <div>
+          <strong>EMPIRE DAWN</strong>
+          <small>FIRST AGE</small>
+        </div>
+      </section>
+
+      <section id="resource-strip" aria-label="Resources">
+        <div class="resource" title="Food"><span class="resource-icon">◆</span><b id="food-value">0</b><small>FOOD</small></div>
+        <div class="resource" title="Wood"><span class="resource-icon">▲</span><b id="wood-value">0</b><small>WOOD</small></div>
+        <div class="resource" title="Stone"><span class="resource-icon">⬟</span><b id="stone-value">0</b><small>STONE</small></div>
+        <div class="resource" title="Gold"><span class="resource-icon">●</span><b id="gold-value">0</b><small>GOLD</small></div>
+      </section>
+
+      <section class="status-strip" aria-label="Civilisation status">
+        <div class="age-chip"><small>AGE</small><b id="age-value">STONE</b></div>
+        <div class="pop-chip"><small>POPULATION</small><b><span id="population-value">0</span>/<span id="population-cap">0</span></b></div>
+        <div class="time-chip"><small>TIME</small><b id="time-value">00:00</b></div>
+      </section>
+
+      <nav class="top-actions" aria-label="Game controls">
+        <button id="sound-button" class="icon-button" title="Toggle sound" aria-label="Toggle sound">♪</button>
+        <button id="save-button" class="icon-button" title="Save game" aria-label="Save game">▣</button>
+        <button id="menu-button" class="icon-button" title="Pause menu" aria-label="Pause menu">☰</button>
+      </nav>
+    </header>
+
+    <aside id="objective-panel" class="hud-panel" aria-live="polite">
+      <div class="panel-kicker">CAMPAIGN</div>
+      <h2>The First Settlement</h2>
+      <ol id="objective-list"></ol>
+      <button id="collapse-objectives" class="text-button">Hide objectives</button>
+    </aside>
+
+    <div id="notification-stack" aria-live="polite"></div>
+
+    <section id="selection-panel" class="hud-panel" aria-label="Selected object">
+      <div id="selection-portrait" aria-hidden="true">⌂</div>
+      <div id="selection-copy">
+        <div class="panel-kicker" id="selection-owner">NO SELECTION</div>
+        <h2 id="selection-title">Select a unit or building</h2>
+        <p id="selection-description">Drag to select several units. Right-click the world to move, gather, build, or attack.</p>
+        <div id="health-row" class="health-row hidden">
+          <span>HP</span>
+          <div class="health-track"><i id="health-fill"></i></div>
+          <b id="health-value">0 / 0</b>
+        </div>
+        <div id="selection-stats"></div>
+      </div>
+    </section>
+
+    <section id="command-panel" class="hud-panel" aria-label="Commands">
+      <div class="command-heading">
+        <div>
+          <div class="panel-kicker">COMMANDS</div>
+          <strong id="command-context">GENERAL</strong>
+        </div>
+        <button id="back-command" class="text-button hidden">← Back</button>
+      </div>
+      <div id="command-grid"></div>
+      <div id="queue-strip" class="hidden">
+        <div class="queue-label"><span id="queue-name">Training</span><b id="queue-time">0s</b></div>
+        <div class="queue-track"><i id="queue-fill"></i></div>
+      </div>
+    </section>
+
+    <section id="minimap-panel" class="hud-panel" aria-label="Minimap and game speed">
+      <canvas id="minimap" width="240" height="170" aria-label="Minimap"></canvas>
+      <div class="minimap-footer">
+        <span id="map-name">RIVERLANDS</span>
+        <div class="speed-control" aria-label="Game speed">
+          <button data-speed="0.75">½</button>
+          <button data-speed="1" class="active">1×</button>
+          <button data-speed="1.5">1½</button>
+          <button data-speed="2">2×</button>
+        </div>
+      </div>
+    </section>
+
+    <div id="placement-hint" class="hud-panel hidden">Place building · Left-click to confirm · Right-click or Esc to cancel</div>
+    <div id="cursor-tooltip" class="hidden"></div>
+
+    <section id="start-screen" class="modal-layer visible" aria-label="Start game">
+      <div class="start-backdrop"></div>
+      <article class="start-card">
+        <div class="title-emblem" aria-hidden="true"><span>Ⅰ</span></div>
+        <p class="eyebrow">A CLASSIC REAL-TIME STRATEGY EXPERIENCE</p>
+        <h1>EMPIRE <em>DAWN</em></h1>
+        <p class="subtitle">FIRST AGE</p>
+        <p class="intro-copy">Raise a settlement from the Stone Age, command villagers and armies, master four resources, and break the rival kingdom before it breaks yours.</p>
+
+        <div class="setup-grid">
+          <section>
+            <h2>Choose a people</h2>
+            <div id="civilisation-options" class="civilisation-options">
+              <button class="civilisation-card selected" data-civ="river">
+                <span class="civ-sigil">◈</span>
+                <strong>River Kingdoms</strong>
+                <small>Villagers gather 12% faster</small>
+              </button>
+              <button class="civilisation-card" data-civ="steppe">
+                <span class="civ-sigil">➤</span>
+                <strong>Steppe Confederacy</strong>
+                <small>Military units move 12% faster</small>
+              </button>
+              <button class="civilisation-card" data-civ="aegean">
+                <span class="civ-sigil">⬢</span>
+                <strong>Aegean League</strong>
+                <small>Buildings gain 18% durability</small>
+              </button>
+            </div>
+          </section>
+
+          <section class="difficulty-section">
+            <h2>Rival strength</h2>
+            <div class="segmented" id="difficulty-options">
+              <button data-difficulty="standard" class="selected">Standard</button>
+              <button data-difficulty="hard">Hard</button>
+            </div>
+            <div class="mission-brief">
+              <span>MISSION</span>
+              <strong>The First Settlement</strong>
+              <p>Establish an economy, advance through the ages, and destroy the enemy Town Centre.</p>
+            </div>
+          </section>
+        </div>
+
+        <div class="start-actions">
+          <button id="continue-button" class="secondary-button hidden">Continue autosave</button>
+          <button id="start-button" class="primary-button">BEGIN THE CONQUEST</button>
+        </div>
+        <p class="legal-note">Unofficial original-asset homage. No original game code, art, audio, maps, or trademarks are distributed.</p>
+      </article>
+    </section>
+
+    <section id="pause-screen" class="modal-layer" aria-label="Pause menu">
+      <article class="menu-card">
+        <p class="eyebrow">EMPIRE DAWN</p>
+        <h2>Game Paused</h2>
+        <button id="resume-button" class="primary-button">Resume</button>
+        <button id="manual-save-button" class="secondary-button">Save campaign</button>
+        <button id="load-button" class="secondary-button">Load autosave</button>
+        <button id="help-button" class="secondary-button">Controls</button>
+        <button id="restart-button" class="danger-button">Restart mission</button>
+      </article>
+    </section>
+
+    <section id="help-screen" class="modal-layer" aria-label="Controls">
+      <article class="help-card">
+        <button id="close-help" class="close-button" aria-label="Close controls">×</button>
+        <p class="eyebrow">FIELD MANUAL</p>
+        <h2>Controls</h2>
+        <div class="controls-grid">
+          <div><kbd>Left-click</kbd><span>Select</span></div>
+          <div><kbd>Drag</kbd><span>Box-select units</span></div>
+          <div><kbd>Right-click</kbd><span>Move, gather, attack</span></div>
+          <div><kbd>Shift</kbd><span>Add to selection</span></div>
+          <div><kbd>W A S D</kbd><span>Move camera</span></div>
+          <div><kbd>Mouse wheel</kbd><span>Zoom</span></div>
+          <div><kbd>Ctrl + 1–5</kbd><span>Create control group</span></div>
+          <div><kbd>1–5</kbd><span>Select control group</span></div>
+          <div><kbd>Space</kbd><span>Centre selection</span></div>
+          <div><kbd>H</kbd><span>Centre Town Centre</span></div>
+          <div><kbd>B</kbd><span>Villager build menu</span></div>
+          <div><kbd>P</kbd><span>Pause</span></div>
+        </div>
+      </article>
+    </section>
+
+    <section id="end-screen" class="modal-layer" aria-label="Mission result">
+      <article class="end-card">
+        <p class="eyebrow" id="end-kicker">CAMPAIGN COMPLETE</p>
+        <h2 id="end-title">Victory</h2>
+        <p id="end-copy"></p>
+        <div id="end-stats"></div>
+        <button id="play-again-button" class="primary-button">Play again</button>
+      </article>
+    </section>
+  </main>
+
+  <script src="js/game-01.js" defer></script>
+  <script src="js/game-02.js" defer></script>
+  <script src="js/game-03.js" defer></script>
+  <script src="js/game-04.js" defer></script>
+  <script src="js/game-05.js" defer></script>
+  <script src="js/game-06.js" defer></script>
+  <script src="js/game-07.js" defer></script>
+  <script src="js/game-08.js" defer></script>
+</body>
+</html>
