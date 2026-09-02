@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "totalBytes": 620438,
+  "totalBytes": 622338,
   "chunks": [
     {
       "file": "dream-unity-00.chunk.js",
@@ -40,7 +40,7 @@
     },
     {
       "file": "dream-unity-09.chunk.js",
-      "bytes": 30614
+      "bytes": 32514
     }
   ]
 }

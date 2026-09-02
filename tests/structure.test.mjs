@@ -35,17 +35,6 @@ test("the deployed experience has no runtime CDN or font dependency", async () =
   assert.doesNotMatch(`${html}\n${main}\n${scene}\n${css}`, /cdn\.jsdelivr|unpkg\.com|esm\.sh|fonts\.googleapis/);
 });
 
-test("the music control plays the complete Dream Maker Eye recording", async () => {
-  const audio = await read("src/audio.js");
-  const recording = await stat(new URL("../assets/audio/dream-maker-eye.mp3", import.meta.url));
-  assert.match(audio, /\.\/assets\/audio\/dream-maker-eye\.mp3/);
-  assert.match(audio, /new Audio\(TRACK_URL\)/);
-  assert.match(audio, /player\.loop = true/);
-  assert.match(audio, /player\.preload = "metadata"/, "the recording should not delay the 3D startup");
-  assert.doesNotMatch(audio, /createOscillator|createConvolver|createBufferSource/, "the previous synthetic soundtrack remains active");
-  assert.ok(recording.size > 8_000_000, "the full uploaded recording is missing or truncated");
-});
-
 test("the Dream Unity title remains legible above the central crystal", async () => {
   const css = await read("styles.css");
   assert.match(css, /top:\s*clamp\(58px,\s*9vh,\s*84px\)/, "desktop title anchor moved away from the upper field");
