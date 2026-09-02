@@ -5,6 +5,7 @@ const TRACK_URL = new URL(
 
 const TARGET_VOLUME = 0.3;
 const PLAYBACK_TIMEOUT_MS = 12_000;
+const ACTIVATION_EVENTS = ["pointerdown", "touchstart", "keydown", "click"];
 
 const STATES = {
   off: {
@@ -13,11 +14,17 @@ const STATES = {
     pressed: false,
     busy: false
   },
-  loading: {
-    text: "…",
-    label: "Loading Dream Maker Eye; activate to cancel",
-    pressed: false,
+  starting: {
+    text: "ON",
+    label: "Turn Dream Maker Eye off",
+    pressed: true,
     busy: true
+  },
+  armed: {
+    text: "ON",
+    label: "Turn Dream Maker Eye off; playback starts with your first interaction",
+    pressed: true,
+    busy: false
   },
   on: {
     text: "ON",
@@ -42,14 +49,18 @@ export class DreamUnityAudioController {
     this.createAudio = options.createAudio || (() => new Audio());
     this.setTimer = options.setTimer || ((callback, delay) => setTimeout(callback, delay));
     this.clearTimer = options.clearTimer || ((timer) => clearTimeout(timer));
-    this.timeoutMs = options.timeoutMs || PLAYBACK_TIMEOUT_MS;
+    this.timeoutMs = options.timeoutMs ?? PLAYBACK_TIMEOUT_MS;
     this.warn = options.warn || ((...messages) => console.warn(...messages));
+    this.activationTarget = options.activationTarget
+      || (typeof document !== "undefined" ? document : null);
+    this.defaultOn = options.defaultOn === true;
     this.player = null;
-    this.state = "off";
+    this.state = this.defaultOn ? "armed" : "off";
     this.operation = 0;
     this.timeout = null;
-    this.wantsPlayback = false;
+    this.wantsPlayback = this.defaultOn;
     this.lastError = null;
+    this.removeActivationListeners = null;
 
     this.button.addEventListener("click", (event) => {
       // The restored bundle still contains its original procedural-audio fallback.
@@ -58,23 +69,29 @@ export class DreamUnityAudioController {
       event.stopImmediatePropagation();
       void this.toggle();
     }, { capture: true });
-    this.#setState("off");
+    this.#setState(this.state);
+  }
+
+  autoplay() {
+    if (this.state === "on") return Promise.resolve(true);
+    return this.start({ allowPolicyArm: true });
   }
 
   toggle() {
-    if (this.state === "loading" || this.state === "on") {
+    if (this.state === "starting" || this.state === "armed" || this.state === "on") {
       this.stop();
       return Promise.resolve(false);
     }
     return this.start();
   }
 
-  async start() {
+  async start({ allowPolicyArm = false } = {}) {
     const shouldRecreatePlayer = this.state === "retry";
     const operation = ++this.operation;
     this.wantsPlayback = true;
     this.lastError = null;
-    this.#setState("loading");
+    this.#removeActivationFallback();
+    this.#setState("starting");
 
     if (shouldRecreatePlayer) this.#disposePlayer();
 
@@ -82,16 +99,19 @@ export class DreamUnityAudioController {
     let playResult;
     try {
       player = this.#ensurePlayer();
-      // Calling play synchronously inside the click turn preserves browser user activation.
+      // This remains synchronous up to play(), preserving a trusted user gesture
+      // when start() is retried from the first page interaction.
       playResult = player.play();
     } catch (error) {
-      this.#fail(error, operation);
+      if (allowPolicyArm && this.#isAutoplayBlocked(error)) {
+        this.#armForInteraction(error, operation);
+      } else {
+        this.#fail(error, operation);
+      }
       return false;
     }
 
-    let rejectTimeout;
     const timedOut = new Promise((_, reject) => {
-      rejectTimeout = reject;
       this.timeout = this.setTimer(
         () => reject(new Error("Dream Maker Eye took too long to begin playback.")),
         this.timeoutMs
@@ -101,20 +121,22 @@ export class DreamUnityAudioController {
     try {
       await Promise.race([Promise.resolve(playResult), timedOut]);
       this.#clearPlaybackTimeout();
-      rejectTimeout = null;
 
       if (operation !== this.operation || !this.wantsPlayback) {
         player.pause();
         return false;
       }
 
+      this.#removeActivationFallback();
       this.#setState("on");
       return true;
     } catch (error) {
-      this.#fail(error, operation);
+      if (allowPolicyArm && this.#isAutoplayBlocked(error)) {
+        this.#armForInteraction(error, operation);
+      } else {
+        this.#fail(error, operation);
+      }
       return false;
-    } finally {
-      rejectTimeout = null;
     }
   }
 
@@ -122,17 +144,17 @@ export class DreamUnityAudioController {
     this.operation += 1;
     this.wantsPlayback = false;
     this.#clearPlaybackTimeout();
+    this.#removeActivationFallback();
     this.player?.pause();
     this.#setState("off");
   }
 
   #ensurePlayer() {
-    if (this.state === "retry") this.#disposePlayer();
     if (this.player) return this.player;
 
     const player = this.createAudio();
     player.loop = true;
-    player.preload = "none";
+    player.preload = "auto";
     player.playsInline = true;
     player.volume = TARGET_VOLUME;
     player.src = TRACK_URL;
@@ -144,6 +166,43 @@ export class DreamUnityAudioController {
     });
     this.player = player;
     return player;
+  }
+
+  #armForInteraction(error, operation) {
+    if (operation !== this.operation) return;
+
+    this.lastError = error instanceof Error ? error : new Error(String(error));
+    this.wantsPlayback = true;
+    this.#clearPlaybackTimeout();
+    this.player?.pause();
+    this.#setState("armed");
+    this.#installActivationFallback();
+  }
+
+  #installActivationFallback() {
+    if (this.removeActivationListeners || !this.activationTarget?.addEventListener) return;
+
+    const activate = (event) => {
+      if (!this.wantsPlayback || this.state !== "armed" || event.isTrusted === false) return;
+      if (event.type === "keydown" && ["Alt", "Control", "Meta", "Shift", "Tab"].includes(event.key)) return;
+      if (this.button.contains?.(event.target)) return;
+      void this.start({ allowPolicyArm: true });
+    };
+
+    ACTIVATION_EVENTS.forEach((eventName) => {
+      const options = eventName === "touchstart" ? { capture: true, passive: true } : true;
+      this.activationTarget.addEventListener(eventName, activate, options);
+    });
+    this.removeActivationListeners = () => {
+      ACTIVATION_EVENTS.forEach((eventName) => {
+        this.activationTarget.removeEventListener?.(eventName, activate, true);
+      });
+      this.removeActivationListeners = null;
+    };
+  }
+
+  #removeActivationFallback() {
+    this.removeActivationListeners?.();
   }
 
   #disposePlayer() {
@@ -165,9 +224,16 @@ export class DreamUnityAudioController {
     this.wantsPlayback = false;
     this.lastError = error instanceof Error ? error : new Error(String(error));
     this.#clearPlaybackTimeout();
+    this.#removeActivationFallback();
     this.player?.pause();
     this.#setState("retry");
     this.warn("Dream Maker Eye playback is unavailable; the control remains retryable.", this.lastError);
+  }
+
+  #isAutoplayBlocked(error) {
+    const message = `${error?.name || ""} ${error?.message || error || ""}`;
+    return error?.name === "NotAllowedError"
+      || /autoplay|user (gesture|interaction)|not allowed/i.test(message);
   }
 
   #clearPlaybackTimeout() {
@@ -190,5 +256,9 @@ export class DreamUnityAudioController {
 
 if (typeof document !== "undefined") {
   const button = document.getElementById("sound-toggle");
-  if (button) globalThis.__DREAM_UNITY_AUDIO__ = new DreamUnityAudioController(button);
+  if (button) {
+    const controller = new DreamUnityAudioController(button, { defaultOn: true });
+    globalThis.__DREAM_UNITY_AUDIO__ = controller;
+    void controller.autoplay();
+  }
 }
