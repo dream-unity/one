@@ -3,8 +3,10 @@
   window.__DREAM_UNITY_LOADER_STARTED__ = true;
 
   const loaderElement = document.currentScript;
-  const loaderUrl = loaderElement?.src || new URL("./runtime/loader.js", document.baseURI).href;
+  const loaderUrl = new URL(loaderElement?.src || "./runtime/loader.js", document.baseURI);
+  const deliveryRevision = loaderUrl.searchParams.get("v") || "unversioned";
   const manifestUrl = new URL("./chunks/manifest.json", loaderUrl);
+  manifestUrl.searchParams.set("v", deliveryRevision);
   const progress = document.getElementById("boot-progress");
   const status = document.getElementById("boot-status");
 
@@ -22,17 +24,21 @@
     window.__DREAM_UNITY_REVEAL_STATIC__?.();
   };
 
-  const load = async () => {
-    update(14, "LOCATING UNITY ENGINE");
-    const manifestResponse = await fetch(manifestUrl, { cache: "force-cache" });
-    if (!manifestResponse.ok) throw new Error(`Runtime manifest returned ${manifestResponse.status}`);
-    const manifest = await manifestResponse.json();
+  const fetchManifest = async () => {
+    const response = await fetch(manifestUrl, { cache: "no-store" });
+    if (!response.ok) throw new Error(`Runtime manifest returned ${response.status}`);
+    const manifest = await response.json();
     if (!Array.isArray(manifest.chunks) || !manifest.chunks.length) throw new Error("Runtime manifest is empty");
+    if (!/^[a-f0-9]{64}$/.test(manifest.revision || "")) throw new Error("Runtime manifest has no valid revision");
+    return manifest;
+  };
 
+  const fetchChunks = async (manifest, cache) => {
     let loaded = 0;
-    update(20, "STREAMING POSSIBILITY FIELD");
-    const buffers = await Promise.all(manifest.chunks.map(async (chunk) => {
-      const response = await fetch(new URL(chunk.file, manifestUrl), { cache: "force-cache" });
+    return Promise.all(manifest.chunks.map(async (chunk) => {
+      const chunkUrl = new URL(chunk.file, manifestUrl);
+      chunkUrl.searchParams.set("v", manifest.revision);
+      const response = await fetch(chunkUrl, { cache });
       if (!response.ok) throw new Error(`${chunk.file} returned ${response.status}`);
       const buffer = await response.arrayBuffer();
       if (buffer.byteLength !== chunk.bytes) {
@@ -42,12 +48,44 @@
       update(20 + Math.round((loaded / manifest.chunks.length) * 48), "STREAMING POSSIBILITY FIELD");
       return buffer;
     }));
+  };
 
+  const assembleAndVerify = async (manifest, buffers) => {
     const totalBytes = buffers.reduce((total, buffer) => total + buffer.byteLength, 0);
     if (totalBytes !== manifest.totalBytes) throw new Error(`Runtime integrity mismatch (${totalBytes}/${manifest.totalBytes} bytes)`);
 
+    const runtimeBytes = new Uint8Array(totalBytes);
+    let offset = 0;
+    buffers.forEach((buffer) => {
+      runtimeBytes.set(new Uint8Array(buffer), offset);
+      offset += buffer.byteLength;
+    });
+
+    if (globalThis.crypto?.subtle) {
+      const digest = await globalThis.crypto.subtle.digest("SHA-256", runtimeBytes);
+      const revision = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+      if (revision !== manifest.revision) throw new Error("Runtime content revision does not match its manifest");
+    }
+
+    return runtimeBytes;
+  };
+
+  const load = async () => {
+    update(14, "LOCATING UNITY ENGINE");
+    const manifest = await fetchManifest();
+    window.__DREAM_UNITY_RUNTIME_REVISION__ = manifest.revision;
+    update(20, "STREAMING POSSIBILITY FIELD");
+    let runtimeBytes;
+    try {
+      runtimeBytes = await assembleAndVerify(manifest, await fetchChunks(manifest, "force-cache"));
+    } catch (cachedDeliveryError) {
+      console.warn("Dream Unity discarded a stale runtime delivery and is refreshing it.", cachedDeliveryError);
+      update(22, "REFRESHING UNITY ENGINE");
+      runtimeBytes = await assembleAndVerify(manifest, await fetchChunks(manifest, "reload"));
+    }
+
     update(72, "ASSEMBLING UNITY ENGINE");
-    const runtimeBlob = new Blob(buffers, { type: "text/javascript" });
+    const runtimeBlob = new Blob([runtimeBytes], { type: "text/javascript" });
     const runtimeUrl = URL.createObjectURL(runtimeBlob);
     const runtimeScript = document.createElement("script");
     runtimeScript.src = runtimeUrl;

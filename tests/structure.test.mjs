@@ -51,11 +51,22 @@ test("the page cannot remain trapped behind its loading screen", async () => {
   ]);
   assert.match(html, /__DREAM_UNITY_WATCHDOG__/);
   assert.match(html, /setTimeout\(revealStaticExperience, 6000\)/);
-  assert.match(html, /defer src="\.\/runtime\/loader\.js"/);
+  assert.match(html, /defer src="\.\/runtime\/loader\.js\?v=restore-aaa4d584"/);
   assert.match(main, /clearTimeout\(window\.__DREAM_UNITY_WATCHDOG__\)/);
   assert.doesNotMatch(html, /<script[^>]+src="\.\/runtime\/dream-unity\.min\.js"/);
+  assert.match(loader, /fetch\(manifestUrl, \{ cache: "no-store" \}\)/);
+  assert.match(loader, /chunkUrl\.searchParams\.set\("v", manifest\.revision\)/);
+  assert.match(loader, /globalThis\.crypto\.subtle\.digest\("SHA-256", runtimeBytes\)/);
+  assert.match(loader, /fetchChunks\(manifest, "reload"\)/);
   assert.match(loader, /buffer\.byteLength !== chunk\.bytes/);
   assert.match(loader, /totalBytes !== manifest\.totalBytes/);
+});
+
+test("the original responsive procedural soundtrack remains restored", async () => {
+  const audio = await read("src/audio.js");
+  assert.match(audio, /new AudioContext\(\)/);
+  assert.match(audio, /createOscillator\(\)/);
+  assert.doesNotMatch(audio, /new Audio\(|\.mp3|Dream Maker Eye/);
 });
 
 test("the vendored Three.js runtime and license remain available", async () => {
@@ -98,6 +109,7 @@ test("the deployable browser bundle is self-contained", async () => {
 
 test("the segmented runtime reconstructs the exact production bundle", async () => {
   const manifest = JSON.parse(await read("runtime/chunks/manifest.json"));
+  assert.match(manifest.revision, /^[a-f0-9]{64}$/, "runtime revision must be a SHA-256 digest");
   assert.ok(manifest.chunks.length >= 2, "runtime must be segmented for resilient delivery");
   const parts = await Promise.all(manifest.chunks.map(async (chunk) => {
     assert.ok(chunk.bytes <= 64 * 1024, `${chunk.file} exceeds the delivery ceiling`);

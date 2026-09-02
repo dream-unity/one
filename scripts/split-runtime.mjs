@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 
 const chunkSize = 64 * 1024;
@@ -17,6 +18,7 @@ for (let offset = 0, index = 0; offset < runtime.length; offset += chunkSize, in
 
 const manifest = {
   version: 1,
+  revision: createHash("sha256").update(runtime).digest("hex"),
   totalBytes: runtime.byteLength,
   chunks
 };
