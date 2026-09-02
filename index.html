@@ -204,33 +204,49 @@
       </div>
     </main>
 
+    <audio
+      id="dream-unity-soundtrack"
+      autoplay
+      loop
+      preload="auto"
+      playsinline
+      webkit-playsinline
+      hidden
+      aria-hidden="true"
+    >
+      <source src="./assets/audio/dream-maker-eye.mp3?v=b23033e55592" type="audio/mpeg" />
+    </audio>
+
     <noscript>
       <div class="noscript">Dream Unity requires JavaScript to render its interactive world.</div>
     </noscript>
 
     <script>
-      (() => {
-        const revealStaticExperience = () => {
+      (function () {
+        var revealStaticExperience = function () {
           if (window.__DREAM_UNITY__) return;
-          const bootScreen = document.getElementById("boot");
-          const progress = document.getElementById("boot-progress");
-          const status = document.getElementById("boot-status");
-          const calibration = document.getElementById("calibration-status");
-          const harmony = document.getElementById("harmony-value");
+          var bootScreen = document.getElementById("boot");
+          var progress = document.getElementById("boot-progress");
+          var status = document.getElementById("boot-status");
+          var calibration = document.getElementById("calibration-status");
+          var harmony = document.getElementById("harmony-value");
           if (progress) progress.style.width = "100%";
           if (status) status.textContent = "OPENING RESILIENT VISUAL MODE";
           if (calibration) calibration.textContent = "VISUAL MODE";
           if (harmony) harmony.textContent = "READY";
-          document.body.dataset.renderProfile = "static";
-          window.setTimeout(() => {
-            if (bootScreen) bootScreen.classList.add("is-complete");
+          if (document.body.dataset) document.body.dataset.renderProfile = "static";
+          else document.body.setAttribute("data-render-profile", "static");
+          window.setTimeout(function () {
+            if (!bootScreen) return;
+            if (bootScreen.classList) bootScreen.classList.add("is-complete");
+            else bootScreen.className += " is-complete";
           }, 180);
         };
         window.__DREAM_UNITY_REVEAL_STATIC__ = revealStaticExperience;
         window.__DREAM_UNITY_WATCHDOG__ = window.setTimeout(revealStaticExperience, 6000);
-      })();
+      }());
     </script>
-    <script type="module" src="./audio-controller.js?v=audio-autoplay-b23033e55592-v2"></script>
+    <script defer src="./audio-controller.js?v=audio-crossbrowser-b23033e55592-v3"></script>
     <script defer src="./runtime/loader.js?v=restore-aaa4d584" onerror="window.__DREAM_UNITY_REVEAL_STATIC__ &amp;&amp; window.__DREAM_UNITY_REVEAL_STATIC__()"></script>
   </body>
 </html>

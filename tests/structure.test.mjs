@@ -9,6 +9,9 @@ const sha256 = async (path) => createHash("sha256")
   .digest("hex");
 const digest = (content) => createHash("sha256").update(content).digest("hex");
 
+await import("../audio-controller.js");
+const DreamUnityAudioController = globalThis.DreamUnityAudioController;
+
 const readSegmentedRuntime = async () => {
   const manifest = JSON.parse(await read("runtime/chunks/manifest.json"));
   const parts = await Promise.all(manifest.chunks.map((chunk) =>
@@ -99,7 +102,7 @@ test("Dream Maker Eye overrides only the music event without rebuilding the visu
     read("src/main.js"),
     read("audio-controller.js")
   ]);
-  const audioScript = html.indexOf("audio-controller.js?v=audio-autoplay-b23033e55592-v2");
+  const audioScript = html.indexOf("audio-controller.js?v=audio-crossbrowser-b23033e55592-v3");
   const runtimeScript = html.indexOf("runtime/loader.js?v=restore-aaa4d584");
   assert.ok(audioScript > -1, "the independent audio controller is not loaded");
   assert.ok(audioScript < runtimeScript, "the audio controller should initialize independently of the 3D runtime");
@@ -107,11 +110,19 @@ test("Dream Maker Eye overrides only the music event without rebuilding the visu
     "the server-rendered control must distinguish autoplay intent from actual playback");
   assert.match(html, /<span>MUSIC<\/span>\s*<strong>AUTO<\/strong>/,
     "the control must not claim playback before play() succeeds");
+  assert.match(html, /<audio[\s\S]*?id="dream-unity-soundtrack"[\s\S]*?autoplay[\s\S]*?loop[\s\S]*?<source[^>]+type="audio\/mpeg"/,
+    "the browser-native autoplay and loop path is missing");
+  assert.doesNotMatch(html, /<script type="module" src="\.\/audio-controller\.js/,
+    "the audio controller must remain executable in browsers without modules");
   assert.match(main, /UnityAudio/, "the known-good runtime fallback unexpectedly changed");
   assert.match(controller, /stopImmediatePropagation\(\)/, "the replacement must isolate the original button handler");
-  assert.match(controller, /\{ capture: true \}/, "the replacement must win before the restored bubble handler");
-  assert.match(controller, /new DreamUnityAudioController\(button, \{ defaultOn: true \}\)/);
-  assert.match(controller, /void controller\.autoplay\(\)/);
+  assert.match(controller, /self\.toggle\(true\);\s*\}, true\);/, "the replacement must win before the restored bubble handler");
+  assert.match(controller, /defaultOn: true/);
+  assert.match(controller, /controller\.autoplay\(\)/);
+  assert.match(controller, /addEventListener\("playing"/, "ON must be driven by real media playback");
+  assert.match(controller, /addEventListener\("pause"/, "external browser pauses must invalidate ON");
+  assert.doesNotMatch(controller, /\b(?:const|let|class|async|await|export|import)\b|=>|\?\?|\?\./,
+    "the cross-browser controller contains syntax that legacy engines cannot parse");
   assert.match(controller, /assets\/audio\/dream-maker-eye\.mp3\?v=b23033e55592/);
   assert.equal(
     await sha256("assets/audio/dream-maker-eye.mp3"),
@@ -128,7 +139,6 @@ test("Dream Maker Eye overrides only the music event without rebuilding the visu
 class FakeButton {
   constructor() {
     this.attributes = new Map();
-    this.dataset = {};
     this.disabled = false;
     this.label = { textContent: "OFF" };
     this.listeners = new Map();
@@ -185,23 +195,60 @@ class FakeActivationTarget {
 }
 
 const makeAudio = (play) => ({
+  autoplay: false,
   loop: false,
-  preload: "auto",
+  preload: "none",
   playsInline: false,
+  defaultMuted: true,
+  muted: true,
   volume: 1,
   src: "",
+  currentSrc: "",
+  currentTime: 0,
+  paused: true,
+  ended: false,
+  readyState: 4,
   pauseCalls: 0,
   loadCalls: 0,
+  playCalls: 0,
+  attributes: new Map(),
   listeners: new Map(),
-  play,
-  pause() { this.pauseCalls += 1; },
+  playImpl: play,
+  play() {
+    this.playCalls += 1;
+    return this.playImpl.call(this);
+  },
+  pause() {
+    this.pauseCalls += 1;
+    const changed = !this.paused;
+    this.paused = true;
+    if (changed) this.emit("pause");
+  },
   load() { this.loadCalls += 1; },
-  addEventListener(type, listener) { this.listeners.set(type, listener); },
-  removeAttribute(name) { if (name === "src") this.src = ""; }
+  setAttribute(name, value) { this.attributes.set(name, value); },
+  addEventListener(type, listener) {
+    if (!this.listeners.has(type)) this.listeners.set(type, new Set());
+    this.listeners.get(type).add(listener);
+  },
+  removeAttribute(name) {
+    this.attributes.delete(name);
+    if (name === "src") this.src = "";
+  },
+  emit(type) {
+    if (type === "playing") {
+      this.paused = false;
+      this.ended = false;
+    }
+    if (type === "pause") this.paused = true;
+    if (type === "ended") {
+      this.paused = true;
+      this.ended = true;
+    }
+    [...(this.listeners.get(type) || [])].forEach((listener) => listener({ type, target: this }));
+  }
 });
 
-test("default-on autoplay starts immediately, loops, and can cancel stale playback", async () => {
-  const { DreamUnityAudioController } = await import("../audio-controller.js");
+test("default-on autoplay starts immediately but ON waits for actual playback", async () => {
   const button = new FakeButton();
   let resolvePlayback;
   let created = 0;
@@ -218,26 +265,95 @@ test("default-on autoplay starts immediately, loops, and can cancel stale playba
   assert.equal(controller.state, "starting");
   assert.equal(button.label.textContent, "AUTO");
   assert.equal(button.getAttribute("aria-pressed"), "false");
-  assert.equal(button.dataset.audioIntent, "on");
-  assert.equal(button.listenerOptions.get("click")?.capture, true, "the override must run before the restored handler");
-  const starting = controller.autoplay();
+  assert.equal(button.getAttribute("data-audio-intent"), "on");
+  assert.equal(button.listenerOptions.get("click"), true, "the override must run before the restored handler");
+  controller.autoplay();
   assert.equal(created, 1);
   assert.equal(controller.state, "starting");
   assert.equal(button.getAttribute("aria-busy"), "true");
   assert.equal(player.loop, true);
   assert.equal(player.preload, "auto");
   assert.equal(player.volume, 0.3);
+  assert.equal(player.muted, false);
 
-  await controller.toggle();
-  assert.equal(controller.state, "off");
   resolvePlayback();
-  assert.equal(await starting, false, "a stale play promise must not switch the control back on");
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(controller.state, "starting", "a resolved play promise must not fabricate audible playback");
+  assert.equal(button.label.textContent, "AUTO");
+
+  player.emit("playing");
+  assert.equal(controller.state, "on");
+  assert.equal(button.label.textContent, "ON");
+
+  controller.stop();
   assert.equal(controller.state, "off");
   assert.ok(player.pauseCalls >= 1);
 });
 
+test("older engines that return no play promise wait for the playing event", () => {
+  const button = new FakeButton();
+  const player = makeAudio(() => undefined);
+  const controller = new DreamUnityAudioController(button, {
+    defaultOn: true,
+    player,
+    setTimer: () => 1,
+    clearTimer: () => {},
+    warn: () => {}
+  });
+
+  assert.equal(controller.autoplay(), true);
+  assert.equal(controller.state, "starting");
+  assert.equal(button.label.textContent, "AUTO");
+  assert.equal(button.getAttribute("aria-pressed"), "false");
+
+  player.emit("playing");
+  assert.equal(controller.state, "on");
+  assert.equal(button.label.textContent, "ON");
+  assert.equal(button.getAttribute("aria-pressed"), "true");
+  assert.equal(player.loop, true);
+  assert.equal(player.muted, false);
+
+  assert.equal(controller.toggle(true), false);
+  assert.equal(controller.state, "off");
+});
+
+test("a resolved promise without playback can never leave a false ON state", async () => {
+  const button = new FakeButton();
+  let playbackTimeout;
+  const player = makeAudio(() => Promise.resolve());
+  const controller = new DreamUnityAudioController(button, {
+    defaultOn: true,
+    player,
+    setTimer: (callback) => { playbackTimeout = callback; return 1; },
+    clearTimer: () => {},
+    warn: () => {}
+  });
+
+  controller.autoplay();
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(controller.state, "starting");
+  assert.equal(button.label.textContent, "AUTO");
+
+  playbackTimeout();
+  assert.equal(controller.state, "blocked");
+  assert.equal(button.label.textContent, "PLAY");
+  assert.equal(button.getAttribute("aria-pressed"), "false");
+
+  player.playImpl = function () {
+    this.emit("playing");
+    return undefined;
+  };
+  button.dispatch("click", {
+    isTrusted: true,
+    target: button,
+    stopImmediatePropagation() {}
+  });
+  assert.equal(controller.state, "on", "one button press must start the previously silent player");
+});
+
 test("blocked autoplay is reported honestly and the music button starts it in one press", async () => {
-  const { DreamUnityAudioController } = await import("../audio-controller.js");
   const button = new FakeButton();
   const activationTarget = new FakeActivationTarget();
   const blocked = Object.assign(new Error("play() failed because autoplay is not allowed"), {
@@ -257,11 +373,13 @@ test("blocked autoplay is reported honestly and the music button starts it in on
     warn: () => {}
   });
 
-  assert.equal(await controller.autoplay(), false);
+  controller.autoplay();
+  await Promise.resolve();
+  await Promise.resolve();
   assert.equal(controller.state, "blocked");
   assert.equal(button.label.textContent, "PLAY");
   assert.equal(button.getAttribute("aria-pressed"), "false");
-  assert.equal(button.dataset.audioIntent, "on");
+  assert.equal(button.getAttribute("data-audio-intent"), "on");
 
   let stopped = false;
   button.dispatch("click", {
@@ -274,25 +392,32 @@ test("blocked autoplay is reported honestly and the music button starts it in on
   assert.equal(controller.state, "starting");
   await Promise.resolve();
   await Promise.resolve();
+  assert.equal(controller.state, "starting", "promise resolution alone must not display ON");
+  player.emit("playing");
   assert.equal(controller.state, "on");
   assert.equal(button.label.textContent, "ON");
   assert.equal(button.getAttribute("aria-pressed"), "true");
 
-  assert.equal(await controller.toggle(), false);
+  assert.equal(controller.toggle(true), false);
   assert.equal(controller.state, "off");
 });
 
-test("blocked browser autoplay begins at the first permitted interaction anywhere", async () => {
-  const { DreamUnityAudioController } = await import("../audio-controller.js");
+test("the first genuine interaction recovers even while autoplay is still pending", async () => {
   const button = new FakeButton();
   const activationTarget = new FakeActivationTarget();
-  const blocked = Object.assign(new Error("play() failed because autoplay is not allowed"), {
-    name: "NotAllowedError"
-  });
+  let resolveInitialAttempt;
+  let resolveEarlyGesture;
   let attempts = 0;
-  const player = makeAudio(() => {
+  const player = makeAudio(function () {
     attempts += 1;
-    return attempts === 1 ? Promise.reject(blocked) : Promise.resolve();
+    if (attempts === 1) {
+      return new Promise((resolve) => { resolveInitialAttempt = resolve; });
+    }
+    if (attempts === 2) {
+      return new Promise((resolve) => { resolveEarlyGesture = resolve; });
+    }
+    this.emit("playing");
+    return undefined;
   });
   const controller = new DreamUnityAudioController(button, {
     defaultOn: true,
@@ -303,34 +428,80 @@ test("blocked browser autoplay begins at the first permitted interaction anywher
     warn: () => {}
   });
 
-  assert.equal(await controller.autoplay(), false);
-  assert.equal(controller.state, "blocked");
-  assert.equal(button.label.textContent, "PLAY");
+  controller.autoplay();
+  assert.equal(controller.state, "starting");
+  assert.equal(button.label.textContent, "AUTO");
   assert.equal(button.getAttribute("aria-pressed"), "false");
-  assert.ok(activationTarget.listenerCount() > 0, "the browser-policy recovery listeners are missing");
+  assert.ok(activationTarget.listenerCount() > 0, "recovery must be armed before rejection or timeout");
 
   activationTarget.dispatch("pointerdown", { isTrusted: false, target: {} });
   assert.equal(attempts, 1, "synthetic activity must not trigger playback");
   activationTarget.dispatch("pointerdown", { isTrusted: true, target: {} });
+  assert.equal(attempts, 2, "the first real interaction must retry synchronously");
   assert.equal(controller.state, "starting");
-  await Promise.resolve();
-  await Promise.resolve();
-  assert.equal(attempts, 2);
+  assert.ok(activationTarget.listenerCount() > 0, "later events from the same gesture must remain available");
+  activationTarget.dispatch("pointerup", { isTrusted: true, target: {} });
+  assert.equal(attempts, 3, "an engine-specific later gesture event must be able to retry");
   assert.equal(controller.state, "on");
+  assert.equal(button.label.textContent, "ON");
   assert.equal(activationTarget.listenerCount(), 0, "recovery listeners should be removed after playback starts");
 
-  assert.equal(await controller.toggle(), false);
+  resolveInitialAttempt();
+  resolveEarlyGesture();
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(controller.state, "on", "the stale autoplay promise must not overwrite the real state");
+
+  assert.equal(controller.toggle(true), false);
   assert.equal(controller.state, "off");
   assert.equal(button.label.textContent, "OFF");
   assert.equal(button.getAttribute("aria-pressed"), "false");
 });
 
+test("browser suspension clears false ON and pageshow restores playback", () => {
+  const button = new FakeButton();
+  const activationTarget = new FakeActivationTarget();
+  const pageTarget = new FakeActivationTarget();
+  const visibilityTarget = new FakeActivationTarget();
+  visibilityTarget.visibilityState = "visible";
+  const player = makeAudio(function () {
+    this.emit("playing");
+    return undefined;
+  });
+  const controller = new DreamUnityAudioController(button, {
+    defaultOn: true,
+    player,
+    activationTarget,
+    pageTarget,
+    visibilityTarget,
+    setTimer: () => 1,
+    clearTimer: () => {},
+    warn: () => {}
+  });
+
+  controller.autoplay();
+  assert.equal(controller.state, "on");
+
+  player.emit("pause");
+  assert.equal(controller.state, "blocked");
+  assert.equal(button.label.textContent, "PLAY");
+  assert.equal(button.getAttribute("aria-pressed"), "false");
+  assert.ok(activationTarget.listenerCount() > 0);
+
+  pageTarget.dispatch("pageshow", { persisted: true, isTrusted: true });
+  assert.equal(controller.state, "on");
+  assert.equal(button.label.textContent, "ON");
+  assert.equal(button.getAttribute("aria-pressed"), "true");
+});
+
 test("a rejected playback attempt remains retryable and recovers cleanly", async () => {
-  const { DreamUnityAudioController } = await import("../audio-controller.js");
   const button = new FakeButton();
   const players = [
     makeAudio(() => Promise.reject(new Error("simulated media failure"))),
-    makeAudio(() => Promise.resolve())
+    makeAudio(function () {
+      this.emit("playing");
+      return undefined;
+    })
   ];
   let created = 0;
   const controller = new DreamUnityAudioController(button, {
@@ -340,18 +511,20 @@ test("a rejected playback attempt remains retryable and recovers cleanly", async
     warn: () => {}
   });
 
-  assert.equal(await controller.toggle(), false);
+  assert.equal(controller.toggle(true), true);
+  await Promise.resolve();
+  await Promise.resolve();
   assert.equal(controller.state, "retry");
   assert.equal(button.label.textContent, "RETRY");
   assert.equal(button.disabled, false, "a media error must never permanently disable the control");
 
-  assert.equal(await controller.toggle(), true);
+  assert.equal(controller.toggle(true), true);
   assert.equal(created, 2, "retry should use a clean media element");
   assert.equal(controller.state, "on");
   assert.equal(button.label.textContent, "ON");
   assert.equal(button.getAttribute("aria-pressed"), "true");
 
-  assert.equal(await controller.toggle(), false);
+  assert.equal(controller.toggle(true), false);
   assert.equal(controller.state, "off");
   assert.equal(button.label.textContent, "OFF");
 });
