@@ -70,6 +70,18 @@
     return runtimeBytes;
   };
 
+  const loadDomainNavigation = () => {
+    if (window.__DREAM_UNITY_DOMAIN_NAV_LOADING__) return;
+    window.__DREAM_UNITY_DOMAIN_NAV_LOADING__ = true;
+    const navigationScript = document.createElement("script");
+    const navigationUrl = new URL("../portal-subnav.js", loaderUrl);
+    navigationUrl.searchParams.set("v", "nine-domains-20260904-1");
+    navigationScript.src = navigationUrl.href;
+    navigationScript.async = false;
+    navigationScript.onerror = () => console.error("Dream Unity domain navigation could not load");
+    document.head.append(navigationScript);
+  };
+
   const load = async () => {
     update(14, "LOCATING UNITY ENGINE");
     const manifest = await fetchManifest();
@@ -90,7 +102,10 @@
     const runtimeScript = document.createElement("script");
     runtimeScript.src = runtimeUrl;
     runtimeScript.async = false;
-    runtimeScript.onload = () => URL.revokeObjectURL(runtimeUrl);
+    runtimeScript.onload = () => {
+      URL.revokeObjectURL(runtimeUrl);
+      loadDomainNavigation();
+    };
     runtimeScript.onerror = () => {
       URL.revokeObjectURL(runtimeUrl);
       fail(new Error("The reconstructed runtime could not execute"));
