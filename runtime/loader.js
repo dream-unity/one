@@ -75,7 +75,7 @@
     window.__DREAM_UNITY_DOMAIN_NAV_LOADING__ = true;
     const navigationScript = document.createElement("script");
     const navigationUrl = new URL("../portal-subnav.js", loaderUrl);
-    navigationUrl.searchParams.set("v", "heart-mind-body-20260904-2");
+    navigationUrl.searchParams.set("v", "model-forge-20260904-1");
     navigationScript.src = navigationUrl.href;
     navigationScript.async = false;
     navigationScript.onerror = () => console.error("Dream Unity domain navigation could not load");
