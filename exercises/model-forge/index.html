@@ -1,0 +1,696 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f7f7fb" />
+  <meta name="description" content="Model Forge — CBT-informed cognitive model training inside Dream Unity." />
+  <title>Model Forge · Dream Unity</title>
+  <style>
+    :root{
+      --ink:#28283c;--muted:#73748b;--line:rgba(78,78,115,.17);--paper:rgba(255,255,255,.72);
+      --glass:rgba(255,255,255,.48);--violet:#7564d8;--violet2:#a894ff;--blue:#5d9bd8;--teal:#5cb9ae;
+      --rose:#c47a94;--amber:#c89c56;--green:#66a184;--red:#bc6874;--shadow:0 24px 60px rgba(54,51,95,.12);
+      --radius:22px;--ease:cubic-bezier(.22,1,.36,1);
+    }
+    *{box-sizing:border-box}
+    html{min-height:100%;background:#f5f6fb}
+    body{margin:0;min-height:100vh;color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:
+      radial-gradient(circle at 50% -5%,rgba(159,144,242,.25),transparent 34rem),
+      radial-gradient(circle at 5% 65%,rgba(86,177,181,.13),transparent 30rem),
+      radial-gradient(circle at 96% 68%,rgba(99,146,218,.13),transparent 30rem),
+      linear-gradient(180deg,#fbfbfe,#f4f5fa 60%,#f1f3f9);overflow-x:hidden}
+    body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.25;background-image:linear-gradient(rgba(75,70,110,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(75,70,110,.035) 1px,transparent 1px);background-size:38px 38px;mask-image:linear-gradient(to bottom,black,transparent 85%)}
+    button,input,textarea,select{font:inherit}
+    button{color:inherit}
+    a{color:inherit}
+    .shell{width:min(1180px,calc(100% - 28px));margin:0 auto;padding:20px 0 60px;position:relative;z-index:1}
+    .topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:8px 4px 18px}
+    .crumb{display:flex;align-items:center;gap:8px;text-decoration:none;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#6d6d83;font-weight:750}
+    .crumb .gem{width:21px;height:21px;border:1px solid rgba(117,100,216,.4);transform:rotate(45deg);position:relative;background:linear-gradient(135deg,rgba(255,255,255,.9),rgba(117,100,216,.12));box-shadow:0 0 18px rgba(117,100,216,.18)}
+    .crumb .gem::before,.crumb .gem::after{content:"";position:absolute;background:rgba(117,100,216,.35)}
+    .crumb .gem::before{width:1px;height:100%;left:50%;top:0}.crumb .gem::after{height:1px;width:100%;left:0;top:50%}
+    .top-actions{display:flex;gap:8px;align-items:center}
+    .ghost{border:1px solid var(--line);background:rgba(255,255,255,.5);border-radius:999px;padding:8px 11px;font-size:9px;letter-spacing:.13em;text-transform:uppercase;font-weight:800;cursor:pointer}
+    .ghost:hover,.ghost:focus-visible{border-color:rgba(117,100,216,.45);outline:none}
+    .hero{text-align:center;padding:28px 0 24px}
+    .eyebrow{font-size:10px;letter-spacing:.35em;text-transform:uppercase;color:#77748d;font-weight:750;margin:0 0 10px}
+    .hero h1{font-family:Georgia,"Times New Roman",serif;font-size:clamp(42px,8vw,92px);font-weight:400;line-height:.92;margin:0;letter-spacing:-.045em;color:#343247;text-shadow:0 10px 35px rgba(87,72,160,.08)}
+    .hero h1 span{background:linear-gradient(120deg,#4f4d69,#8e7be9 52%,#4c8eaa);-webkit-background-clip:text;background-clip:text;color:transparent}
+    .hero .sub{font-size:clamp(14px,2vw,19px);line-height:1.5;color:#6c6d82;margin:15px auto 0;max-width:680px}
+    .pathline{display:flex;justify-content:center;align-items:center;gap:7px;margin-top:16px;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:#8a879c}
+    .pathline i{width:5px;height:5px;transform:rotate(45deg);background:linear-gradient(135deg,var(--violet),var(--blue));opacity:.6}
+
+    .forge-stage{position:relative;margin:12px auto 0;border:1px solid rgba(85,83,121,.14);border-radius:30px;background:linear-gradient(135deg,rgba(255,255,255,.78),rgba(255,255,255,.43));box-shadow:var(--shadow);overflow:hidden;backdrop-filter:blur(18px)}
+    .forge-stage::before{content:"";position:absolute;inset:-90px auto auto 50%;width:390px;height:390px;transform:translateX(-50%);background:radial-gradient(circle,rgba(132,112,233,.15),transparent 68%);pointer-events:none}
+    .visual-field{height:170px;position:relative;display:flex;align-items:center;justify-content:center;border-bottom:1px solid rgba(82,79,116,.1);overflow:hidden}
+    .orbit{position:absolute;border:1px solid rgba(100,92,150,.16);border-radius:50%;width:430px;height:96px;transform:rotate(-8deg)}
+    .orbit.o2{width:310px;height:150px;transform:rotate(29deg);border-color:rgba(70,143,166,.15)}
+    .orbit.o3{width:250px;height:185px;transform:rotate(-58deg);border-style:dashed;opacity:.7}
+    .crystal{position:relative;width:82px;height:82px;transform:rotate(45deg);border:1px solid rgba(117,100,216,.55);background:linear-gradient(135deg,rgba(255,255,255,.94),rgba(142,121,233,.28) 48%,rgba(76,141,170,.18));box-shadow:0 0 45px rgba(117,100,216,.2),inset 0 0 28px rgba(255,255,255,.8);transition:transform .8s var(--ease),filter .5s ease}
+    .crystal::before,.crystal::after{content:"";position:absolute;background:rgba(117,100,216,.28)}
+    .crystal::before{left:50%;top:0;width:1px;height:100%}.crystal::after{top:50%;left:0;height:1px;width:100%}
+    .crystal.pulse{animation:pulse 900ms var(--ease)}
+    @keyframes pulse{40%{transform:rotate(45deg) scale(1.13);filter:saturate(1.35)}100%{transform:rotate(45deg) scale(1)}}
+    .node{position:absolute;width:10px;height:10px;border-radius:50%;background:#fff;border:2px solid var(--violet);box-shadow:0 0 16px rgba(117,100,216,.45)}
+    .n1{transform:translate(-170px,-32px)}.n2{transform:translate(170px,32px);border-color:var(--blue)}.n3{transform:translate(110px,-56px);border-color:var(--teal)}.n4{transform:translate(-92px,58px);border-color:var(--rose)}
+    .visual-label{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);font-size:8px;text-transform:uppercase;letter-spacing:.24em;color:#89859b;white-space:nowrap}
+
+    .stage-head{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:end;padding:22px 26px 0}
+    .stage-head p{margin:0 0 6px;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:#858297;font-weight:800}
+    .stage-head h2{margin:0;font-size:clamp(24px,4vw,40px);font-family:Georgia,"Times New Roman",serif;font-weight:400;letter-spacing:-.02em}
+    .stage-head .counter{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#77768c;border:1px solid var(--line);border-radius:999px;padding:7px 10px;background:rgba(255,255,255,.45)}
+    .progress{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;padding:18px 26px 0}
+    .progress span{height:3px;border-radius:99px;background:rgba(85,80,120,.1);transition:background .35s ease,transform .35s ease}
+    .progress span.on{background:linear-gradient(90deg,var(--violet),var(--blue));transform:scaleY(1.35)}
+    .stage-body{padding:24px 26px 28px;min-height:410px}
+    .lead{max-width:780px;margin:0 auto 22px;text-align:center;color:#67687c;line-height:1.65;font-size:15px}
+    .micro{font-size:10px;line-height:1.5;color:#8a889b;text-align:center;margin:9px auto 0;max-width:760px}
+    .micro strong{color:#5a586c}
+
+    .mode-grid,.session-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;max-width:840px;margin:24px auto}
+    .mode-card,.session-card{border:1px solid var(--line);border-radius:18px;padding:18px;background:rgba(255,255,255,.55);cursor:pointer;text-align:left;transition:.25s var(--ease);position:relative;overflow:hidden}
+    .mode-card:hover,.mode-card:focus-visible,.session-card:hover,.session-card:focus-visible{transform:translateY(-2px);border-color:rgba(117,100,216,.4);outline:none;box-shadow:0 14px 34px rgba(72,62,127,.09)}
+    .mode-card.active,.session-card.active{border-color:rgba(117,100,216,.52);background:linear-gradient(135deg,rgba(255,255,255,.82),rgba(132,112,233,.1));box-shadow:inset 0 0 24px rgba(117,100,216,.07)}
+    .mode-card small,.session-card small{display:block;text-transform:uppercase;letter-spacing:.16em;font-size:8px;color:#878399;font-weight:800;margin-bottom:7px}
+    .mode-card strong,.session-card strong{display:block;font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:25px;margin-bottom:6px}
+    .mode-card p,.session-card p{font-size:12px;line-height:1.55;color:#747489;margin:0}
+    .session-grid{grid-template-columns:repeat(3,minmax(0,1fr));max-width:760px;margin-top:14px}
+    .session-card{padding:14px}.session-card strong{font-size:18px}
+
+    .primary{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:44px;border:0;border-radius:999px;padding:0 20px;background:linear-gradient(120deg,#6e5bd0,#7768d7 55%,#4e8baa);color:#fff;font-size:10px;letter-spacing:.15em;text-transform:uppercase;font-weight:850;cursor:pointer;box-shadow:0 12px 30px rgba(98,81,190,.2);transition:.25s var(--ease)}
+    .primary:hover,.primary:focus-visible{transform:translateY(-1px) scale(1.01);outline:none;box-shadow:0 16px 34px rgba(98,81,190,.25)}
+    .primary[disabled]{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none}
+    .secondary{display:inline-flex;align-items:center;justify-content:center;min-height:41px;border:1px solid var(--line);border-radius:999px;padding:0 17px;background:rgba(255,255,255,.58);font-size:9px;letter-spacing:.13em;text-transform:uppercase;font-weight:800;cursor:pointer;text-decoration:none}
+    .button-row{display:flex;justify-content:center;gap:9px;flex-wrap:wrap;margin-top:22px}
+
+    .scenario{max-width:860px;margin:0 auto 18px;padding:18px 20px;border:1px solid rgba(84,83,119,.12);border-radius:18px;background:linear-gradient(135deg,rgba(255,255,255,.66),rgba(250,250,255,.4));position:relative}
+    .scenario::before{content:"SCENE";position:absolute;top:-7px;left:17px;background:#f8f8fc;padding:0 7px;font-size:7px;letter-spacing:.2em;color:#8b879c;font-weight:800}
+    .scenario h3{margin:0 0 6px;font-size:17px}.scenario p{margin:0;color:#68697e;line-height:1.6;font-size:13px}
+
+    .split-wrap{display:grid;grid-template-columns:minmax(250px,.92fr) minmax(300px,1.08fr);gap:18px;max-width:1000px;margin:0 auto}
+    .fragment-stack{display:grid;gap:9px;align-content:start}
+    .fragment{border:1px solid rgba(83,81,116,.16);border-radius:14px;padding:13px 14px;background:rgba(255,255,255,.77);cursor:grab;font-size:12px;line-height:1.45;text-align:left;transition:.2s var(--ease);box-shadow:0 7px 18px rgba(68,64,101,.04)}
+    .fragment:hover,.fragment:focus-visible,.fragment.selected{outline:none;border-color:rgba(117,100,216,.48);transform:translateY(-1px);box-shadow:0 10px 22px rgba(95,80,170,.08)}
+    .fragment.selected{background:rgba(117,100,216,.08)}
+    .fragment.placed{opacity:.43;cursor:default;transform:none}
+    .bins{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;min-height:260px}
+    .bin{border:1px dashed rgba(81,79,114,.22);border-radius:16px;background:rgba(255,255,255,.32);padding:10px;min-height:240px;transition:.2s ease;cursor:pointer}
+    .bin.dragover,.bin:focus-visible{border-color:var(--violet);background:rgba(117,100,216,.07);outline:none}
+    .bin h4{font-size:9px;letter-spacing:.15em;text-transform:uppercase;margin:2px 0 9px;color:#66657a}
+    .bin p{font-size:9px;line-height:1.45;color:#9491a3;margin:0 0 10px}
+    .bin-items{display:grid;gap:7px}
+    .placed-card{border:1px solid rgba(84,82,119,.12);border-radius:10px;padding:9px;background:rgba(255,255,255,.68);font-size:10px;line-height:1.35;position:relative}
+    .placed-card.correct{border-color:rgba(102,161,132,.42);background:rgba(102,161,132,.08)}
+    .placed-card.wrong{border-color:rgba(188,104,116,.42);background:rgba(188,104,116,.08)}
+    .placed-card button{position:absolute;top:4px;right:4px;border:0;background:transparent;color:#9996a5;cursor:pointer;font-size:12px}
+    .repair{display:block;margin-top:4px;font-size:8px;color:#9c4f5c;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+
+    .model-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;max-width:900px;margin:0 auto}
+    .model-card{border:1px solid var(--line);border-radius:17px;padding:16px;background:rgba(255,255,255,.56);cursor:pointer;text-align:left;transition:.22s var(--ease);min-height:112px}
+    .model-card:hover,.model-card:focus-visible{outline:none;transform:translateY(-1px);border-color:rgba(117,100,216,.4)}
+    .model-card.active{border-color:rgba(117,100,216,.58);background:linear-gradient(135deg,rgba(255,255,255,.86),rgba(117,100,216,.1));box-shadow:inset 0 0 22px rgba(117,100,216,.06)}
+    .model-letter{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;border:1px solid rgba(117,100,216,.3);color:#696284;font-size:9px;font-weight:900;margin-bottom:9px}
+    .model-card strong{font-size:12px;display:block;margin-bottom:5px}.model-card p{font-size:11px;line-height:1.45;color:#77778a;margin:0}
+    .confidence{max-width:720px;margin:20px auto 0;padding:15px 17px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.5)}
+    .confidence-top{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:9px}
+    .confidence-top strong{font-size:11px}.confidence-top span{font-family:Georgia,"Times New Roman",serif;font-size:25px;color:#6558a9}
+    input[type="range"]{width:100%;accent-color:var(--violet)}
+    .range-labels{display:flex;justify-content:space-between;color:#9a97a8;font-size:8px;text-transform:uppercase;letter-spacing:.1em;margin-top:3px}
+
+    .probe-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;max-width:920px;margin:0 auto}
+    .probe{position:relative;border:1px solid var(--line);border-radius:17px;padding:16px 16px 15px;background:rgba(255,255,255,.57);cursor:pointer;text-align:left;min-height:138px;transition:.22s var(--ease)}
+    .probe:hover,.probe:focus-visible{outline:none;transform:translateY(-1px);border-color:rgba(117,100,216,.42)}
+    .probe.active{border-color:rgba(117,100,216,.6);background:linear-gradient(135deg,rgba(255,255,255,.87),rgba(117,100,216,.09))}
+    .probe strong{display:block;font-size:12px;margin:0 0 6px;padding-right:70px}.probe p{font-size:11px;line-height:1.48;color:#77778a;margin:0}.probe .tag{position:absolute;top:13px;right:12px;border:1px solid rgba(84,81,119,.13);border-radius:999px;padding:5px 7px;font-size:7px;text-transform:uppercase;letter-spacing:.1em;color:#888496;background:rgba(255,255,255,.55)}
+    .probe-result{max-width:780px;margin:18px auto;padding:18px;border:1px solid rgba(92,126,163,.2);border-radius:18px;background:linear-gradient(135deg,rgba(92,155,216,.08),rgba(255,255,255,.58));text-align:center}
+    .probe-result small{display:block;font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:#7c8497;font-weight:850;margin-bottom:7px}.probe-result p{margin:0;font-size:13px;line-height:1.55;color:#5e6275}
+
+    .weigh-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;max-width:900px;margin:18px auto 0}
+    .weigh{border:1px solid var(--line);border-radius:13px;padding:12px 8px;background:rgba(255,255,255,.54);cursor:pointer;font-size:9px;line-height:1.35;text-align:center;font-weight:750;min-height:66px}
+    .weigh:hover,.weigh:focus-visible,.weigh.active{outline:none;border-color:rgba(117,100,216,.52);background:rgba(117,100,216,.08)}
+
+    .feedback{max-width:840px;margin:16px auto 0;border-radius:16px;padding:14px 16px;font-size:11px;line-height:1.55;display:flex;gap:10px;align-items:flex-start}
+    .feedback.good{background:rgba(102,161,132,.09);border:1px solid rgba(102,161,132,.24)}
+    .feedback.bad{background:rgba(188,104,116,.08);border:1px solid rgba(188,104,116,.2)}
+    .feedback.neutral{background:rgba(117,100,216,.07);border:1px solid rgba(117,100,216,.18)}
+    .feedback b{white-space:nowrap;font-size:9px;letter-spacing:.1em;text-transform:uppercase}
+
+    .update-compare{display:grid;grid-template-columns:1fr auto 1fr;gap:16px;align-items:center;max-width:850px;margin:18px auto}
+    .belief-box{border:1px solid var(--line);border-radius:17px;padding:16px;background:rgba(255,255,255,.56);min-height:120px}.belief-box small{display:block;font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:#858295;margin-bottom:7px}.belief-box strong{font-size:13px;line-height:1.4;display:block}.belief-box em{display:block;font-family:Georgia,"Times New Roman",serif;font-style:normal;font-size:29px;color:#6659aa;margin-top:8px}
+    .arrow{font-size:24px;color:#9a95b3}
+
+    .result-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;max-width:900px;margin:20px auto}
+    .metric{border:1px solid var(--line);border-radius:16px;padding:14px;background:rgba(255,255,255,.55);text-align:center}.metric small{font-size:7px;letter-spacing:.13em;text-transform:uppercase;color:#888699;display:block;margin-bottom:5px}.metric strong{font-family:Georgia,"Times New Roman",serif;font-size:28px;font-weight:400;color:#5f5b7a}.metric p{margin:4px 0 0;font-size:9px;color:#8a8799}
+    .lesson{max-width:800px;margin:18px auto;border-left:2px solid rgba(117,100,216,.4);padding:8px 0 8px 16px}.lesson small{font-size:8px;text-transform:uppercase;letter-spacing:.15em;color:#8c879d;font-weight:800}.lesson p{font-family:Georgia,"Times New Roman",serif;font-size:19px;line-height:1.48;margin:7px 0 0;color:#4f4e64}
+
+    .final-score{text-align:center;margin:16px auto 24px}.final-score span{display:block;font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:#89869a}.final-score strong{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:76px;line-height:1;color:#59546e}.final-score em{font-style:normal;color:#8d899e;font-size:12px}
+    .skill-bars{display:grid;gap:9px;max-width:760px;margin:0 auto}.skill-row{display:grid;grid-template-columns:150px 1fr 42px;gap:10px;align-items:center;font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#77758a;font-weight:800}.bar{height:7px;border-radius:99px;background:rgba(84,80,116,.1);overflow:hidden}.bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--violet),var(--blue));transition:width .8s var(--ease)}.skill-row b{text-align:right;color:#625e78}
+
+    .field-form{max-width:850px;margin:0 auto;display:grid;gap:14px}.field{display:grid;gap:7px}.field label{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#77758b;font-weight:800}.field textarea,.field input[type="text"],.field select{width:100%;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.72);padding:12px 13px;color:#39394c;outline:none;resize:vertical;min-height:48px}.field textarea{min-height:86px}.field textarea:focus,.field input:focus,.field select:focus{border-color:rgba(117,100,216,.5);box-shadow:0 0 0 3px rgba(117,100,216,.06)}
+    .field-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}.evidence-list{display:grid;gap:8px}.evidence-row{display:grid;grid-template-columns:1fr 120px 35px;gap:7px}.evidence-row button{border:1px solid var(--line);background:rgba(255,255,255,.6);border-radius:12px;cursor:pointer}.add-evidence{justify-self:start}
+    .state-gate{border:1px solid rgba(196,122,148,.2);background:rgba(196,122,148,.06);border-radius:16px;padding:14px}.state-gate strong{display:block;font-size:10px;margin-bottom:5px}.state-gate p{font-size:11px;color:#747487;line-height:1.5;margin:0}
+    .working-card{max-width:800px;margin:18px auto;border:1px solid rgba(117,100,216,.24);border-radius:22px;padding:20px;background:linear-gradient(135deg,rgba(255,255,255,.82),rgba(117,100,216,.07));box-shadow:0 20px 45px rgba(69,61,116,.08)}.working-card h3{font-family:Georgia,"Times New Roman",serif;font-size:28px;font-weight:400;margin:0 0 14px}.working-card dl{display:grid;grid-template-columns:140px 1fr;gap:9px 14px;margin:0}.working-card dt{font-size:8px;text-transform:uppercase;letter-spacing:.12em;color:#8a879b;font-weight:800}.working-card dd{margin:0;font-size:12px;line-height:1.5;color:#5e5e72}
+
+    details.theory{max-width:900px;margin:22px auto 0;border-top:1px solid var(--line);padding-top:16px}details.theory summary{cursor:pointer;list-style:none;text-align:center;font-size:9px;text-transform:uppercase;letter-spacing:.15em;color:#77758a;font-weight:800}details.theory summary::-webkit-details-marker{display:none}.theory-body{margin-top:15px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.theory-body div{border:1px solid var(--line);border-radius:14px;padding:13px;background:rgba(255,255,255,.46)}.theory-body strong{display:block;font-size:10px;margin-bottom:6px}.theory-body p{font-size:10px;line-height:1.55;color:#77778b;margin:0}
+    .footer-note{text-align:center;max-width:820px;margin:20px auto 0;color:#9592a3;font-size:9px;line-height:1.55}
+    .footer-note a{color:#747187}
+
+    .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);opacity:0;pointer-events:none;transition:.25s var(--ease);z-index:20;background:#39384c;color:#fff;border-radius:999px;padding:10px 15px;font-size:9px;letter-spacing:.08em;text-transform:uppercase;box-shadow:0 14px 38px rgba(32,31,50,.22)}.toast.show{opacity:1;transform:translate(-50%,0)}
+
+    @media(max-width:760px){
+      .shell{width:min(100% - 18px,1180px);padding-top:9px}.topbar{padding-bottom:8px}.crumb span:last-child{display:none}.hero{padding:20px 8px 16px}.hero .sub{font-size:13px}.visual-field{height:130px}.orbit{transform:scale(.78) rotate(-8deg)}.orbit.o2{transform:scale(.78) rotate(29deg)}.orbit.o3{transform:scale(.78) rotate(-58deg)}.n1{transform:translate(-125px,-27px)}.n2{transform:translate(125px,27px)}.n3{transform:translate(80px,-43px)}.n4{transform:translate(-70px,44px)}.crystal{width:66px;height:66px}.stage-head{padding:18px 16px 0}.progress{padding:15px 16px 0}.stage-body{padding:19px 14px 24px;min-height:390px}.mode-grid,.session-grid{grid-template-columns:1fr}.session-grid{grid-template-columns:repeat(3,1fr);gap:6px}.session-card{padding:10px}.session-card strong{font-size:15px}.session-card p{display:none}.split-wrap{grid-template-columns:1fr}.bins{min-height:unset;grid-template-columns:1fr}.bin{min-height:84px}.model-grid,.probe-grid{grid-template-columns:1fr}.weigh-grid{grid-template-columns:1fr 1fr}.weigh-grid .weigh:last-child{grid-column:1/-1}.update-compare{grid-template-columns:1fr}.arrow{transform:rotate(90deg);text-align:center}.result-grid{grid-template-columns:1fr 1fr}.skill-row{grid-template-columns:100px 1fr 34px}.field-pair{grid-template-columns:1fr}.evidence-row{grid-template-columns:1fr 100px 35px}.theory-body{grid-template-columns:1fr}.working-card dl{grid-template-columns:1fr}.working-card dt{margin-top:5px}.top-actions .ghost:nth-child(2){display:none}
+    }
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+  </style>
+</head>
+<body>
+<div class="shell">
+  <header class="topbar">
+    <a class="crumb" href="../../" aria-label="Return to Dream Unity">
+      <span class="gem" aria-hidden="true"></span><span>Dream Machine · Mind · Model</span>
+    </a>
+    <div class="top-actions">
+      <button class="ghost" id="soundBtn" type="button" aria-pressed="false">Sound off</button>
+      <button class="ghost" id="resetBtn" type="button">Reset</button>
+    </div>
+  </header>
+
+  <section class="hero">
+    <p class="eyebrow">Dream Machine · Mind · Model</p>
+    <h1><span>MODEL FORGE</span></h1>
+    <p class="sub">Test the map your mind is using. Separate what happened from what it means, build rival models, probe reality, then update only as far as the evidence earns.</p>
+    <div class="pathline"><span>Trace</span><i></i><span>Test</span><i></i><span>Update</span></div>
+  </section>
+
+  <main class="forge-stage" id="app" aria-live="polite">
+    <div class="visual-field" aria-hidden="true">
+      <div class="orbit"></div><div class="orbit o2"></div><div class="orbit o3"></div>
+      <span class="node n1"></span><span class="node n2"></span><span class="node n3"></span><span class="node n4"></span>
+      <div class="crystal" id="crystal"></div>
+      <div class="visual-label" id="visualLabel">A model is a map, not the territory</div>
+    </div>
+    <div id="screen"></div>
+  </main>
+
+  <p class="footer-note">Model Forge is a cognitive-skills training exercise, not diagnosis or medical treatment. Training Mode uses fictional scenarios. Field Mode stores entries only in this browser unless you choose to copy them elsewhere.</p>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(() => {
+  "use strict";
+
+  const $ = (q, root=document) => root.querySelector(q);
+  const $$ = (q, root=document) => [...root.querySelectorAll(q)];
+  const screen = $("#screen");
+  const crystal = $("#crystal");
+  const visualLabel = $("#visualLabel");
+  const toast = $("#toast");
+  const STORAGE = "dreamunity:model-forge:v1";
+  let audio = null;
+  let soundOn = false;
+
+  const scenarios = [
+    {
+      id:"silent-message", level:1, title:"The Silent Message",
+      context:"At 11:10 you send a close friend a normal message. At 5:10 there is still no reply. Nothing else has happened between you today.",
+      fragments:[
+        ["f1","Six hours have passed without a reply.","observed"],
+        ["f2","My friend is deliberately avoiding me.","inferred"],
+        ["f3","The message was sent at 11:10.","observed"],
+        ["f4","They are angry with me.","inferred"],
+        ["f5","They will probably ignore me tomorrow too.","predicted"],
+        ["f6","This silence means the friendship is ending.","inferred"]
+      ],
+      models:[
+        {id:"A",name:"Intentional withdrawal",text:"The silence is deliberate and reflects relational distance."},
+        {id:"B",name:"Competing circumstance",text:"Something unrelated is preventing or delaying a reply."},
+        {id:"C",name:"Temporary irritation",text:"There may be some irritation, but not necessarily withdrawal."},
+        {id:"D",name:"Insufficient information",text:"Six hours alone does not yet distinguish the explanations."}
+      ],
+      probes:[
+        {id:"p1",tag:"High information",label:"Wait to a reasonable review point, then ask once",text:"Give the situation enough time to develop, then use one direct, neutral question if needed.",score:26,reveal:"At 8:20 your friend replies: they were in a workshop with their phone locked away for the afternoon.",support:"B",strength:"strong",expectedMin:72,feedback:"This probe creates new information without pressuring the relationship or manufacturing the very distance you fear."},
+        {id:"p2",tag:"Contaminates",label:"Send five follow-up messages now",text:"Repeatedly ask whether they are angry until you get an answer.",score:4,reveal:"There is still no reply for another hour. You now have more silence, but your own repeated messages have changed the interaction.",support:"D",strength:"none",expectedMin:35,feedback:"This produces little clean information and can alter the situation. A self-confirming loop can begin when the test changes the thing being tested."},
+        {id:"p3",tag:"Low information",label:"Check their online status repeatedly",text:"Use activity indicators as indirect evidence of their intentions.",score:7,reveal:"You see them briefly online, but you do not know what they were doing or whether they saw your message.",support:"D",strength:"none",expectedMin:35,feedback:"An activity indicator is weak evidence of motive. It increases data volume without necessarily increasing information."},
+        {id:"p4",tag:"Reassurance loop",label:"Ask three mutual friends what they think",text:"Collect opinions about why the person has not replied.",score:9,reveal:"Two friends say they are probably busy; one says maybe they are annoyed. No one has direct knowledge.",support:"D",strength:"weak",expectedMin:42,feedback:"Other people's guesses can feel like evidence while leaving the original uncertainty almost untouched."}
+      ],
+      lesson:"Silence is an observation. Motive is a model. The cleanest next move is the one that generates information without creating the outcome you fear.",
+      pattern:"Possible pattern: mind-reading. The label is secondary; the primary skill is distinguishing observed behaviour from inferred intention."
+    },
+    {
+      id:"meeting", level:2, title:"Tomorrow's Meeting",
+      context:"Your manager writes, “Can we talk tomorrow at 9?” Two project milestones have been late this month. You have not been told that your job is at risk.",
+      fragments:[
+        ["f1","Two milestones were late this month.","observed"],
+        ["f2","My manager requested a meeting for 9 tomorrow.","observed"],
+        ["f3","I am going to be fired.","predicted"],
+        ["f4","The meeting must be disciplinary.","inferred"],
+        ["f5","My manager thinks I am incompetent.","inferred"],
+        ["f6","My employment will end tomorrow morning.","predicted"]
+      ],
+      models:[
+        {id:"A",name:"Termination",text:"The meeting is primarily to end the employment relationship."},
+        {id:"B",name:"Performance intervention",text:"The lateness is real and the meeting is to address performance, support or deadlines."},
+        {id:"C",name:"Unrelated planning",text:"The meeting concerns another project or routine planning."},
+        {id:"D",name:"Insufficient information",text:"The message and late work create concern, but do not establish the meeting's purpose."}
+      ],
+      probes:[
+        {id:"p1",tag:"High information",label:"Ask what to prepare for the meeting",text:"Send one neutral question: “Is there anything you want me to bring or prepare?”",score:26,reveal:"Your manager replies: “Bring the revised timeline. I want to discuss why the milestones slipped and what support or changes we need.”",support:"B",strength:"strong",expectedMin:76,feedback:"The answer confirms a real performance issue while sharply reducing support for the catastrophic prediction of immediate termination."},
+        {id:"p2",tag:"Avoidance",label:"Call in sick and avoid the meeting",text:"Reduce anxiety by escaping the situation before learning what the meeting is about.",score:2,reveal:"The meeting is postponed. You still do not know its purpose, and the avoidance adds a new workplace problem.",support:"D",strength:"none",expectedMin:35,feedback:"Avoidance reduces immediate discomfort while blocking the information needed to update the model."},
+        {id:"p3",tag:"Low information",label:"Search the manager's facial expressions from yesterday",text:"Replay memories of their tone and expression looking for evidence of dismissal.",score:6,reveal:"You remember several ambiguous moments differently each time you replay them.",support:"D",strength:"none",expectedMin:35,feedback:"Retrospective scanning is vulnerable to confirmation bias and creates no new external information."},
+        {id:"p4",tag:"Medium information",label:"Review previous written feedback",text:"Check whether any recent messages explicitly mention termination, formal warning, or performance support.",score:19,reveal:"The written feedback mentions schedule risk and requests a recovery plan, but contains no threat of termination.",support:"B",strength:"weak",expectedMin:58,feedback:"Primary records are better than anxious memory. This evidence supports a performance problem but does not fully identify tomorrow's meeting purpose."}
+      ],
+      lesson:"CBT should not erase a real problem. A late-work pattern can be true while the added conclusion “I will be fired tomorrow” remains unearned.",
+      pattern:"Possible pattern: catastrophising. More precisely, a real risk is being expanded into a specific worst-case certainty."
+    },
+    {
+      id:"laugh", level:1, title:"The Laugh",
+      context:"You enter a study room. Two classmates are laughing. One glances toward the doorway as you walk in, then they continue talking quietly.",
+      fragments:[
+        ["f1","Two classmates were laughing when I entered.","observed"],
+        ["f2","One person glanced toward the doorway.","observed"],
+        ["f3","They were laughing at me.","inferred"],
+        ["f4","They think I am ridiculous.","inferred"],
+        ["f5","They will make fun of me later.","predicted"],
+        ["f6","I will be humiliated in front of the group.","predicted"]
+      ],
+      models:[
+        {id:"A",name:"Targeted ridicule",text:"The laughter concerns you and reflects negative judgment."},
+        {id:"B",name:"Unrelated conversation",text:"The laughter concerns something else; the glance was simply orienting to movement."},
+        {id:"C",name:"Mixed cue",text:"They noticed you, but the meaning of the laughter remains unclear."},
+        {id:"D",name:"Insufficient information",text:"The visible behaviour alone does not identify the topic or intention."}
+      ],
+      probes:[
+        {id:"p1",tag:"High information",label:"Stay and observe ordinary interaction",text:"Continue the study session without confrontation and let normal conversation provide context.",score:25,reveal:"A minute later one classmate shows the other a ridiculous autocorrect message and they laugh again. They greet you normally and ask about the assignment.",support:"B",strength:"strong",expectedMin:78,feedback:"Allowing the scene to unfold generated context without forcing the feared interpretation into the interaction."},
+        {id:"p2",tag:"Contaminates",label:"Accuse them of laughing at you",text:"Confront them immediately and demand an explanation.",score:4,reveal:"They become defensive and awkward. The room now feels hostile, but the confrontation itself created part of that hostility.",support:"D",strength:"none",expectedMin:35,feedback:"A test that provokes a new interpersonal reaction can make later evidence hard to interpret."},
+        {id:"p3",tag:"Confirmation hunt",label:"Watch only for signs they dislike you",text:"Scan every glance, whisper and smile for confirming cues.",score:3,reveal:"You notice several glances and whispers, but do not record neutral or friendly behaviour.",support:"D",strength:"none",expectedMin:35,feedback:"Selective sampling can make a model look stronger by controlling which evidence enters the model."},
+        {id:"p4",tag:"Medium information",label:"Ask what was funny in a casual way",text:"Join the conversation naturally: “What did I miss?”",score:22,reveal:"They show you a badly autocorrected message and invite you into the conversation.",support:"B",strength:"strong",expectedMin:74,feedback:"A simple, non-accusatory question can discriminate between models while preserving the interaction."}
+      ],
+      lesson:"A glance plus laughter is real data. “Therefore they are laughing at me” is one causal model among several—not the data itself.",
+      pattern:"Possible pattern: personalisation or mind-reading. Again, the important move is not naming the bias; it is reopening the causal model."
+    },
+    {
+      id:"short-reply", level:3, title:"The Short Reply",
+      context:"After a minor disagreement yesterday, a colleague answers your detailed project message with one word: “Fine.” They are in meetings for most of the day.",
+      fragments:[
+        ["f1","Yesterday we had a minor disagreement.","observed"],
+        ["f2","The reply today contained one word: “Fine.”", "observed"],
+        ["f3","The short reply means they are still angry.","inferred"],
+        ["f4","They are trying to punish me with silence.","inferred"],
+        ["f5","Our working relationship will deteriorate.","predicted"],
+        ["f6","They will refuse to cooperate on the project.","predicted"]
+      ],
+      models:[
+        {id:"A",name:"Residual anger",text:"The short reply reflects unresolved irritation from yesterday."},
+        {id:"B",name:"Time pressure",text:"The reply is short because the colleague is moving between meetings."},
+        {id:"C",name:"Both",text:"Some irritation may be present while time pressure also shapes the reply."},
+        {id:"D",name:"Insufficient information",text:"One word cannot reliably discriminate between the competing explanations."}
+      ],
+      probes:[
+        {id:"p1",tag:"Best available",label:"Wait for normal work contact and observe the pattern",text:"Do not force certainty from one word. Use the next ordinary interaction as the review point.",score:26,reveal:"Later they answer two technical questions normally but remain somewhat curt. Nothing directly establishes whether irritation, workload, or both caused the earlier reply.",support:"D",strength:"weak",expectedMin:52,feedback:"Sometimes the correct update is not certainty. The new evidence narrows the field only slightly; preserving uncertainty is disciplined reasoning."},
+        {id:"p2",tag:"Reassurance loop",label:"Ask repeatedly whether they are angry",text:"Keep checking until they explicitly reassure you.",score:5,reveal:"They say “No, I'm busy” and then become more abrupt after the third reassurance request.",support:"D",strength:"weak",expectedMin:45,feedback:"Repeated reassurance can create the very irritation it is trying to measure and can train dependence on certainty."},
+        {id:"p3",tag:"Low information",label:"Analyse punctuation and response time",text:"Treat message formatting and latency as high-value evidence of motive.",score:7,reveal:"The reply arrived quickly and had a full stop. Those cues still have multiple plausible explanations.",support:"D",strength:"none",expectedMin:40,feedback:"Precision of measurement is not the same as relevance. A timestamp can be exact while being weak evidence of intention."},
+        {id:"p4",tag:"Medium information",label:"Ask one task-specific clarifying question",text:"Keep the interaction practical and see whether cooperation continues.",score:20,reveal:"They answer the task question clearly but briefly. Cooperation is intact; emotional interpretation remains uncertain.",support:"D",strength:"weak",expectedMin:48,feedback:"This tests the behaviour that matters—cooperation—without demanding access to another person's internal state."}
+      ],
+      lesson:"A high-quality model can end in “still uncertain.” Updating is not the same thing as reaching closure.",
+      pattern:"Possible pattern: intolerance of ambiguity. Model Forge rewards leaving a question open when the evidence remains open."
+    },
+    {
+      id:"declined", level:3, title:"The Declined Invitations",
+      context:"A friend has declined three invitations over five weeks and has not suggested another time. Their replies are polite but increasingly brief.",
+      fragments:[
+        ["f1","Three invitations were declined over five weeks.","observed"],
+        ["f2","No alternative time was suggested in those replies.","observed"],
+        ["f3","The friendship is definitely over.","inferred"],
+        ["f4","They may be creating distance.","inferred"],
+        ["f5","They will never want to see me again.","predicted"],
+        ["f6","Future invitations will also be declined.","predicted"]
+      ],
+      models:[
+        {id:"A",name:"Relationship cooling",text:"The repeated pattern reflects intentional relational distance."},
+        {id:"B",name:"External overload",text:"A sustained external pressure explains the pattern without reduced regard."},
+        {id:"C",name:"Mixed causes",text:"External pressure and some desire for distance are both contributing."},
+        {id:"D",name:"Insufficient information",text:"The pattern raises the probability of distance but does not establish motive or permanence."}
+      ],
+      probes:[
+        {id:"p1",tag:"High information",label:"Ask once, directly and respectfully",text:"Name the pattern without accusation and invite an honest answer, while accepting whatever boundary is given.",score:26,reveal:"Your friend says they care about you but want more distance and fewer one-to-one plans for the foreseeable future.",support:"A",strength:"strong",expectedMin:74,feedback:"The feared direction was substantially accurate. Good CBT does not force a positive reinterpretation; it separates the supported conclusion from larger unsupported claims such as “forever” or “I am worthless.”"},
+        {id:"p2",tag:"Avoidance",label:"Never contact them again without asking",text:"Treat the feared model as proven and disappear from the relationship.",score:7,reveal:"No new interaction occurs. The absence of contact cannot tell you whether the original interpretation was accurate.",support:"D",strength:"none",expectedMin:42,feedback:"Acting as though a model is already proven prevents the model from being tested."},
+        {id:"p3",tag:"Pressure",label:"Demand an explanation immediately",text:"Send an accusatory message listing every declined invitation.",score:4,reveal:"The friend responds defensively and asks for space. Your approach now contributes to the outcome you are interpreting.",support:"A",strength:"weak",expectedMin:55,feedback:"The result contains real information, but the probe contaminated the interaction. It is harder to separate pre-existing distance from reaction to pressure."},
+        {id:"p4",tag:"Low information",label:"Compare their social-media activity",text:"Use pictures with other people as proof of what the declined invitations mean.",score:9,reveal:"You find several posts with other friends. That raises questions but does not identify the reasons for your specific pattern.",support:"D",strength:"weak",expectedMin:48,feedback:"Context-free social evidence can increase suspicion while still failing to answer the causal question."}
+      ],
+      lesson:"Sometimes the painful model wins. The training target is accuracy: keep the supported boundary, discard the unsupported global verdict about your worth or the permanent future.",
+      pattern:"Possible pattern: all-or-nothing extension. “They want more distance” can be supported while “nobody values me” remains a separate claim."
+    },
+    {
+      id:"red-mark", level:2, title:"The Red Mark",
+      context:"You receive 68% on an assignment after expecting around 85%. The rubric shows strong marks in research and weak marks in structure and synthesis.",
+      fragments:[
+        ["f1","The assignment mark is 68%.","observed"],
+        ["f2","Research was marked strong; structure and synthesis were marked weak.","observed"],
+        ["f3","I am bad at this entire subject.","inferred"],
+        ["f4","This proves I am not intelligent enough.","inferred"],
+        ["f5","I will keep getting poor marks all semester.","predicted"],
+        ["f6","I will fail the subject.","predicted"]
+      ],
+      models:[
+        {id:"A",name:"Global incapability",text:"The mark reflects broad inability in the subject."},
+        {id:"B",name:"Specific skill gap",text:"The result is mainly driven by weaknesses in structure and synthesis."},
+        {id:"C",name:"Assessment mismatch",text:"The rubric or expectations differ from what you prepared for."},
+        {id:"D",name:"Insufficient information",text:"One mark is not enough to estimate overall ability or future performance."}
+      ],
+      probes:[
+        {id:"p1",tag:"High information",label:"Map errors to the rubric and request targeted feedback",text:"Identify exactly where marks were lost, then ask one specific question about improving those criteria.",score:26,reveal:"The marker confirms that the evidence base was strong and most lost marks came from two fixable structural problems. A revised paragraph scores much higher on the same rubric.",support:"B",strength:"strong",expectedMin:80,feedback:"The test converts a global identity conclusion into a specific, trainable performance model."},
+        {id:"p2",tag:"Avoidance",label:"Stop taking the subject seriously",text:"Protect yourself from another disappointing mark by reducing effort.",score:1,reveal:"No new information about ability is generated, and future performance is now confounded by lower effort.",support:"D",strength:"none",expectedMin:35,feedback:"Withdrawal can manufacture later evidence for the original negative model."},
+        {id:"p3",tag:"Reassurance",label:"Ask friends to tell you the marker was unfair",text:"Seek agreement that the grade says nothing about your work.",score:6,reveal:"Friends reassure you, but none has compared your work against the rubric carefully.",support:"D",strength:"none",expectedMin:35,feedback:"Comfort can matter, but reassurance from people without direct evidence is not a strong model test."},
+        {id:"p4",tag:"Medium information",label:"Compare with one previous assignment",text:"Check whether the same structural weaknesses appeared previously.",score:18,reveal:"A previous assignment also lost marks for synthesis, while other components were consistently strong.",support:"B",strength:"weak",expectedMin:62,feedback:"A repeated domain-specific pattern supports a skill-gap model more than a global incapability model."}
+      ],
+      lesson:"A result is local data. The mind often compresses it into an identity. Better models preserve the specific mechanism that can actually be changed.",
+      pattern:"Possible pattern: overgeneralisation or global labelling. The corrective skill is increasing model resolution."
+    },
+    {
+      id:"bug", level:2, title:"The Broken Build",
+      context:"A web feature stops working fifteen minutes after your code is deployed. Your commit touched the same area of the interface, but the system also updated a third-party dependency that morning.",
+      fragments:[
+        ["f1","The failure appeared fifteen minutes after my deployment.","observed"],
+        ["f2","My commit touched the same interface area.","observed"],
+        ["f3","I caused the outage.","inferred"],
+        ["f4","My code must contain the defect.","inferred"],
+        ["f5","The team will lose trust in me.","predicted"],
+        ["f6","The next rollback will fix the failure.","predicted"]
+      ],
+      models:[
+        {id:"A",name:"My deployment",text:"The failure was caused by the newly deployed code."},
+        {id:"B",name:"Dependency change",text:"The third-party update caused the failure."},
+        {id:"C",name:"Interaction effect",text:"The deployment and dependency interact to produce the bug."},
+        {id:"D",name:"Insufficient information",text:"Temporal proximity and code overlap are clues, not yet causal proof."}
+      ],
+      probes:[
+        {id:"p1",tag:"High information",label:"Compare logs and reproduce with versions isolated",text:"Test the old/new code against the old/new dependency versions to distinguish causal models.",score:26,reveal:"The failure reproduces with both code versions only when the new dependency is present. The previous dependency works with your deployment.",support:"B",strength:"strong",expectedMin:88,feedback:"A discriminating experiment changes one causal factor at a time and sharply separates competing models."},
+        {id:"p2",tag:"Fast but weak",label:"Rollback your code immediately and assume causation",text:"Treat temporal order as proof and reverse the deployment before testing alternatives.",score:9,reveal:"The failure continues after your code rollback because the dependency remains updated.",support:"B",strength:"weak",expectedMin:65,feedback:"The rollback accidentally becomes useful evidence, but the initial causal assumption was stronger than the data justified."},
+        {id:"p3",tag:"Confirmation hunt",label:"Read only the files you changed",text:"Search exclusively inside your commit until you find something suspicious.",score:4,reveal:"You find several complex functions, but no reproducible link to the failure.",support:"D",strength:"none",expectedMin:35,feedback:"Restricting the search space to the suspected cause guarantees that alternatives receive less evidence."},
+        {id:"p4",tag:"Medium information",label:"Check timing across other deployments",text:"See whether the dependency failure appears in services that did not receive your code.",score:21,reveal:"Two untouched services using the same dependency report similar failures.",support:"B",strength:"strong",expectedMin:75,feedback:"Independent occurrences outside your suspected cause are powerful discriminating evidence."}
+      ],
+      lesson:"CBT model-testing is not only about emotion. It is the same epistemic discipline used in debugging: isolate causes, test predictions, update from discriminating evidence.",
+      pattern:"Possible pattern: personalisation. The stronger correction is causal isolation, not positive self-talk."
+    },
+    {
+      id:"application", level:3, title:"The Delayed Result",
+      context:"An application portal still says “Under review” two days after the date on which you expected an outcome. The published page says dates are indicative and may change.",
+      fragments:[
+        ["f1","The portal currently says “Under review.”", "observed"],
+        ["f2","The expected date passed two days ago.","observed"],
+        ["f3","The delay means my application was rejected.","inferred"],
+        ["f4","They are keeping me waiting because something is wrong.","inferred"],
+        ["f5","I will receive a rejection email.","predicted"],
+        ["f6","The result will arrive late.","predicted"]
+      ],
+      models:[
+        {id:"A",name:"Rejection pending",text:"The application has effectively failed and the portal has not yet updated."},
+        {id:"B",name:"Administrative delay",text:"The review process is running behind schedule across applications."},
+        {id:"C",name:"Case-specific review",text:"Your application needs additional checking without implying the final result."},
+        {id:"D",name:"Insufficient information",text:"The status and delay do not yet discriminate between outcome explanations."}
+      ],
+      probes:[
+        {id:"p1",tag:"Best available",label:"Check the primary status source once at a defined time",text:"Use the official portal or a single appropriate inquiry, then stop checking until the next review point.",score:26,reveal:"The portal adds a notice: “Processing delays are affecting all applications. Outcomes will be released progressively.” Your personal outcome remains unknown.",support:"B",strength:"strong",expectedMin:72,feedback:"The new information explains the delay but not the eventual outcome. Good updating changes the causal model without pretending to know the result."},
+        {id:"p2",tag:"Compulsive loop",label:"Refresh the portal every few minutes",text:"Keep checking for certainty whenever anxiety rises.",score:2,reveal:"The wording does not change for several hours. You have repeated the same observation many times without adding information.",support:"D",strength:"none",expectedMin:35,feedback:"Repetition of the same evidence is not new evidence. Model Forge treats checking without information gain as a loop, not progress."},
+        {id:"p3",tag:"Low information",label:"Search forums for other people's outcomes",text:"Infer your result from anecdotes posted by applicants in different circumstances.",score:7,reveal:"Some posters report offers, some rejections, and many delays. Their cases are not sufficiently comparable to identify your result.",support:"D",strength:"none",expectedMin:35,feedback:"More stories can increase emotional salience without increasing case-specific information."},
+        {id:"p4",tag:"Medium information",label:"Send one concise status inquiry",text:"Ask whether the timeline changed, without asking anyone to predict your outcome.",score:19,reveal:"The office confirms a general processing delay and says your application remains under review.",support:"B",strength:"strong",expectedMin:68,feedback:"A bounded inquiry targets the timeline question directly while leaving the unresolved outcome unresolved."}
+      ],
+      lesson:"An explanation for a delay is not the same as an answer about the final outcome. High-quality models keep separate questions separate.",
+      pattern:"Possible pattern: jumping from process uncertainty to outcome certainty. The corrective move is to decompose the claim."
+    }
+  ];
+
+  const state = {
+    view:"home", mode:"train", rounds:3, scenarioIndex:0, selectedScenarios:[], stage:0,
+    placements:{}, selectedFragment:null, initialModel:null, initialConfidence:55,
+    probe:null, evidenceChoice:null, updateModel:null, updateConfidence:55,
+    roundScores:[], stageScores:{split:0,probe:0,weigh:0,update:0}, answered:false,
+    field:{step:0, evidenceFor:[], evidenceAgainst:[]}, startedAt:null
+  };
+
+  function loadSaved(){
+    try{return JSON.parse(localStorage.getItem(STORAGE) || "{}") || {}}catch{return {}}
+  }
+  function save(data){try{localStorage.setItem(STORAGE,JSON.stringify({...loadSaved(),...data}))}catch{}}
+  function esc(s=""){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
+  function shuffled(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+  function current(){return state.selectedScenarios[state.scenarioIndex]}
+  function pulse(label){crystal.classList.remove("pulse");void crystal.offsetWidth;crystal.classList.add("pulse");if(label)visualLabel.textContent=label}
+  function chirp(good=true){if(!soundOn)return;try{if(!audio)audio=new (window.AudioContext||window.webkitAudioContext)();const o=audio.createOscillator(),g=audio.createGain();o.type="sine";o.frequency.value=good?620:230;g.gain.setValueAtTime(.0001,audio.currentTime);g.gain.exponentialRampToValueAtTime(.06,audio.currentTime+.01);g.gain.exponentialRampToValueAtTime(.0001,audio.currentTime+.22);o.connect(g);g.connect(audio.destination);o.start();o.stop(audio.currentTime+.24)}catch{}}
+  function showToast(msg){toast.textContent=msg;toast.classList.add("show");clearTimeout(showToast.t);showToast.t=setTimeout(()=>toast.classList.remove("show"),1500)}
+
+  function layout(title,kicker,body,stage=null){
+    const prog = stage===null ? "" : `<div class="progress">${[0,1,2,3,4].map(i=>`<span class="${i<=stage?'on':''}"></span>`).join('')}</div>`;
+    const counter = state.view==="train" && state.selectedScenarios.length ? `<span class="counter">Round ${state.scenarioIndex+1} / ${state.selectedScenarios.length}</span>` : "";
+    screen.innerHTML=`<div class="stage-head"><div><p>${esc(kicker)}</p><h2>${esc(title)}</h2></div>${counter}</div>${prog}<div class="stage-body">${body}</div>`;
+  }
+
+  function renderHome(){
+    state.view="home";visualLabel.textContent="A model is a map, not the territory";
+    const saved=loadSaved();
+    layout("Choose your forge","Cognitive training",`
+      <p class="lead">This is not a CBT worksheet. <strong>You perform the skill.</strong> Training Mode gives you incomplete fictional evidence, makes you commit a model, then tests whether you can choose a clean probe and update proportionately.</p>
+      <div class="mode-grid">
+        <button class="mode-card ${state.mode==='train'?'active':''}" data-mode="train"><small>Primary training</small><strong>TRAIN</strong><p>Fictional rounds with objective scoring. Practise fact/inference separation, discriminating tests, evidence weighting and belief revision.</p></button>
+        <button class="mode-card ${state.mode==='field'?'active':''}" data-mode="field"><small>Transfer practice</small><strong>FIELD</strong><p>Apply the same structure to one real situation. No “correct answer”; your work stays local to this browser.</p></button>
+      </div>
+      ${state.mode==='train'?`<p class="micro"><strong>Precision before speed.</strong> There is deliberately no speed bonus. The unit of training is a completed model-test-update cycle.</p><div class="session-grid">
+        <button class="session-card ${state.rounds===1?'active':''}" data-rounds="1"><small>Warm-up</small><strong>1 round</strong><p>About 5 minutes</p></button>
+        <button class="session-card ${state.rounds===3?'active':''}" data-rounds="3"><small>Standard</small><strong>3 rounds</strong><p>About 15 minutes</p></button>
+        <button class="session-card ${state.rounds===5?'active':''}" data-rounds="5"><small>Deep</small><strong>5 rounds</strong><p>About 25 minutes</p></button>
+      </div>`:''}
+      <div class="button-row"><button class="primary" id="beginBtn">${state.mode==='train'?'Begin training':'Enter field mode'} →</button></div>
+      ${saved.bestScore?`<p class="micro">Best recorded Training score: <strong>${saved.bestScore}%</strong></p>`:''}
+      <details class="theory"><summary>Why this is CBT-informed</summary><div class="theory-body"><div><strong>TRACE</strong><p>Separate situation, thought/model, prediction, emotion and behaviour rather than treating them as one event.</p></div><div><strong>TEST</strong><p>Use competing explanations and a behavioural or observational probe that can actually discriminate between them.</p></div><div><strong>UPDATE</strong><p>Change confidence in proportion to evidence—including the possibility that the original painful model was accurate.</p></div></div></details>
+    `);
+    $$("[data-mode]").forEach(b=>b.onclick=()=>{state.mode=b.dataset.mode;renderHome()});
+    $$("[data-rounds]").forEach(b=>b.onclick=()=>{state.rounds=+b.dataset.rounds;renderHome()});
+    $("#beginBtn").onclick=()=> state.mode==='train'?startTraining():startField();
+  }
+
+  function startTraining(){
+    state.view="train";state.scenarioIndex=0;state.stage=0;state.roundScores=[];state.startedAt=Date.now();
+    const byLevel={1:shuffled(scenarios.filter(s=>s.level===1)),2:shuffled(scenarios.filter(s=>s.level===2)),3:shuffled(scenarios.filter(s=>s.level===3))};
+    const order=[...byLevel[1],...byLevel[2],...byLevel[3]];
+    state.selectedScenarios=order.slice(0,state.rounds);
+    if(state.rounds>=3 && !state.selectedScenarios.some(s=>s.id==='declined')) state.selectedScenarios[state.selectedScenarios.length-1]=scenarios.find(s=>s.id==='declined');
+    beginRound();
+  }
+  function beginRound(){
+    state.stage=0;state.placements={};state.selectedFragment=null;state.initialModel=null;state.initialConfidence=55;state.probe=null;state.evidenceChoice=null;state.updateModel=null;state.updateConfidence=55;state.answered=false;state.stageScores={split:0,probe:0,weigh:0,update:0};renderSignal();
+  }
+
+  function renderSignal(){
+    state.stage=0;const s=current();pulse("Separate signal from story");
+    const cards=shuffled(s.fragments);
+    layout("SIGNAL SPLIT","TRACE · 01",`
+      <div class="scenario"><h3>${esc(s.title)}</h3><p>${esc(s.context)}</p></div>
+      <p class="lead">Sort each fragment by what kind of claim it is. <strong>Observed</strong> could be recorded directly. <strong>Inferred</strong> adds meaning or cause. <strong>Predicted</strong> claims what happens next.</p>
+      <div class="split-wrap">
+        <div class="fragment-stack" id="fragments">${cards.map(f=>`<button class="fragment" draggable="true" data-id="${f[0]}">${esc(f[1])}</button>`).join('')}</div>
+        <div class="bins">
+          ${[["observed","OBSERVED","What happened?"],["inferred","INFERRED","What meaning/cause was added?"],["predicted","PREDICTED","What future is being claimed?"]].map(b=>`<div class="bin" tabindex="0" data-bin="${b[0]}"><h4>${b[1]}</h4><p>${b[2]}</p><div class="bin-items" id="bin-${b[0]}"></div></div>`).join('')}
+        </div>
+      </div>
+      <p class="micro">Touch: tap a card, then tap a bay. Desktop: drag or use the same tap method.</p>
+      <div class="button-row"><button class="primary" id="lockSplit" disabled>Lock split</button></div>
+      <div id="splitFeedback"></div>
+    `,0);
+    bindSplit();
+  }
+  function bindSplit(){
+    const s=current();
+    const redraw=()=>{
+      $$(".fragment").forEach(c=>{const placed=!!state.placements[c.dataset.id];c.classList.toggle("placed",placed);c.classList.toggle("selected",state.selectedFragment===c.dataset.id);c.disabled=placed});
+      ["observed","inferred","predicted"].forEach(type=>{
+        const el=$("#bin-"+type);el.innerHTML="";
+        Object.entries(state.placements).filter(([,t])=>t===type).forEach(([id])=>{const f=s.fragments.find(x=>x[0]===id);const d=document.createElement("div");d.className="placed-card";d.dataset.id=id;d.innerHTML=`${esc(f[1])}<button type="button" aria-label="Return card">×</button>`;d.querySelector("button").onclick=e=>{e.stopPropagation();delete state.placements[id];redraw()};el.append(d)})
+      });
+      $("#lockSplit").disabled=Object.keys(state.placements).length!==s.fragments.length;
+    };
+    $$(".fragment").forEach(c=>{
+      c.onclick=()=>{state.selectedFragment=state.selectedFragment===c.dataset.id?null:c.dataset.id;redraw()};
+      c.addEventListener("dragstart",e=>{state.selectedFragment=c.dataset.id;e.dataTransfer.setData("text/plain",c.dataset.id)});
+    });
+    $$(".bin").forEach(bin=>{
+      const place=id=>{if(!id)return;state.placements[id]=bin.dataset.bin;state.selectedFragment=null;redraw()};
+      bin.onclick=()=>place(state.selectedFragment);
+      bin.addEventListener("dragover",e=>{e.preventDefault();bin.classList.add("dragover")});
+      bin.addEventListener("dragleave",()=>bin.classList.remove("dragover"));
+      bin.addEventListener("drop",e=>{e.preventDefault();bin.classList.remove("dragover");place(e.dataTransfer.getData("text/plain")||state.selectedFragment)});
+    });
+    $("#lockSplit").onclick=()=>{
+      let correct=0;s.fragments.forEach(f=>{if(state.placements[f[0]]===f[2])correct++});
+      state.stageScores.split=Math.round(24*correct/s.fragments.length);
+      $$(".placed-card").forEach(c=>{const f=s.fragments.find(x=>x[0]===c.dataset.id);const ok=state.placements[c.dataset.id]===f[2];c.classList.add(ok?"correct":"wrong");if(!ok)c.insertAdjacentHTML("beforeend",`<span class="repair">Correct: ${f[2]}</span>`);c.querySelector("button").remove()});
+      $$(".fragment,.bin").forEach(x=>{x.style.pointerEvents="none"});
+      $("#lockSplit").remove();
+      $("#splitFeedback").innerHTML=`<div class="feedback ${correct===s.fragments.length?'good':'neutral'}"><b>${correct}/${s.fragments.length}</b><span>${correct===s.fragments.length?'Clean separation. You kept the event, the meaning and the future claim distinct.':'Review the repaired cards. CBT becomes much more precise once “what happened” is no longer fused with “what it means.”'}</span></div><div class="button-row"><button class="primary" id="toModels">Forge models →</button></div>`;
+      chirp(correct===s.fragments.length);pulse("The signal is now separated from the story");$("#toModels").onclick=renderModels;
+    };
+    redraw();
+  }
+
+  function renderModels(){
+    state.stage=1;const s=current();pulse("Hold more than one model at once");
+    layout("MODEL LOCK","TRACE · 02",`
+      <div class="scenario"><h3>${esc(s.title)}</h3><p>${esc(s.context)}</p></div>
+      <p class="lead">Choose the model that currently feels most likely, then <strong>commit your confidence before new evidence appears</strong>. This is a baseline, not a verdict.</p>
+      <div class="model-grid">${s.models.map(m=>`<button class="model-card" data-model="${m.id}"><span class="model-letter">${m.id}</span><strong>${esc(m.name)}</strong><p>${esc(m.text)}</p></button>`).join('')}</div>
+      <div class="confidence"><div class="confidence-top"><strong>Conviction in selected model</strong><span id="confVal">${state.initialConfidence}%</span></div><input id="conf" type="range" min="25" max="100" value="${state.initialConfidence}" step="1"><div class="range-labels"><span>tentative</span><span>locked</span></div></div>
+      <p class="micro">A 100% rating is allowed. It simply creates a stronger test: what evidence would ever be capable of moving you?</p>
+      <div class="button-row"><button class="primary" id="lockModel" disabled>Lock model</button></div>
+    `,1);
+    $$("[data-model]").forEach(b=>b.onclick=()=>{state.initialModel=b.dataset.model;$$('[data-model]').forEach(x=>x.classList.toggle('active',x===b));$("#lockModel").disabled=false;pulse("Model committed — now make it earn its certainty")});
+    $("#conf").oninput=e=>{$("#confVal").textContent=e.target.value+"%";state.initialConfidence=+e.target.value};
+    $("#lockModel").onclick=renderProbe;
+  }
+
+  function renderProbe(){
+    state.stage=2;const s=current();pulse("Choose information, not reassurance");
+    layout("REALITY PROBE","TEST · 03",`
+      <div class="scenario"><h3>${esc(s.title)}</h3><p>${esc(s.context)}</p></div>
+      <p class="lead">Choose the action that best <strong>separates the competing models</strong>. A good probe is safe, bounded, observable and hard for several explanations to mimic.</p>
+      <div class="probe-grid">${s.probes.map(p=>`<button class="probe" data-probe="${p.id}"><span class="tag">${esc(p.tag)}</span><strong>${esc(p.label)}</strong><p>${esc(p.text)}</p></button>`).join('')}</div>
+      <div class="button-row"><button class="primary" id="runProbe" disabled>Run probe</button></div>
+    `,2);
+    $$("[data-probe]").forEach(b=>b.onclick=()=>{state.probe=s.probes.find(p=>p.id===b.dataset.probe);$$('[data-probe]').forEach(x=>x.classList.toggle('active',x===b));$("#runProbe").disabled=false});
+    $("#runProbe").onclick=()=>{state.stageScores.probe=state.probe.score;renderWeigh()};
+  }
+
+  function renderWeigh(){
+    state.stage=3;const s=current(),p=state.probe;pulse("Evidence has entered the model");
+    const options=[...s.models.map(m=>({id:m.id,label:`Supports ${m.id} · ${m.name}`})),{id:"NONE",label:"Does not discriminate"}];
+    layout("EVIDENCE WEIGH","TEST · 04",`
+      <div class="probe-result"><small>World result</small><p>${esc(p.reveal)}</p></div>
+      <p class="lead">Before seeing any explanation, classify the <strong>direction</strong> of this evidence. Which model does it most support—or does it fail to discriminate?</p>
+      <div class="weigh-grid">${options.map(o=>`<button class="weigh" data-evidence="${o.id}">${esc(o.label)}</button>`).join('')}</div>
+      <div class="button-row"><button class="primary" id="lockEvidence" disabled>Lock evidence</button></div>
+      <div id="evidenceFeedback"></div>
+    `,3);
+    $$("[data-evidence]").forEach(b=>b.onclick=()=>{state.evidenceChoice=b.dataset.evidence;$$('[data-evidence]').forEach(x=>x.classList.toggle('active',x===b));$("#lockEvidence").disabled=false});
+    $("#lockEvidence").onclick=()=>{
+      const correct=(p.strength==="none"?"NONE":p.support);const ok=state.evidenceChoice===correct;state.stageScores.weigh=ok?22:5;
+      $$("[data-evidence]").forEach(x=>x.style.pointerEvents="none");$("#lockEvidence").remove();
+      $("#evidenceFeedback").innerHTML=`<div class="feedback ${ok?'good':'bad'}"><b>${ok?'Well weighted':'Recheck'}</b><span>${esc(p.feedback)} ${p.strength==='none'?'This result does not cleanly separate the candidate causes.':`The strongest evidential direction is toward Model ${p.support}.`}</span></div><div class="button-row"><button class="primary" id="toUpdate">Update model →</button></div>`;
+      chirp(ok);pulse(ok?"Evidence weighted cleanly":"Evidence is only useful when its direction is read correctly");$("#toUpdate").onclick=renderUpdate;
+    };
+  }
+
+  function renderUpdate(){
+    state.stage=4;const s=current(),p=state.probe;pulse("Update only as far as the evidence earns");
+    layout("UPDATE GATE","UPDATE · 05",`
+      <p class="lead">New evidence does not command a complete reversal. Select the model you now think is strongest and set a new conviction level.</p>
+      <div class="update-compare"><div class="belief-box"><small>Before probe</small><strong>${esc((s.models.find(m=>m.id===state.initialModel)||{}).name||'No model')}</strong><em>${state.initialConfidence}%</em></div><div class="arrow">→</div><div class="belief-box"><small>Evidence direction</small><strong>${p.strength==='none'?'No clean discrimination':esc((s.models.find(m=>m.id===p.support)||{}).name)}</strong><em>${p.strength==='strong'?'strong':p.strength==='weak'?'weak':'open'}</em></div></div>
+      <div class="model-grid">${s.models.map(m=>`<button class="model-card" data-update="${m.id}"><span class="model-letter">${m.id}</span><strong>${esc(m.name)}</strong><p>${esc(m.text)}</p></button>`).join('')}</div>
+      <div class="confidence"><div class="confidence-top"><strong>New conviction in selected model</strong><span id="updVal">${state.updateConfidence}%</span></div><input id="upd" type="range" min="25" max="100" value="${state.updateConfidence}" step="1"><div class="range-labels"><span>tentative</span><span>locked</span></div></div>
+      <div class="button-row"><button class="primary" id="lockUpdate" disabled>Reforge model</button></div>
+    `,4);
+    $$("[data-update]").forEach(b=>b.onclick=()=>{state.updateModel=b.dataset.update;$$('[data-update]').forEach(x=>x.classList.toggle('active',x===b));$("#lockUpdate").disabled=false});
+    $("#upd").oninput=e=>{$("#updVal").textContent=e.target.value+"%";state.updateConfidence=+e.target.value};
+    $("#lockUpdate").onclick=finishRound;
+  }
+
+  function finishRound(){
+    const s=current(),p=state.probe;let updateScore=0;
+    if(p.strength==="none"){
+      const same=state.updateModel===state.initialModel,delta=Math.abs(state.updateConfidence-state.initialConfidence);
+      updateScore=(same?12:6)+(delta<=10?12:delta<=20?7:2);
+    }else{
+      const target=state.updateModel===p.support;let conf=state.updateConfidence>=p.expectedMin?10:state.updateConfidence>=p.expectedMin-15?6:2;
+      let direction=0;
+      if(state.initialModel===p.support) direction=state.updateConfidence>=state.initialConfidence-8?6:2;
+      else direction=target?6:1;
+      updateScore=(target?8:2)+conf+direction;
+    }
+    state.stageScores.update=Math.min(24,updateScore);
+    const total=Object.values(state.stageScores).reduce((a,b)=>a+b,0);state.roundScores.push({...state.stageScores,total});
+    pulse("The model has been reforged");chirp(total>=75);
+    layout("MODEL REFORGED","ROUND COMPLETE",`
+      <div class="result-grid"><div class="metric"><small>Signal split</small><strong>${state.stageScores.split}</strong><p>/24</p></div><div class="metric"><small>Probe design</small><strong>${state.stageScores.probe}</strong><p>/26</p></div><div class="metric"><small>Evidence</small><strong>${state.stageScores.weigh}</strong><p>/22</p></div><div class="metric"><small>Updating</small><strong>${state.stageScores.update}</strong><p>/24</p></div></div>
+      <div class="lesson"><small>Working model</small><p>${esc(s.lesson)}</p></div>
+      <div class="feedback neutral"><b>Pattern note</b><span>${esc(s.pattern)}</span></div>
+      <p class="micro">Round score: <strong>${total}/96</strong>. No points were awarded for optimism or feeling better—only for the cognitive operations you performed.</p>
+      <div class="button-row"><button class="primary" id="nextRound">${state.scenarioIndex+1<state.selectedScenarios.length?'Next round →':'Complete session →'}</button></div>
+    `,null);
+    $("#nextRound").onclick=()=>{if(++state.scenarioIndex<state.selectedScenarios.length)beginRound();else finishSession()};
+  }
+
+  function finishSession(){
+    const totals={split:0,probe:0,weigh:0,update:0};state.roundScores.forEach(r=>Object.keys(totals).forEach(k=>totals[k]+=r[k]));const n=state.roundScores.length;
+    const max=96*n,earned=state.roundScores.reduce((a,r)=>a+r.total,0),pct=Math.round(earned/max*100);
+    const skills={split:Math.round(totals.split/(24*n)*100),probe:Math.round(totals.probe/(26*n)*100),weigh:Math.round(totals.weigh/(22*n)*100),update:Math.round(totals.update/(24*n)*100)};
+    const saved=loadSaved(),best=Math.max(saved.bestScore||0,pct);save({bestScore:best,lastScore:pct,lastCompleted:new Date().toISOString(),sessions:(saved.sessions||0)+1});
+    visualLabel.textContent="Observe → model → predict → test → update";pulse();
+    layout("FORGE COMPLETE","SESSION COMPLETE",`
+      <div class="final-score"><span>Model accuracy score</span><strong>${pct}</strong><em>% · ${earned}/${max} points</em></div>
+      <div class="skill-bars">
+        ${[["Signal clarity",skills.split],["Probe design",skills.probe],["Evidence weighting",skills.weigh],["Proportional update",skills.update]].map(x=>`<div class="skill-row"><span>${x[0]}</span><div class="bar"><i style="width:${x[1]}%"></i></div><b>${x[1]}%</b></div>`).join('')}
+      </div>
+      <div class="lesson"><small>Transfer</small><p>Carry one sentence into the next difficult moment: “What did I observe, what did I add, what would distinguish the models?”</p></div>
+      <p class="micro">Your best score on this device is <strong>${best}%</strong>. The aim is not dependence on the forge; it is being able to run the loop without it.</p>
+      <div class="button-row"><button class="primary" id="again">Train again</button><button class="secondary" id="fieldTransfer">Use a real situation</button><a class="secondary" href="../../">Return to Dream Unity</a></div>
+    `,null);
+    $("#again").onclick=()=>{state.scenarioIndex=0;startTraining()};$("#fieldTransfer").onclick=startField;
+  }
+
+  function startField(){state.view="field";state.field={step:0,evidenceFor:[{text:"",quality:"direct"}],evidenceAgainst:[{text:"",quality:"direct"}]};renderFieldCapture()}
+  function fieldLayout(title,kicker,body,step){state.selectedScenarios=[];layout(title,kicker,body,Math.min(step,4))}
+  function renderFieldCapture(){visualLabel.textContent="Use one specific moment, not your entire identity";fieldLayout("FIELD CAPTURE","TRANSFER · 01",`
+    <p class="lead">Use one specific situation. Field Mode does not know the truth and will not tell you what to believe. Its job is to force the same distinctions you trained.</p>
+    <div class="field-form">
+      <div class="field"><label for="event">Specific situation</label><textarea id="event" placeholder="What happened, where and when?"></textarea></div>
+      <div class="field-pair"><div class="field"><label for="observed">Observed only</label><textarea id="observed" placeholder="What could a camera, recording or primary record capture?"></textarea></div><div class="field"><label for="model">Automatic model</label><textarea id="model" placeholder="What did your mind say the event meant or why it happened?"></textarea></div></div>
+      <div class="field"><label>Activation right now · <span id="actVal">5</span>/10</label><input id="act" type="range" min="0" max="10" value="5"></div>
+      <div id="stateGate"></div>
+    </div><div class="button-row"><button class="primary" id="fieldNext">Lock capture →</button></div>
+  `,0);
+    const saved=loadSaved().fieldDraft||{};["event","observed","model"].forEach(k=>{$("#"+k).value=saved[k]||""});$("#act").value=saved.activation??5;$("#actVal").textContent=$("#act").value;
+    const gate=()=>{const v=+$("#act").value;$("#actVal").textContent=v;$("#stateGate").innerHTML=v>=9?`<div class="state-gate"><strong>Regulate before deep analysis</strong><p>Your activation is very high. If possible, use a Heart or Body regulation exercise first, then return. High arousal is data about state; it is not proof of the model. You can still continue if this is safe and useful.</p></div>`:""};$("#act").oninput=gate;gate();
+    $("#fieldNext").onclick=()=>{state.field={...state.field,event:$("#event").value.trim(),observed:$("#observed").value.trim(),model:$("#model").value.trim(),activation:+$("#act").value};if(!state.field.event||!state.field.observed||!state.field.model){showToast("Complete the three core fields");return}save({fieldDraft:state.field});renderFieldModels()};
+  }
+  function renderFieldModels(){visualLabel.textContent="The first explanation is not the only possible world";fieldLayout("RIVAL MODELS","TRANSFER · 02",`
+    <div class="scenario"><h3>Your current model</h3><p>${esc(state.field.model)}</p></div>
+    <div class="field-form"><div class="field"><label for="alt1">Strongest genuine alternative</label><textarea id="alt1" placeholder="Not a positive thought. A different causal model that could fit the observations."></textarea></div><div class="field"><label for="alt2">Second alternative</label><textarea id="alt2" placeholder="Another plausible explanation, if one exists."></textarea></div><div class="field"><label for="unknown">Insufficient-information model</label><textarea id="unknown">I do not yet have enough evidence to distinguish the explanations.</textarea></div><div class="field"><label>Conviction in original model · <span id="fcVal">${state.field.confidence||70}</span>%</label><input id="fc" type="range" min="0" max="100" value="${state.field.confidence||70}"></div></div>
+    <div class="button-row"><button class="secondary" id="fieldBack">← Back</button><button class="primary" id="fieldNext">Weigh evidence →</button></div>
+  `,1);
+    $("#alt1").value=state.field.alt1||"";$("#alt2").value=state.field.alt2||"";$("#unknown").value=state.field.unknown||$("#unknown").value;$("#fc").oninput=e=>$("#fcVal").textContent=e.target.value;
+    $("#fieldBack").onclick=renderFieldCapture;$("#fieldNext").onclick=()=>{Object.assign(state.field,{alt1:$("#alt1").value.trim(),alt2:$("#alt2").value.trim(),unknown:$("#unknown").value.trim(),confidence:+$("#fc").value});if(!state.field.alt1){showToast("Create at least one rival model");return}save({fieldDraft:state.field});renderFieldEvidence()};
+  }
+  function evidenceRows(kind){return state.field[kind].map((e,i)=>`<div class="evidence-row" data-row="${kind}-${i}"><input type="text" value="${esc(e.text)}" placeholder="Evidence item"><select><option value="direct" ${e.quality==='direct'?'selected':''}>Direct</option><option value="reported" ${e.quality==='reported'?'selected':''}>Reported</option><option value="inferred" ${e.quality==='inferred'?'selected':''}>Inferred</option></select><button type="button" aria-label="Remove">×</button></div>`).join('')}
+  function renderFieldEvidence(){visualLabel.textContent="Evidence is weighted by relevance and provenance, not counted like votes";fieldLayout("EVIDENCE FIELD","TEST · 03",`
+    <p class="lead">Add the strongest evidence <strong>for</strong> and <strong>against/limiting</strong> the original model. Mark whether each item is direct observation/record, reported by someone else, or itself an inference.</p>
+    <div class="field-form"><div class="field"><label>Supports original model</label><div class="evidence-list" id="forList">${evidenceRows('evidenceFor')}</div><button class="secondary add-evidence" data-add="evidenceFor">+ Add evidence</button></div><div class="field"><label>Limits or conflicts with original model</label><div class="evidence-list" id="againstList">${evidenceRows('evidenceAgainst')}</div><button class="secondary add-evidence" data-add="evidenceAgainst">+ Add evidence</button></div></div>
+    <div class="button-row"><button class="secondary" id="fieldBack">← Back</button><button class="primary" id="fieldNext">Design probe →</button></div>
+  `,2);
+    function sync(){["evidenceFor","evidenceAgainst"].forEach(kind=>{$$(`[data-row^="${kind}-"]`).forEach((r,i)=>{if(!state.field[kind][i])return;state.field[kind][i].text=$("input",r).value;state.field[kind][i].quality=$("select",r).value})})}
+    $$("[data-row]").forEach(r=>r.querySelector("button").onclick=()=>{sync();const [kind,i]=r.dataset.row.split('-');state.field[kind].splice(+i,1);if(!state.field[kind].length)state.field[kind].push({text:"",quality:"direct"});renderFieldEvidence()});
+    $$("[data-add]").forEach(b=>b.onclick=()=>{sync();state.field[b.dataset.add].push({text:"",quality:"direct"});renderFieldEvidence()});
+    $("#fieldBack").onclick=()=>{sync();renderFieldModels()};$("#fieldNext").onclick=()=>{sync();save({fieldDraft:state.field});renderFieldProbe()};
+  }
+  function renderFieldProbe(){visualLabel.textContent="The best action is the smallest safe move that can change the model";fieldLayout("FIELD PROBE","TEST · 04",`
+    <p class="lead">Turn the model into a testable prediction, then choose a bounded way to obtain new information. Do not use Field Mode to justify unsafe, illegal, coercive or high-stakes medical/legal experiments.</p>
+    <div class="field-form"><div class="field"><label for="prediction">If the original model is right, what observable result should occur?</label><textarea id="prediction" placeholder="Specific outcome + context + review point"></textarea></div><div class="field"><label for="probeType">Smallest safe reality probe</label><select id="probeType"><option value="observe">Observe a defined pattern until a review point</option><option value="ask">Ask one direct, neutral question</option><option value="record">Check a primary record or source</option><option value="professional">Ask an appropriate professional one precise factual question</option><option value="behaviour">Run a low-risk behavioural experiment</option><option value="uncertainty">No clean test now — hold uncertainty and choose a boundary/action anyway</option></select></div><div class="field"><label for="probeDetail">Exactly what will you do?</label><textarea id="probeDetail" placeholder="One bounded action. Include when you will stop checking or reviewing."></textarea></div><div class="field"><label for="review">Review point</label><input id="review" type="text" placeholder="e.g. tomorrow 6pm / after one meeting / when the record arrives"></div></div>
+    <div class="button-row"><button class="secondary" id="fieldBack">← Back</button><button class="primary" id="fieldNext">Lock test →</button></div>
+  `,3);
+    ["prediction","probeDetail","review"].forEach(k=>$("#"+k).value=state.field[k]||"");$("#probeType").value=state.field.probeType||"observe";
+    $("#fieldBack").onclick=renderFieldEvidence;$("#fieldNext").onclick=()=>{Object.assign(state.field,{prediction:$("#prediction").value.trim(),probeType:$("#probeType").value,probeDetail:$("#probeDetail").value.trim(),review:$("#review").value.trim()});if(!state.field.prediction||!state.field.probeDetail){showToast("Lock a prediction and one bounded probe");return}save({fieldDraft:state.field});renderFieldCard()};
+  }
+  function renderFieldCard(){visualLabel.textContent="Working model saved — provisional, explicit, revisable";fieldLayout("WORKING MODEL","UPDATE · 05",`
+    <div class="working-card"><h3>Model v1</h3><dl><dt>Observed</dt><dd>${esc(state.field.observed)}</dd><dt>Original model</dt><dd>${esc(state.field.model)} · ${state.field.confidence}% conviction</dd><dt>Strongest rival</dt><dd>${esc(state.field.alt1)}</dd><dt>What remains unknown</dt><dd>${esc(state.field.unknown)}</dd><dt>Prediction</dt><dd>${esc(state.field.prediction)}</dd><dt>Reality probe</dt><dd>${esc(state.field.probeDetail)}</dd><dt>Review point</dt><dd>${esc(state.field.review||'Not specified')}</dd></dl></div>
+    <p class="lead">When new evidence arrives, return and make a <strong>new version</strong> rather than rewriting what you originally believed. The history of updating is part of the training.</p>
+    <div class="button-row"><button class="primary" id="saveVersion">Save local version</button><button class="secondary" id="newField">New situation</button><button class="secondary" id="copyCard">Copy summary</button></div>
+  `,4);
+    $("#saveVersion").onclick=()=>{const saved=loadSaved(),history=saved.fieldHistory||[];history.unshift({...state.field,savedAt:new Date().toISOString()});save({fieldHistory:history.slice(0,20),fieldDraft:state.field});showToast("Saved on this device")};
+    $("#newField").onclick=startField;$("#copyCard").onclick=async()=>{const t=`MODEL FORGE — Working Model\nObserved: ${state.field.observed}\nOriginal model (${state.field.confidence}%): ${state.field.model}\nRival: ${state.field.alt1}\nUnknown: ${state.field.unknown}\nPrediction: ${state.field.prediction}\nProbe: ${state.field.probeDetail}\nReview: ${state.field.review}`;try{await navigator.clipboard.writeText(t);showToast("Summary copied")}catch{showToast("Copy unavailable")}};
+  }
+
+  $("#soundBtn").onclick=async()=>{soundOn=!soundOn;$("#soundBtn").setAttribute("aria-pressed",String(soundOn));$("#soundBtn").textContent=soundOn?"Sound on":"Sound off";if(soundOn){if(!audio)audio=new (window.AudioContext||window.webkitAudioContext)();await audio.resume().catch(()=>{});chirp(true)}};
+  $("#resetBtn").onclick=()=>{if(confirm("Reset Model Forge progress stored in this browser?")){localStorage.removeItem(STORAGE);state.mode="train";state.rounds=3;renderHome();showToast("Local progress reset")}};
+  renderHome();
+})();
+</script>
+</body>
+</html>
