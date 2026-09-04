@@ -192,6 +192,12 @@
 
     document.body.dataset.domainSelected = `machine:mind:${domain.toLowerCase()}`;
     emitSelection("machine", domain, { parent: "mind", path: ["machine", "mind", domain.toLowerCase()] });
+
+    if (domain === "MODEL") {
+      window.setTimeout(() => {
+        window.location.href = new URL("./exercises/model-forge/", document.baseURI).href;
+      }, 110);
+    }
   }
 
   function buildButtons(domains, world, onSelect, ariaLabel) {
