@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f4f6fc">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'">
+<title>Heart training · Dream Unity</title>
+<meta name="description" content="Heart Coherence and Body-Sensation Mapping, inside Dream Unity’s Heart training.">
+<link rel="stylesheet" href="./styles.css?v=heart-20260905-1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='none' stroke='%236653a6' stroke-width='4' d='M32 4 55 32 32 60 9 32zM9 32h46M32 4v56'/%3E%3C/svg%3E">
+</head>
+<body class="heart-page">
+<div id="heart-training">
+<a class="heart-skip" href="#heart-main">Skip to Heart training</a>
+<header class="heart-topbar">
+<a class="heart-brand" href="../../?return=machine-heart"><span class="heart-gem" aria-hidden="true">◇</span><span>Dream Unity<span class="heart-crumbs">Dream Machine / Heart</span></span></a>
+<a class="heart-home" href="../../?return=machine-heart">Back to Dream Machine</a>
+</header>
+<main id="heart-main">
+<section class="screen heart-entry" id="screen-heart" aria-labelledby="heart-title">
+<p class="heart-eyebrow">Dream Machine · Heart</p>
+<h1 id="heart-title" tabindex="-1">Heart training</h1>
+<div class="heart-stages" role="group" aria-label="Choose a Heart exercise">
+<button type="button" class="heart-stage" data-call="showInstructions"><span>Stage One</span><strong>Heart Coherence</strong></button>
+<button type="button" class="heart-stage" data-call="showStage2Preview"><span>Stage Two</span><strong>Body-Sensation Mapping</strong></button>
+</div>
+</section>
+<div class="screen hidden" id="screen-instructions">
+  <div class="s1-scroll">
+
+    <button class="stage-back" data-call="restartToIntro">&larr; Main menu</button>
+    <div class="s1-header">
+      <h1 class="instr-heading" tabindex="-1">Heart Coherence</h1>
+      <div class="instr-sub">Quick Coherence® &middot; HeartMath Institute</div>
+    </div>
+
+    <!-- ── THE EXERCISE (top of the page) ── -->
+    <div class="s1-exercise">
+
+      <!-- start controls, shown before a session -->
+      <div id="s1-start">
+        <div class="s1-ex-lede">
+          Breathe five seconds in, five seconds out through the heart, and let a sincere feeling
+          of love come forward. Choose a length and begin &mdash; you can end whenever you need to.
+        </div>
+        <div class="dur-label">Tap to Begin &middot; Choose Duration</div>
+        <div class="duration-row s1-ex-durations">
+          <button class="dur-btn start" data-call="startWithDuration" data-value="900">15 min</button>
+          <button class="dur-btn start" data-call="startWithDuration" data-value="1800">30 min</button>
+          <button class="dur-btn start" data-call="startWithDuration" data-value="3600">1 hr</button>
+          <button class="dur-btn start" data-call="startWithDuration" data-value="7200">2 hr</button>
+          <button class="dur-btn start" data-call="startWithDuration" data-value="10800">3 hr</button>
+        </div>
+        <div class="wave-select" role="group" aria-label="Brainwave entrainment">
+          <div class="wave-row">
+            <span class="wave-band">Delta &middot; rest</span>
+            <button class="rate-btn" aria-pressed="false" data-hz="1" data-call="setWave" data-value="1">1 Hz</button>
+            <button class="rate-btn" aria-pressed="false" data-hz="2" data-call="setWave" data-value="2">2 Hz</button>
+            <button class="rate-btn" aria-pressed="false" data-hz="3" data-call="setWave" data-value="3">3 Hz</button>
+          </div>
+          <div class="wave-row">
+            <span class="wave-band">Alpha &middot; focus</span>
+            <button class="rate-btn" aria-pressed="false" data-hz="8" data-call="setWave" data-value="8">8 Hz</button>
+            <button class="rate-btn on" aria-pressed="true" data-hz="10" data-call="setWave" data-value="10">10 Hz</button>
+            <button class="rate-btn" aria-pressed="false" data-hz="12" data-call="setWave" data-value="12">12 Hz</button>
+          </div>
+          <div class="wave-row">
+            <button class="rate-btn" aria-pressed="false" data-hz="0" data-call="setWave" data-value="0">Off</button>
+          </div>
+        </div>
+        <div class="rate-hint">Delta (0.5&ndash;4 Hz) for deep, restorative rest; alpha (8&ndash;12 Hz) for relaxed focus &mdash; 10 Hz the rate most linked to creativity. &ldquo;Off&rdquo; plays the bell alone.</div>
+        <div class="bell-vol-row">
+          <span class="bell-vol-label">Bell volume</span>
+          <input type="range" class="bell-vol" min="0" max="1.5" step="0.01" value="1" aria-label="Bell volume">
+          <span class="bell-vol-val">100%</span>
+          <button class="bell-test" type="button" data-call="testBell">Test</button>
+        </div>
+        <div class="s1-ex-note">
+          If attention to the heart feels distressing, open your eyes, shorten the session, and
+          let <em>ease</em> lead before love.
+        </div>
+      </div>
+
+      <!-- live breathing session, shown once running -->
+      <div id="s1-live" class="is-hidden">
+        <div class="s1-live-bar">
+          <div class="session-title" id="session-title-label">Heart Coherence · Active</div>
+          <div class="session-timer-disp" id="session-timer">15:00</div>
+          <button class="session-end" data-call="endSession">End</button>
+        </div>
+
+        <div class="breath-container" id="breath-container">
+          <div class="breath-stage">
+            <div class="breath-ball" id="breath-ball" aria-hidden="true"></div>
+            <div class="breath-readout">
+              <div class="breath-label" id="breath-label"></div>
+              <div class="breath-countdown" id="breath-cd"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="phase-panel">
+          <div class="phase-step-label" id="phase-step-label">Step 1 · Heart-Focused Breathing</div>
+          <div class="phase-text" id="phase-text" aria-live="polite">Breathe in gently through the heart. Soften the chest and let the love that is already there come forward.</div>
+        </div>
+
+        <div class="coherence-indicators">
+          <div class="ci-row"><div class="ci-dot" id="ci-breath"></div><div class="ci-label">Rhythm</div></div>
+          <div class="ci-row"><div class="ci-dot" id="ci-heart"></div><div class="ci-label">Heart focus</div></div>
+          <div class="ci-row"><div class="ci-dot" id="ci-feeling"></div><div class="ci-label">Feeling</div></div>
+        </div>
+
+        <div class="s1s-progress"><div class="progress-fill" id="progress-fill"></div></div>
+      </div>
+
+    </div>
+
+    <!-- ── HOW IT WORKS (explanations, beneath the exercise) ── -->
+    <div class="s1-howto">
+      <h2 class="s1-howto-head">How it works</h2>
+
+      <p class="theory-lede">
+        The practice you are about to do is not a visualisation, a relaxation exercise
+        or a spiritual technique in disguise. It is a <em>physiological protocol. </em>
+        A specific breathing cadence paired with a specific quality of felt
+        experience, producing a measurable state the cardiovascular, autonomic,
+        endocrine, and cortical systems enter together. The theory below exists so
+        that you know what is happening in your body when you practise, and why
+        love in particular is the feeling the body is being asked to sustain.
+      </p>
+
+      <div class="theory-grid">
+
+        <div class="theory-card">
+          <div class="theory-card-eyebrow">I &middot; The heart as an intelligent organ</div>
+          <h3 class="theory-card-title">Why love is already in the cells</h3>
+          <div class="theory-card-body">
+            The heart is not a pump with feelings attached. It has its own nervous
+            system of roughly forty thousand sensory neurons (Armour's
+            neurocardiology) that <em>sense, learn and remember independently</em>
+            of the brain. which is why a transplanted, denervated heart continues
+            to beat coordinately. It is also an <strong>endocrine organ</strong>:
+            it synthesises oxytocin, with concentrations in the right atrium roughly
+            nineteen times higher than in uterine tissue (Jankowski et al.,
+            <em>PNAS</em>, 1998). Every experience of love and connection you have ever had.
+            Being held, loving another, being loved. All of it has inscribed itself on this
+            tissue. The feeling of love is not retrieved from memory in the mind;
+            it is <strong>re-activated in tissue that already holds it</strong>. This
+            is why the instruction is to soften the chest and let it surface, not
+            to imagine or construct it.
+          </div>
+        </div>
+
+        <div class="theory-card">
+          <div class="theory-card-eyebrow">II &middot; Resonance at 0.1 Hz</div>
+          <h3 class="theory-card-title">Why the breath is the carrier</h3>
+          <div class="theory-card-body">
+            The cardiovascular loop, so the heart, baroreceptors, brainstem, vascular
+            tree; it has an intrinsic transit delay of roughly five seconds, giving it a natural <strong>resonance frequency near 0.1 Hz</strong>
+            (Lehrer &amp; Gevirtz, 2014). When you breathe at about six per minute,
+            respiration, heart rate, and blood pressure phase-align; heart-rate
+            variability amplitude saturates; the vagus nerve modulates the
+            sino-atrial node with each exhale; and the heart-rate trace smooths
+            into a clean sine wave. Balaji &amp; McCraty's analysis of <strong>1.8
+            million sessions</strong> (<em>Scientific Reports</em>, 2025) confirmed
+            this peak across the global population. The breath is not the point.
+            It is the carrier wave that allows the feeling to inscribe itself on
+            physiology.
+          </div>
+        </div>
+
+        <div class="theory-card">
+          <div class="theory-card-eyebrow">III &middot; Why love, not just breath</div>
+          <h3 class="theory-card-title">What love adds that breath does not</h3>
+          <div class="theory-card-body">
+            Breath alone at 0.1&nbsp;Hz produces coherence. Love on top of it
+            recruits four additional pathways. First, the
+            <strong>caregiving-and-reward network</strong> - medial orbitofrontal
+            cortex, anterior cingulate, ventral striatum, VTA - which uniquely
+            deactivates the amygdala and social-judgment circuitry (Bartels &amp;
+            Zeki, 2000, 2004). Second, <strong>oxytocin release</strong>, which
+            potentiates vagal efferent activity and independently suppresses
+            cortisol. Third, a narrow high-amplitude HRV spectral peak that
+            appreciation produces and anger does not, <em>even at matched
+            respiration</em> (McCraty et al., 1995). Fourth - and this is the
+            strongest cellular evidence - loving-kindness meditation protects
+            telomere length where attention-only mindfulness does not (Le Nguyen
+            et al., 2019). The love component, not just the attention component,
+            has cellular consequences.
+          </div>
+        </div>
+
+        <div class="theory-card">
+          <div class="theory-card-eyebrow">IV &middot; Authenticity as physiology</div>
+          <h3 class="theory-card-title">Why sincerity is not a preference</h3>
+          <div class="theory-card-body">
+            The oxytocin–vagal–reward axis does not reliably open for hollow performance. Duchenne-smile research links genuine enjoyment with involuntary eye-muscle recruitment and distinct frontal brain activity, while Gross and Levenson’s suppression work shows that performative emotional control can increase sympathetic load rather than produce clean regulation. But this does not mean feeling cannot be intensified. It means the system must begin from a sincere signal. Once honest warmth is online, attention can locate its bodily coordinates, follow its natural vector, and amplify it through alignment. A small true feeling can become powerful when strengthened along its own trajectory. A large forced feeling collapses because it is imposed against the organism’s truth. The technique therefore does not prohibit intensity; it prohibits falsification. Let the feeling come forward, find its coordinate, then move upward through its line of coherence.
+          </div>
+        </div>
+
+      </div>
+
+      <h2 class="theory-divider">The Technique</h2>
+
+      <div class="depth-content active">
+
+        <div class="step-block">
+          <div class="step-num">01</div>
+          <div>
+            <h3 class="step-title">Breathe Through the Heart</h3>
+            <div class="step-desc">
+              Rest your attention in the centre of the heart. Let the breath flow in and out through that spot. Five seconds in, five seconds out, unforced. At this cadence the cardiovascular system hits its natural resonance near 0.1 Hz and HRV smooths into a clean wave. The breath is the scaffolding.
+            </div>
+          </div>
+        </div>
+
+        <div class="step-block">
+          <div class="step-num">02</div>
+          <div>
+            <h3 class="step-title">Heart Feeling</h3>
+            <div class="step-desc">
+              Activate a sincere feeling of love in the heart. Not as an idea held in the mind, but as a felt sense in the body - it is already there, in the tissue. Soften the chest and let it come forward. Breathe it through the heart as it arrives. This is the regenerative feeling you sustain for the rest of the session.
+            </div>
+          </div>
+        </div>
+
+        <div class="step-block">
+          <div class="step-num">03</div>
+          <div>
+            <h3 class="step-title">Deepen</h3>
+            <div class="step-desc">
+              Stay with the love and deepen it. The effort stays, never so hard that it takes you away from the feeling, always enough to sustain it and move to a subtler, deeper and more powerful level. The longer it is sustained, the stronger it becomes.
+            </div>
+          </div>
+        </div>
+
+        <div class="instr-safety">
+          If attention to the heart feels distressing, open your eyes, shorten the session, and let <em>ease</em> lead before love.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="screen hidden" id="screen-stage2">
+  <div class="s2-scroll">
+
+    <button class="stage-back" data-call="restartStage2ToIntro">&larr; Main menu</button>
+    <div class="s2-header">
+      <div class="s2-eyebrow">Stage Two</div>
+      <h1 class="s2-title" tabindex="-1">Body-Sensation Mapping</h1>
+      <div class="s2-subtitle">Feeling the Architecture Within</div>
+    </div>
+
+    <!-- ── THE EXERCISE (top of the page) ── -->
+    <div class="s2-exercise">
+
+      <!-- start controls, shown before a session -->
+      <div id="s2-start">
+        <div class="s2-ex-lede">
+          Pick one sensation and walk it through the practice. Choose a length and begin &mdash;
+          you can end whenever you need to.
+        </div>
+        <div class="dur-label">Choose Duration &middot; Tap to Begin</div>
+        <div class="duration-row s2-ex-durations">
+          <button class="dur-btn" data-call="startStage2WithDuration" data-value="900">15 min</button>
+          <button class="dur-btn" data-call="startStage2WithDuration" data-value="1800">30 min</button>
+          <button class="dur-btn" data-call="startStage2WithDuration" data-value="3600">60 min</button>
+        </div>
+        <div class="wave-select" role="group" aria-label="Brainwave entrainment">
+          <div class="wave-row">
+            <span class="wave-band">Delta &middot; rest</span>
+            <button class="rate-btn" aria-pressed="false" data-hz="1" data-call="setWave" data-value="1">1 Hz</button>
+            <button class="rate-btn" aria-pressed="false" data-hz="2" data-call="setWave" data-value="2">2 Hz</button>
+            <button class="rate-btn" aria-pressed="false" data-hz="3" data-call="setWave" data-value="3">3 Hz</button>
+          </div>
+          <div class="wave-row">
+            <span class="wave-band">Alpha &middot; focus</span>
+            <button class="rate-btn" aria-pressed="false" data-hz="8" data-call="setWave" data-value="8">8 Hz</button>
+            <button class="rate-btn on" aria-pressed="true" data-hz="10" data-call="setWave" data-value="10">10 Hz</button>
+            <button class="rate-btn" aria-pressed="false" data-hz="12" data-call="setWave" data-value="12">12 Hz</button>
+          </div>
+          <div class="wave-row">
+            <button class="rate-btn" aria-pressed="false" data-hz="0" data-call="setWave" data-value="0">Off</button>
+          </div>
+        </div>
+        <div class="rate-hint">Delta (0.5&ndash;4 Hz) for deep, restorative rest; alpha (8&ndash;12 Hz) for relaxed focus &mdash; 10 Hz the rate most linked to creativity. &ldquo;Off&rdquo; plays the bell alone.</div>
+        <div class="bell-vol-row">
+          <span class="bell-vol-label">Bell volume</span>
+          <input type="range" class="bell-vol" min="0" max="1.5" step="0.01" value="1" aria-label="Bell volume">
+          <span class="bell-vol-val">100%</span>
+          <button class="bell-test" type="button" data-call="testBell">Test</button>
+        </div>
+        <div class="s2-ex-note">
+          Start with 15 minutes for the basics &mdash; picking one sensation and walking it
+          through the seven questions cleanly. Use 30 once you want the fine-noticing warm-up
+          and the confidence check; 60 only for the test-a-fear protocol, and only after several
+          steady sessions. If activation climbs past what you can handle, end the session no
+          matter which phase you're in.
+        </div>
+      </div>
+
+      <!-- live guided session, shown once running -->
+      <div id="s2-live" class="is-hidden">
+        <div class="s2-live-bar">
+          <div class="session-timer-disp" id="s2s-timer">15:00</div>
+          <button class="session-end" data-call="endStage2Session">End</button>
+        </div>
+        <div class="s2s-orbit-label" id="s2s-center">Arrive</div>
+        <div class="s2s-phase-label" id="s2s-phase-label">Phase &middot; Arrive</div>
+        <div class="s2s-next">Next step in <span id="s2s-countdown">0:30</span></div>
+        <div class="s2s-prompt" id="s2s-prompt" aria-live="polite">Let the breath stay slow, about five to six breaths per minute. Feel the ground under you. Let one sensation in your body come forward on its own. Whatever it is, wherever it is. You're not searching. You're receiving. That first sensation is the one you'll work with for the whole session.</div>
+        <div class="s2s-chain" id="s2s-chain">
+          <button type="button" class="s2s-chip" data-dim="0" data-call="peekStage2Dimension" data-value="0" aria-pressed="false">Location</button>
+          <button type="button" class="s2s-chip" data-dim="1" data-call="peekStage2Dimension" data-value="1" aria-pressed="false">Quality</button>
+          <button type="button" class="s2s-chip" data-dim="2" data-call="peekStage2Dimension" data-value="2" aria-pressed="false">Intensity</button>
+          <button type="button" class="s2s-chip" data-dim="3" data-call="peekStage2Dimension" data-value="3" aria-pressed="false">Movement</button>
+          <button type="button" class="s2s-chip" data-dim="4" data-call="peekStage2Dimension" data-value="4" aria-pressed="false">Direction</button>
+          <button type="button" class="s2s-chip" data-dim="5" data-call="peekStage2Dimension" data-value="5" aria-pressed="false">Coherence</button>
+          <button type="button" class="s2s-chip" data-dim="6" data-call="peekStage2Dimension" data-value="6" aria-pressed="false">Meaning-tone</button>
+        </div>
+        <div class="s2s-progress"><div class="s2s-progress-fill" id="s2s-progress-fill"></div></div>
+      </div>
+
+    </div>
+
+    <!-- ── HOW TO DO IT (explanations, beneath the exercise) ── -->
+    <div class="s2-howto">
+      <h2 class="s2-howto-head">How to do it</h2>
+
+      <div class="s2-lede">
+        Stage One calms the body. Stage Two teaches you to <strong>read</strong> what's in the
+        calmed body. These are two halves of one practice. Stage One turns the noise down; Stage
+        Two lets you hear what was always playing underneath. What you used to call &ldquo;a bad
+        mood&rdquo; turns out to have a shape. What you used to take as &ldquo;who I am&rdquo; turns
+        out to be a pattern. What felt inevitable turns out to be something you can work with.
+      </div>
+
+      <div class="s2-teach">
+        <h3 class="s2-teach-title">A sensation is what an emotion is made of</h3>
+        <p>
+          An emotion is not a separate thing sitting on top of the body &mdash; at the felt level it
+          <em>is</em> a pattern of sensation you have learned to name. Underneath the word there is
+          always something physical: a place, a weight, a temperature, a direction of movement.
+          <em>Sadness</em>, before it is the word, is often a heaviness or a downward pull in the
+          chest, a thickening in the throat, a hollow sinking low in the belly. <em>Joy</em>, before
+          it is the word, is often a lightness and an opening in that same chest, a warmth spreading
+          outward, a quickening that rises rather than sinks. Same region of the body, opposite
+          architecture. The sensation and the feeling are not two events &mdash; the sensation
+          <strong>is</strong> the feeling, met before it has been named.
+        </p>
+        <h3 class="s2-teach-title">The mapping sharpens with practice</h3>
+        <p>
+          At first the body speaks in a blur &mdash; &ldquo;I feel bad,&rdquo; &ldquo;I feel
+          off&rdquo; &mdash; one undivided mass. Each time you map a sensation cleanly (where it is,
+          what it feels like, which way it moves) you lay down one more entry in a private dictionary
+          that links sensation to the emotion it carries. Over weeks that map sharpens. You begin to
+          recognise a feeling by its early shape &mdash; the faint tightening high in the chest that
+          pulls attention toward what you lack &mdash; and to name it (&ldquo;this is the front edge
+          of anxiety&rdquo;) before the story it wants to tell takes hold. Accuracy improves, and so
+          does speed: you catch the feeling at its sensory root, while it is still small and workable,
+          instead of only later, once it has hardened into a mood or a belief about who you are.
+        </p>
+        <h3 class="s2-teach-title">Walking one feeling down to its body</h3>
+        <p>
+          Say a vague unease shows up. <em>Where:</em> high in the chest, no clear edge.
+          <em>Quality:</em> a tight, buzzing pressure. <em>Intensity:</em> a six &mdash; louder as a
+          feeling than as a sensation. <em>Movement:</em> a fast flutter, coming in waves.
+          <em>Direction:</em> pulling up and inward toward the throat. <em>Coherence:</em> the raw
+          sensation, an image of something going wrong, and an urge to brace all point the same way.
+          <em>Tone, then name:</em> unpleasant, urging you to act &mdash; this is anxiety, the dread
+          of something not yet here. Read this way, it stops being &ldquo;I am anxious&rdquo; (a fact
+          about who you are) and becomes &ldquo;there is a tight, rising flutter in my chest reading
+          the future as a threat&rdquo; &mdash; a passing state you can question, not a verdict. Run
+          the same walk on joy and you find the opposite map: low and broad in the chest, warm, light,
+          opening outward, everything agreeing. Do this enough and the body becomes legible.
+        </p>
+      </div>
+
+      <div class="s2-law">
+        <div class="s2-law-label">Core Design Law</div>
+        <div class="s2-law-text">
+          Notice &rarr; describe &rarr; rate your confidence &rarr; test under pressure &rarr; see
+          how the body is shaping meaning. See clearly before interpreting. A strong feeling isn't
+          automatically true. Feeling confident isn't the same as being right.
+        </div>
+      </div>
+
+      <div class="s2-modules">
+        <div class="s2-module">
+          <h3 class="s2-mod-name">Finding Your Anchor</h3>
+          <div class="s2-mod-desc">
+            Learn to put your attention <em>inside</em> a specific part of your body and hold it
+            there. A light hand on the upper chest, the side ribs, or the lower belly can help
+            at first - once attention can stay on its own, the hand comes away. The point is
+            steadiness: one region, held.
+          </div>
+        </div>
+
+        <div class="s2-module">
+          <h3 class="s2-mod-name">Fine Noticing</h3>
+          <div class="s2-mod-desc">
+            Put two very similar inner states next to each other, for instance breath in versus
+            breath out, just-before-swallowing versus just-after, hand on your chest versus hand
+            lifted - and judge which one carries the stronger sensation. Small, honest comparisons
+            train the eye for what's actually there, as opposed to what you expect or hope is there.
+          </div>
+        </div>
+
+        <div class="s2-module">
+          <h3 class="s2-mod-name">The Seven Questions</h3>
+          <div class="s2-mod-desc">
+            Pick one sensation in your body and walk it through seven questions:
+            <em>where is it &middot; what does it feel like &middot; how strong is it &middot; is it
+            moving &middot; which direction &middot; is it one thing or several &middot; what's its
+            tone</em>. Describe in the simplest physical words. No interpretation until the full
+            walk is done.
+          </div>
+        </div>
+
+        <div class="s2-module">
+          <h3 class="s2-mod-name">Testing a Fear</h3>
+          <div class="s2-mod-desc">
+            When you're steady enough, deliberately raise a sensation you've been avoiding -
+            a faster heart, breathlessness, heat, trembling - and watch what you feared would
+            happen fail to happen. You are not trying to make the sensation go away. You are
+            giving the body a chance to learn, first-hand, that the sensation and the disaster
+            aren't the same thing. Small doses. Known exit. Only after Stage One is solid.
+          </div>
+        </div>
+
+        <div class="s2-module">
+          <h3 class="s2-mod-name">From Sensation to Meaning</h3>
+          <div class="s2-mod-desc">
+            Only after you've mapped a sensation clearly, watch how the body turns it into
+            meaning: <em>raw sensation &rarr; what grabs your attention &rarr; the interpretation
+            you jump to &rarr; what the body wants to do next</em>. See each step form. Name the
+            emotion in a single word if one fits. Watch the bridge build, and don't automatically
+            cross it just because it's there.
+          </div>
+        </div>
+      </div>
+
+      <div class="s2-closing">
+        Stage Two exists to make your inner life readable enough that you can actually <em>work
+        with it</em>. If you can't see it, you can't shape it.
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Stage Two completion overlay -->
+<dialog id="stage2-completion" aria-labelledby="stage2-completion-title">
+  <h2 class="s2c-title" id="stage2-completion-title">Field Mapped</h2>
+  <div class="s2c-text">
+    You moved from calming the body to reading it. You held one sensation, walked it through
+    seven questions, rated your confidence separately from what you saw, and watched how the
+    body turns a sensation into a meaning, without automatically going along with it. What
+    felt like one solid thing is actually three separate things: a sensation, an
+    interpretation, and what the body wants to do next. Carry this into the rest of your day:
+    every strong feeling is now a starting point, not a verdict.
+  </div>
+  <button class="s2c-btn" data-call="restartStage2ToIntro">Return to Beginning</button>
+</dialog>
+
+<!-- Completion overlay -->
+<dialog class="completion-overlay" id="completion" aria-labelledby="completion-title">
+  <h2 class="completion-title" id="completion-title">Session Complete</h2>
+  <div class="completion-text">
+    You trained the nervous system through love. Carry the slower breath, the open chest, and the warmth you generated into your next moment. Love leaves an ordered signature in the body. That signature, once cultivated, is always available again.
+  </div>
+  <button class="restart-btn" data-call="restartToIntro">Return to Beginning</button>
+</dialog>
+
+</main>
+<noscript><p>Turn on JavaScript to use the Heart exercises.</p></noscript>
+</div>
+<script src="./audio.js?v=heart-20260905-1" defer></script>
+<script src="./session.js?v=heart-20260905-1" defer></script>
+</body>
+</html>

@@ -1,0 +1,154 @@
+/* Exercise-local styles. Dream Unity's global stylesheet and scene are unchanged. */
+body.heart-page { margin:0; min-width:320px; background:radial-gradient(ellipse at 8% 0%,#dfe9ff88,transparent 42%),radial-gradient(ellipse at 93% 22%,#e6defc77,transparent 42%),#f4f6fc; }
+#heart-training { --bg:#f4f6fc; --surface:#fff; --ink:#28314b; --muted:#546078; --line:#c9d1e4; --accent:#6653a6; --accent-soft:#eeebfa; --focus:#2863b6; color:var(--ink); font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:20px; line-height:1.65; -webkit-text-size-adjust:100%; -webkit-font-smoothing:antialiased; }
+#heart-training *, #heart-training *::before, #heart-training *::after { box-sizing:border-box; }
+#heart-training h1, #heart-training h2, #heart-training h3, #heart-training p { margin:0; }
+#heart-training button, #heart-training input { font:inherit; }
+#heart-training button, #heart-training a { -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+#heart-training button { cursor:pointer; }
+#heart-training button:focus-visible, #heart-training a:focus-visible, #heart-training input:focus-visible { outline:3px solid var(--focus); outline-offset:4px; }
+#heart-training a { color:var(--accent); text-underline-offset:4px; }
+#heart-training em { font-style:italic; }
+#heart-training strong { font-weight:650; }
+#heart-training .screen.hidden, #heart-training .is-hidden, #heart-training [hidden] { display:none!important; }
+#heart-training .heart-topbar { max-width:1248px; margin:0 auto; min-height:110px; padding:22px 0; display:flex; justify-content:space-between; align-items:center; gap:20px; border-bottom:1px solid var(--line); }
+#heart-training .heart-brand { display:flex; align-items:center; gap:14px; min-height:56px; font-weight:650; text-decoration:none; color:var(--ink); }
+#heart-training .heart-gem { font-size:44px; font-weight:300; color:var(--accent); }
+#heart-training .heart-crumbs { display:block; color:var(--muted); font-size:16px; font-weight:450; }
+#heart-training .heart-home { font-size:18px; padding:14px 18px; border:1px solid var(--line); border-radius:13px; text-decoration:none; background:#ffffffb8; min-height:56px; }
+#heart-training .heart-entry { max-width:840px; margin:0 auto; padding:56px 26px 96px; }
+#heart-training .heart-eyebrow { font-size:17px; font-weight:600; color:var(--accent); margin-bottom:16px; }
+#heart-training .heart-entry h1 { font-size:clamp(34px,4vw,48px); font-weight:600; line-height:1.25; letter-spacing:-.025em; }
+#heart-training .heart-stages { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; margin-top:30px; }
+#heart-training .heart-stage { display:flex; flex-direction:column; justify-content:center; align-items:flex-start; gap:12px; padding:28px; min-height:170px; text-align:left; border:1px solid var(--line); border-radius:22px; color:var(--ink); background:linear-gradient(145deg,#ffffffed,#eef2fbdd); box-shadow:0 12px 45px #53658d08; }
+#heart-training .heart-stage span { font-size:17px; color:var(--accent); }
+#heart-training .heart-stage strong { font-size:28px; line-height:1.3; font-weight:600; }
+#heart-training .heart-stage:hover { border-color:#8173b4; background:#f3f0fc; }
+#heart-training .s1-scroll, #heart-training .s2-scroll { max-width:840px; margin:0 auto; padding:48px 26px 96px; display:flex; flex-direction:column; gap:clamp(20px,3vh,34px); }
+#heart-training .s2-scroll { gap:clamp(22px,3.4vh,40px); }
+#heart-training .s1-header, #heart-training .s2-header { text-align:center; }
+#heart-training .instr-heading, #heart-training .s2-title { font-size:clamp(28px,4vw,40px); font-weight:600; line-height:1.2; letter-spacing:-.025em; margin-bottom:10px; }
+#heart-training .instr-sub, #heart-training .s2-eyebrow { font-size:16px; color:var(--muted); }
+#heart-training .s2-eyebrow { margin-bottom:14px; }
+#heart-training .s2-subtitle { font-size:clamp(18px,2.4vw,22px); color:var(--muted); }
+#heart-training .stage-back { align-self:flex-start; background:#ffffffad; border:1px solid var(--line); border-radius:13px; cursor:pointer; font-size:18px; color:var(--accent); min-height:56px; padding:12px 18px; }
+#heart-training .s1-exercise, #heart-training .s2-exercise { border:1px solid var(--line); border-radius:22px; background:linear-gradient(145deg,#ffffffdf,#eef2fbdf); padding:clamp(22px,3.4vw,34px) clamp(18px,3vw,30px); margin-top:6px; box-shadow:0 12px 45px #53658d08; }
+#heart-training .s2-exercise { padding:clamp(24px,3.6vw,36px) clamp(18px,3vw,30px); }
+#heart-training #s1-start, #heart-training #s1-live, #heart-training #s2-start, #heart-training #s2-live { display:flex; flex-direction:column; align-items:center; text-align:center; }
+#heart-training .s1-ex-lede, #heart-training .s2-ex-lede { font-size:clamp(18px,2vw,20px); color:var(--ink); max-width:560px; margin-bottom:24px; }
+#heart-training .s2-ex-lede { max-width:540px; }
+#heart-training .dur-label { margin:20px 0 14px; font-size:16px; color:var(--muted); }
+#heart-training .duration-row { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; }
+#heart-training .dur-btn, #heart-training .session-end, #heart-training .restart-btn, #heart-training .s2c-btn { font-size:20px; border:1px solid var(--line); background:var(--surface); color:var(--ink); padding:13px 20px; border-radius:13px; cursor:pointer; min-height:56px; }
+#heart-training .dur-btn:hover, #heart-training .session-end:hover, #heart-training .stage-back:hover { border-color:#8173b4; background:var(--accent-soft); }
+#heart-training .s1-ex-note, #heart-training .s2-ex-note { font-size:16px; line-height:1.55; color:var(--muted); max-width:560px; margin-top:22px; }
+#heart-training .wave-select { margin-top:20px; display:flex; flex-direction:column; gap:9px; align-items:center; }
+#heart-training .wave-row { display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap; }
+#heart-training .wave-band { font-size:16px; color:var(--muted); }
+#heart-training .rate-btn { font-size:16px; color:var(--muted); border:1px solid var(--line); background:#ffffffb8; border-radius:10px; padding:9px 13px; cursor:pointer; min-height:44px; min-width:54px; }
+#heart-training .rate-btn:hover { border-color:#8173b4; color:var(--ink); }
+#heart-training .rate-btn.on { border-color:var(--accent); color:var(--ink); background:var(--accent-soft); box-shadow:inset 0 0 0 1px var(--accent); }
+#heart-training .rate-hint { font-size:16px; color:var(--muted); text-align:center; margin-top:12px; max-width:560px; }
+#heart-training .bell-vol-row { display:flex; align-items:center; justify-content:center; gap:12px; margin-top:18px; flex-wrap:wrap; }
+#heart-training .bell-vol-label, #heart-training .bell-vol-val { font-size:16px; }
+#heart-training .bell-vol { width:150px; max-width:46vw; height:44px; cursor:pointer; accent-color:var(--accent); }
+#heart-training .bell-vol-val { min-width:44px; text-align:left; font-variant-numeric:tabular-nums; }
+#heart-training .bell-test { font-size:16px; color:var(--accent); background:#fff; border:1px solid var(--line); border-radius:10px; min-height:44px; padding:9px 14px; }
+#heart-training .s1-live-bar, #heart-training .s2-live-bar { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; border-bottom:1px solid var(--line); padding-bottom:12px; }
+#heart-training .s2-live-bar { margin-bottom:30px; }
+#heart-training .session-title { font-size:16px; color:var(--muted); }
+#heart-training .session-timer-disp { font-size:22px; color:var(--ink); font-variant-numeric:tabular-nums; white-space:nowrap; }
+#heart-training .session-end { padding:10px 18px; }
+/* The source pacer geometry and 5,000 ms phase transition are preserved. */
+#heart-training .breath-container { display:flex; flex-direction:column; align-items:center; margin:44px 0 30px; }
+#heart-training .breath-stage { position:relative; width:210px; height:210px; display:flex; align-items:center; justify-content:center; }
+#heart-training .breath-ball { width:128px; height:128px; border-radius:50%; border:1px solid var(--accent); background:radial-gradient(circle at 35% 28%,#ffffff70,#dad3f52b); transform:scale(.8); transition:transform 5s linear; }
+#heart-training .breath-ball.inhale-state { transform:scale(1.55); }
+#heart-training .breath-readout { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; pointer-events:none; }
+#heart-training .breath-label { font-size:16px; color:var(--muted); }
+#heart-training .breath-countdown { font-size:30px; color:var(--ink); line-height:1; font-variant-numeric:tabular-nums; }
+#heart-training .phase-step-label { text-align:center; margin-bottom:8px; font-size:16px; color:var(--muted); }
+#heart-training .phase-text { text-align:center; font-size:21px; max-width:560px; margin:0 auto; }
+#heart-training .coherence-indicators { display:flex; gap:24px; justify-content:center; margin-top:20px; }
+#heart-training .ci-row { display:flex; flex-direction:column; align-items:center; gap:6px; }
+#heart-training .ci-dot { width:9px; height:9px; border-radius:50%; border:1px solid var(--line); transition:background .4s ease,border-color .4s ease; }
+#heart-training .ci-dot.active { background:var(--accent); border-color:var(--accent); }
+#heart-training .ci-label { font-size:16px; color:var(--muted); }
+#heart-training .s1s-progress, #heart-training .s2s-progress { height:2px; background:var(--line); width:100%; max-width:560px; margin:28px auto 0; }
+#heart-training .progress-fill, #heart-training .s2s-progress-fill { height:100%; width:0; background:var(--accent); transition:width 1s linear; }
+#heart-training .s2s-orbit-label { font-size:clamp(20px,4vw,28px); font-weight:500; letter-spacing:.06em; line-height:1.3; }
+#heart-training .s2s-phase-label { font-size:16px; color:var(--muted); margin:12px 0; }
+#heart-training .s2s-next { font-size:16px; color:var(--muted); margin:-4px 0 16px; }
+#heart-training #s2s-countdown { font-variant-numeric:tabular-nums; color:var(--ink); }
+#heart-training .s2s-prompt { font-size:21px; min-height:5em; max-width:640px; }
+#heart-training .s2s-chain { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; max-width:680px; margin:24px auto 0; }
+#heart-training .s2s-chip { font-size:16px; border:1px solid var(--line); border-radius:10px; padding:9px 12px; min-height:44px; cursor:pointer; color:var(--muted); background:#fff; }
+#heart-training .s2s-chip.done { opacity:.55; }
+#heart-training .s2s-chip.active { border-color:var(--accent); color:var(--ink); background:var(--accent-soft); }
+#heart-training .s2s-chip.peek { outline:1px dashed var(--accent); outline-offset:3px; }
+#heart-training .fading { opacity:0; transition:opacity .3s; }
+#heart-training #s2-live .s2s-progress { margin:24px auto 0; max-width:760px; }
+#heart-training .s1-howto { margin-top:clamp(28px,4.5vh,48px); }
+#heart-training .s1-howto-head, #heart-training .s2-howto-head { font-size:18px; font-weight:550; color:var(--muted); text-align:center; padding-top:clamp(20px,3vh,30px); border-top:1px solid var(--line); margin-bottom:clamp(20px,3vh,30px); }
+#heart-training .theory-lede { font-size:21px; color:var(--ink); margin-bottom:34px; border-left:2px solid var(--line); padding-left:18px; }
+#heart-training .theory-card { border-top:1px solid var(--line); padding:20px 0; }
+#heart-training .theory-card-eyebrow { display:block; margin-bottom:6px; font-size:16px; color:var(--muted); }
+#heart-training .theory-card-title { font-size:22px; font-weight:600; line-height:1.4; margin-bottom:8px; }
+#heart-training .theory-card-body, #heart-training .step-desc { color:var(--ink); }
+#heart-training .theory-divider { font-size:20px; color:var(--accent); font-weight:600; text-align:center; margin:42px 0 26px; padding-top:26px; border-top:1px solid var(--line); }
+#heart-training .step-block { display:flex; gap:16px; align-items:flex-start; margin:22px 0; }
+#heart-training .step-num { margin-top:5px; flex:0 0 auto; width:28px; font-size:16px; color:var(--accent); }
+#heart-training .step-title { font-size:22px; font-weight:600; line-height:1.4; margin-bottom:4px; }
+#heart-training .instr-safety { font-size:16px; color:var(--muted); border-left:2px solid var(--line); padding-left:14px; margin-top:24px; }
+#heart-training .s2-howto { margin-top:clamp(32px,5vh,54px); display:flex; flex-direction:column; gap:clamp(20px,3.2vh,36px); }
+#heart-training .s2-howto-head { margin-bottom:0; }
+#heart-training .s2-lede { font-size:clamp(18px,2vw,20px); line-height:1.72; padding:clamp(16px,2.6vw,26px) clamp(6px,2vw,18px); border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+#heart-training .s2-teach { display:flex; flex-direction:column; gap:12px; }
+#heart-training .s2-teach-title { font-size:clamp(20px,2.5vw,24px); line-height:1.4; font-weight:600; margin-top:10px; }
+#heart-training .s2-teach p { font-size:clamp(18px,1.95vw,20px); line-height:1.72; }
+#heart-training .s2-law { background:#eeebfa99; border:1px solid var(--line); border-radius:16px; padding:clamp(18px,2.8vw,26px) clamp(20px,3vw,30px); text-align:center; }
+#heart-training .s2-law-label { font-size:16px; color:var(--accent); margin-bottom:10px; }
+#heart-training .s2-law-text { font-size:18px; line-height:1.6; }
+#heart-training .s2-modules { display:grid; grid-template-columns:1fr; gap:clamp(14px,2.2vh,20px); }
+#heart-training .s2-module { background:#ffffffa8; border:1px solid var(--line); border-radius:16px; padding:clamp(18px,2.6vw,24px); display:flex; flex-direction:column; gap:9px; }
+#heart-training .s2-mod-name { font-size:20px; line-height:1.4; font-weight:600; }
+#heart-training .s2-mod-desc { font-size:18px; line-height:1.58; }
+#heart-training .s2-closing { font-size:clamp(18px,2vw,20px); text-align:center; max-width:640px; margin:0 auto; }
+#heart-training dialog { max-width:720px; width:calc(100% - 32px); max-height:calc(100dvh - 40px); overflow:auto; margin:auto; padding:36px; border:1px solid var(--line); border-radius:24px; background:var(--surface); color:var(--ink); box-shadow:0 24px 100px #29395833; text-align:center; }
+#heart-training dialog::backdrop { background:#28314955; backdrop-filter:blur(5px); }
+#heart-training dialog[open] { display:flex; flex-direction:column; align-items:center; gap:22px; }
+#heart-training .completion-title, #heart-training .s2c-title { font-size:clamp(26px,5vw,34px); font-weight:600; line-height:1.3; }
+#heart-training .completion-text, #heart-training .s2c-text { max-width:560px; font-size:20px; }
+#heart-training .restart-btn, #heart-training .s2c-btn { background:var(--accent); color:#fff; border-color:var(--accent); }
+#heart-training .heart-skip { position:fixed; z-index:100; top:12px; left:16px; padding:14px 18px; background:#fff; border:2px solid var(--focus); border-radius:12px; opacity:0; pointer-events:none; }
+#heart-training .heart-skip:focus { opacity:1; pointer-events:auto; }
+#heart-training .heart-audio-status { max-width:788px; margin:0 auto 24px; padding:16px; font-size:16px; color:var(--muted); }
+@media(min-width:680px) { #heart-training .s2-modules { grid-template-columns:1fr 1fr; } }
+@media(max-width:1320px) { #heart-training .heart-topbar { margin-left:26px; margin-right:26px; } }
+@media(max-width:600px) {
+ #heart-training { font-size:18px; }
+ #heart-training .heart-topbar { margin:0 18px; min-height:94px; flex-wrap:wrap; gap:12px; padding:18px 0; }
+ #heart-training .heart-brand { gap:10px; }
+ #heart-training .heart-home { min-height:48px; padding:10px 14px; }
+ #heart-training .heart-stages { grid-template-columns:1fr; }
+ #heart-training .heart-stage { min-height:140px; padding:24px; }
+ #heart-training .heart-stage strong { font-size:26px; }
+ #heart-training .heart-entry, #heart-training .s1-scroll, #heart-training .s2-scroll { padding:32px 18px 64px; }
+ #heart-training .s1-exercise, #heart-training .s2-exercise { padding:22px 16px; }
+ #heart-training .s1-live-bar { flex-wrap:wrap; }
+ #heart-training .session-title { width:100%; text-align:left; }
+ #heart-training .wave-band { flex-basis:100%; }
+ #heart-training .phase-text, #heart-training .s2s-prompt, #heart-training .theory-lede { font-size:20px; }
+ #heart-training .coherence-indicators { gap:20px; }
+ #heart-training .ci-label { font-size:16px; }
+ #heart-training dialog { padding:26px; }
+}
+@media(prefers-reduced-motion:reduce) {
+ #heart-training *, #heart-training *::before, #heart-training *::after { transition:none!important; animation:none!important; scroll-behavior:auto!important; }
+}
+@media(forced-colors:active) {
+ #heart-training .rate-btn.on, #heart-training .s2s-chip.active { outline:2px solid Highlight; }
+ #heart-training .s2s-chip.peek { outline:2px dashed Highlight; }
+ #heart-training .breath-ball { border-color:CanvasText; }
+ #heart-training .ci-dot.active, #heart-training .progress-fill, #heart-training .s2s-progress-fill { background:Highlight; }
+}

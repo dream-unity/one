@@ -140,7 +140,7 @@ test("the page cannot remain trapped behind its loading screen", async () => {
   ]);
   assert.match(html, /__DREAM_UNITY_WATCHDOG__/);
   assert.match(html, /setTimeout\(revealStaticExperience, 6000\)/);
-  assert.match(html, /defer src="\.\/runtime\/loader\.js\?v=clear-20260905-1"/);
+  assert.match(html, /defer src="\.\/runtime\/loader\.js\?v=heart-20260905-1"/);
   assert.match(main, /clearTimeout\(window\.__DREAM_UNITY_WATCHDOG__\)/);
   assert.doesNotMatch(html, /<script[^>]+src="\.\/runtime\/dream-unity\.min\.js"/);
   assert.match(loader, /fetch\(manifestUrl, \{ cache: "no-store" \}\)/);
@@ -158,7 +158,7 @@ test("Dream Maker Eye overrides only the music event without rebuilding the visu
     read("audio-controller.js")
   ]);
   const audioScript = html.indexOf("audio-controller.js?v=audio-crossbrowser-b23033e55592-v3");
-  const runtimeScript = html.indexOf("runtime/loader.js?v=clear-20260905-1");
+  const runtimeScript = html.indexOf("runtime/loader.js?v=heart-20260905-1");
   assert.ok(audioScript > -1, "the independent audio controller is not loaded");
   assert.ok(audioScript < runtimeScript, "the audio controller should initialize independently of the 3D runtime");
   assert.match(html, /id="sound-toggle"[^>]*aria-pressed="false"[^>]*data-audio-state="starting"[^>]*data-audio-intent="on"/,

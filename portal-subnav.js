@@ -104,7 +104,9 @@
     markSelected(button);
     document.body.dataset.domainSelected = `${world}:${domain.toLowerCase()}`;
     emitSelection(world, domain);
-    if (world === "machine" && domain === "MIND") {
+    if (world === "machine" && domain === "HEART") {
+      window.location.href = new URL("./exercises/heart/", document.baseURI).href;
+    } else if (world === "machine" && domain === "MIND") {
       renderMindDomains();
       worldTitle?.focus({ preventScroll: true });
     } else if (world === "world" && domain === "STRUCTURE") {
@@ -212,23 +214,25 @@
     setPortalExpansion("machine");
   }
 
-  function restoreModelContext() {
-    if (returnTarget !== "machine-mind-model") return;
+  function restoreMachineContext() {
+    const returningToHeart = returnTarget === "machine-heart";
+    if (!returningToHeart && returnTarget !== "machine-mind-model") return;
     window.__DREAM_UNITY__?.focus?.("machine");
     revealMachinePanel();
-    renderMindDomains();
-    const modelButton = worldSteps.querySelector('[data-domain="model"]');
-    if (modelButton) {
-      modelButton.setAttribute("aria-pressed", "true");
-      document.body.dataset.domainSelected = "machine:mind:model";
-      modelButton.focus({ preventScroll: true });
+    if (returningToHeart) renderDomainButtons("machine");
+    else renderMindDomains();
+    const selectedButton = worldSteps.querySelector(returningToHeart ? '[data-domain="heart"]' : '[data-domain="model"]');
+    if (selectedButton) {
+      selectedButton.setAttribute("aria-pressed", "true");
+      document.body.dataset.domainSelected = returningToHeart ? "machine:heart" : "machine:mind:model";
+      selectedButton.focus({ preventScroll: true });
     }
-    if (worldDescription) worldDescription.textContent = "Try Check a thought again. Practise noticing a thought, testing it and choosing what to do next.";
+    if (!returningToHeart && worldDescription) worldDescription.textContent = "Try Check a thought again. Practise noticing a thought, testing it and choosing what to do next.";
     const cleanUrl = new URL(window.location.href);
     cleanUrl.searchParams.delete("return");
     cleanUrl.searchParams.delete("focus");
     window.history.replaceState({}, "", `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
   }
 
-  window.setTimeout(restoreModelContext, 0);
+  window.setTimeout(restoreMachineContext, 0);
 })();
