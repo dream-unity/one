@@ -1,40 +1,33 @@
-# Heart training
+# Heart practice
 
-Local integration at `Dream Machine → Heart`, served from `/exercises/heart/`.
+Native practice at `Dream Machine → Heart`, with a plain action layer and optional source-linked explanations. This research-led revision replaces the earlier requirement to preserve the supplied Project Meaning wording verbatim, following the user's 5 September 2026 instruction to correct the science and improve the training.
 
-## Implementation authority
+## Practices
 
-The user-supplied Project Meaning `index(4).html` is the authority for exercise text, audio and runtime behavior. Its SHA-256 is `9b273d55b47ed3b0719e128b074a13b86d3ccd5b42864f265fdd11decc3a197f`. The public [Project Meaning site](https://o0ooooooooooo0o.github.io/Project-Meaning/) was also opened and both working exercises were inspected interactively.
+- **Breathe with ease:** 3, 5, 10 or 15 minutes. Easy breathing, optional kind attention, then ordinary breathing and outward attention. The guide offers four or five seconds each way, or an unpaced option. The child setting selects ordinary breathing and a short session; it is not a claim of validated preschool treatment.
+- **Try both ways:** a prediction, four one-minute blocks, and a private ease report after each block. Breath-only and breath-plus-kind-wish conditions run in randomly selected ABBA or BAAB order, with equal scheduled time. Untimed answer cards require an answer or explicit skip before continuing. All reports and interruptions are shown; there is no winner, average, physiological score or causal conclusion.
+- **Notice your body:** 4, 8 or 12 minutes. Each round contains eight 30-second steps: a gentle attention target, description, strength, certainty, outward attention, return/comparison, alternative explanations and a chosen response. Later rounds add questions about expectation, context and evidence rather than asking for stronger sensations.
 
-Only the two operational exercises are included. The Project Meaning essay, branding shell, global typography, decorative artwork and locked stages are excluded. Teaching, safety and completion wording are retained as supplied. This transfer does not independently establish the scientific claims in that teaching.
+The sequence and comparison are original educational adaptations, not clinical protocols established by the cited studies. The website has no physiological sensor. Subjective strength, confidence, ease and consistency are not objective accuracy or metacognitive calibration.
 
-## Preserved behavior
+## Scientific changes
 
-- Stage One durations: 900, 1800, 3600, 7200 and 10800 seconds.
-- A 210 × 210 px breathing stage, 128 × 128 px ball, .8 / 1.55 scales and 5-second linear phases.
-- Source thirds at elapsed fractions below .33, below .66 and the remainder. Prompt changes occur at breath transitions.
-- Rhythm, Heart focus and Feeling indicators after 400, 4000 and 9000 ms. These are authored training cues, not sensor measurements.
-- Stage Two durations: 900, 1800 and 3600 seconds. Seven source questions rotate every 30 seconds and wrap until the overall session ends.
-- Re-reading a chip leaves the current countdown running, rings no extra bell, and ends at the next automatic step. Active, done and peek remain distinct.
-- The source's 300 / 320 ms label/prompt fades. Reduced motion removes the visual transition without changing session cadence.
-- Exact `PHASES`, `S2_DIMENSIONS` and unused `S2_PHASES` constants. `S2_PHASES` is deliberately not scheduled; activating it would change the actual source exercise.
-- Shared 1/2/3 Hz delta, 8/10/12 Hz alpha and Off controls; 10 Hz default. Rate changes configure the next session.
-- Per-option bell-volume values held in page memory. The 0–1.5 slider retains the source's steeper gain above 100%.
-- Separate bell and pad graphs: generated 4.5-second stereo convolution response, original partials and envelopes, 392 / 293.66 Hz cues, source delta/alpha carriers, 60-second settling, modulation, brown noise, filters and three-second pad fade.
-- Original completion sequence and exact closing messages. Manual End returns to setup without completion bells.
+The visible explanations contain 20 expandable questions with nearby primary-study and review links. They distinguish acute breathing-related HRV changes from mood, cognition and resting HRV; HeartMath observational evidence from randomized comparisons; and cardiac anatomy from unsupported claims about love stored in tissue. The interoception material distinguishes attention, confidence, measured performance, context and response. It includes negative and qualified results, including 2026 evidence.
 
-`audio.js` and `session.js` transplant the source logic. `index.html` preserves the instructional hierarchy. Styles are restricted to the new Heart page and `#heart-training`; global Dream Unity styles and its compiled scene are untouched.
+Unsupported claims about cellular regeneration, automatic emotion decoding, a sincerity-gated hormone pathway and guaranteed brainwave/creativity effects have been removed. Sound remains a preference. The original synthesis and its rates, envelopes, reverb and per-option bell levels are unchanged; the labels no longer promise rest, focus or creativity. Old timer-driven “coherence” indicators and instructions to provoke feared symptoms have been removed.
 
-## Integration and lifecycle differences
+The two exercises offer short instructions first. Optional questions expose causal uncertainty and measurement problems in plain language. Readability is a design goal; it has not been validated in user studies with five-year-olds or experts.
 
-- Existing Heart navigation opens the local route. Returning to Dream Machine restores Heart selection.
-- Native buttons and accessible completion dialogs replace inline event handlers and nonsemantic clickable elements.
-- All session, indicator, fade, preview and completion timers are owned and cancelled appropriately. A stopped or replaced session cannot alter the next one.
-- Manual End retains the source pad fade. Leaving the Heart screen, starting another session or unloading cancels old graphs immediately.
-- Suspended audio contexts resume following explicit interaction. Rejected or delayed resume requests cannot create orphan audio after leaving.
-- Zero bell volume creates no strike; this avoids the invalid exponential ramp to zero in the supplied source.
-- No voice, personal-input fields, analytics, network submissions or external audio/font dependencies are added. Browser background timer throttling remains subject to platform behavior, as in the source.
+## Runtime
+
+- `practice.js` is a pure, validated plan/state engine with monotonic foreground time, wait gates, optional answers, stale-step protection and truthful partial summaries.
+- `session.js` connects native controls to that engine with one 250 ms foreground clock. Pause, looking outward and hidden pages stop timing and audio; returning requires explicit resumption. Ending, restarting or leaving clears owned cues and page-memory answers. Waiting for an answer does not consume practice time.
+- `audio.js` retains the prior sound implementation and cancellation protections. Native audio failure does not prevent silent practice. Sound controls express a preference, not a claim of successful playback or brain measurement.
+- `styles.css` is scoped to the Heart route: large controls, pale surfaces, responsive stacking, keyboard focus, native dialogs, and a static circle for reduced motion. Pacing words and numbers remain available without animation.
+- All answers remain in page memory. No personal stories, sensors, analytics, network submissions or persistent answer storage are added. The CSP disallows connections.
 
 ## Verification
 
-Run `node --test tests/*.test.mjs`. Heart tests cover exact prompt fingerprints, duration/timing contracts, progress, repeated seven-step rotations, peek behavior, completion and cleanup, per-option volume, source audio graph constants, zero volume and browser-resume races. Existing tests continue to protect the Dream Unity scene, geometry, soundtrack and CBT behavior.
+Run `node --test tests/*.test.mjs` from the repository root. The Heart tests exercise actual controls against the HTML fixture, all offered durations, both comparison orders, zero/unclear/skipped answers, pause and hidden time, stale clicks, partial completion, audio failure and cancellation, child pace selection, and privacy cleanup. Original audio graph tests remain. Separate structural tests protect the existing scene and renderer.
+
+The new live page should also be checked for entry/setup/session/finish layouts, the paced and unpaced views, the complete four-round comparison, body attention transitions, source expansion, and return navigation. Unit DOM fixtures do not verify rendered layout or prove clinical effectiveness.

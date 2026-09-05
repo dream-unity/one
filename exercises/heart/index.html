@@ -6,480 +6,82 @@
 <meta name="theme-color" content="#f4f6fc">
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'">
-<title>Heart training · Dream Unity</title>
-<meta name="description" content="Heart Coherence and Body-Sensation Mapping, inside Dream Unity’s Heart training.">
-<link rel="stylesheet" href="./styles.css?v=heart-20260905-2">
+<title>Heart practice · Dream Unity</title>
+<meta name="description" content="Breathe with ease. Notice your body. Simple guided practice, thoughtful questions, and a clear look at the science.">
+<link rel="stylesheet" href="./styles.css?v=heart-research-20260905-1">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='none' stroke='%236653a6' stroke-width='4' d='M32 4 55 32 32 60 9 32zM9 32h46M32 4v56'/%3E%3C/svg%3E">
 </head>
 <body class="heart-page">
 <div id="heart-training">
-<a class="heart-skip" href="#heart-main">Skip to Heart training</a>
-<header class="heart-topbar">
-<a class="heart-brand" href="../../?return=machine-heart"><span class="heart-gem" aria-hidden="true">◇</span><span>Dream Unity<span class="heart-crumbs">Dream Machine / Heart</span></span></a>
-<a class="heart-home" href="../../?return=machine-heart">Back to Dream Machine</a>
-</header>
+<a class="heart-skip" href="#heart-main">Skip to practice</a>
+<header class="heart-topbar"><a class="heart-brand" href="../../?return=machine-heart"><span class="heart-gem" aria-hidden="true">◇</span><span>Dream Unity<span class="heart-crumbs">Dream Machine / Heart</span></span></a><a class="heart-home" href="../../?return=machine-heart">Back to Dream Machine</a></header>
 <main id="heart-main">
-<section class="screen heart-entry" id="screen-heart" aria-labelledby="heart-title">
-<p class="heart-eyebrow">Dream Machine · Heart</p>
-<h1 id="heart-title" tabindex="-1">Heart training</h1>
+<section class="screen entry-screen" id="screen-heart" aria-labelledby="heart-title">
+<div class="entry-copy"><p class="eyebrow">Dream Machine · Heart</p><h1 id="heart-title" tabindex="-1">A little space<br>to feel and learn.</h1><p class="lede">Breathe with ease. Notice what you feel.<br>Choose one small step.</p></div>
 <div class="heart-stages" role="group" aria-label="Choose a Heart exercise">
-<button type="button" class="heart-stage" data-call="showInstructions"><span>Stage One</span><strong>Heart Coherence</strong></button>
-<button type="button" class="heart-stage" data-call="showStage2Preview"><span>Stage Two</span><strong>Body-Sensation Mapping</strong></button>
+<button type="button" class="heart-stage" data-open="breath"><span class="stage-symbol breathe-symbol" aria-hidden="true"></span><span class="stage-number">01 · Breathe</span><strong>Breathe with ease</strong><span class="stage-description">An easy breath. A kind wish, if you want.</span><span class="stage-go">Begin <span aria-hidden="true">→</span></span></button>
+<button type="button" class="heart-stage" data-open="body"><span class="stage-symbol notice-symbol" aria-hidden="true"></span><span class="stage-number">02 · Notice</span><strong>Notice your body</strong><span class="stage-description">Feel a little. Stay curious. Choose what comes next.</span><span class="stage-go">Begin <span aria-hidden="true">→</span></span></button>
 </div>
+<p class="entry-note">No story to write. No feeling to get right.</p><p class="small-copy">Children practise with a trusted grown-up. Use your own easy breath.</p>
 </section>
-<div class="screen hidden" id="screen-instructions">
-  <div class="s1-scroll">
-
-    <button class="stage-back" data-call="restartToIntro">&larr; Main menu</button>
-    <div class="s1-header">
-      <h1 class="instr-heading" tabindex="-1">Heart Coherence</h1>
-      <div class="instr-sub">Quick Coherence® &middot; HeartMath Institute</div>
-    </div>
-
-    <!-- ── THE EXERCISE (top of the page) ── -->
-    <div class="s1-exercise">
-
-      <!-- start controls, shown before a session -->
-      <div id="s1-start">
-        <div class="s1-ex-lede">
-          Breathe five seconds in, five seconds out through the heart, and let a sincere feeling
-          of love come forward. Choose a length and begin &mdash; you can end whenever you need to.
-        </div>
-        <div class="dur-label">Tap to Begin &middot; Choose Duration</div>
-        <div class="duration-row s1-ex-durations">
-          <button class="dur-btn start" data-call="startWithDuration" data-value="900">15 min</button>
-          <button class="dur-btn start" data-call="startWithDuration" data-value="1800">30 min</button>
-          <button class="dur-btn start" data-call="startWithDuration" data-value="3600">1 hr</button>
-          <button class="dur-btn start" data-call="startWithDuration" data-value="7200">2 hr</button>
-          <button class="dur-btn start" data-call="startWithDuration" data-value="10800">3 hr</button>
-        </div>
-        <div class="wave-select" role="group" aria-label="Brainwave entrainment">
-          <div class="wave-row">
-            <span class="wave-band">Delta &middot; rest</span>
-            <button class="rate-btn" aria-pressed="false" data-hz="1" data-call="setWave" data-value="1">1 Hz</button>
-            <button class="rate-btn" aria-pressed="false" data-hz="2" data-call="setWave" data-value="2">2 Hz</button>
-            <button class="rate-btn" aria-pressed="false" data-hz="3" data-call="setWave" data-value="3">3 Hz</button>
-          </div>
-          <div class="wave-row">
-            <span class="wave-band">Alpha &middot; focus</span>
-            <button class="rate-btn" aria-pressed="false" data-hz="8" data-call="setWave" data-value="8">8 Hz</button>
-            <button class="rate-btn on" aria-pressed="true" data-hz="10" data-call="setWave" data-value="10">10 Hz</button>
-            <button class="rate-btn" aria-pressed="false" data-hz="12" data-call="setWave" data-value="12">12 Hz</button>
-          </div>
-          <div class="wave-row">
-            <button class="rate-btn" aria-pressed="false" data-hz="0" data-call="setWave" data-value="0">Off</button>
-          </div>
-        </div>
-        <div class="rate-hint">Delta (0.5&ndash;4 Hz) for deep, restorative rest; alpha (8&ndash;12 Hz) for relaxed focus &mdash; 10 Hz the rate most linked to creativity. &ldquo;Off&rdquo; plays the bell alone.</div>
-        <div class="bell-vol-row">
-          <span class="bell-vol-label">Bell volume</span>
-          <input type="range" class="bell-vol" min="0" max="1.5" step="0.01" value="1" aria-label="Bell volume">
-          <span class="bell-vol-val">100%</span>
-          <button class="bell-test" type="button" data-call="testBell">Test</button>
-        </div>
-        <div class="s1-ex-note">
-          If attention to the heart feels distressing, open your eyes, shorten the session, and
-          let <em>ease</em> lead before love.
-        </div>
-      </div>
-
-      <!-- live breathing session, shown once running -->
-      <div id="s1-live" class="is-hidden">
-        <div class="s1-live-bar">
-          <div class="session-title" id="session-title-label">Heart Coherence · Active</div>
-          <div class="session-timer-disp" id="session-timer">15:00</div>
-          <button class="session-end" data-call="endSession">End</button>
-        </div>
-
-        <div class="breath-container" id="breath-container">
-          <div class="breath-stage">
-            <div class="breath-ball" id="breath-ball" aria-hidden="true"></div>
-            <div class="breath-readout">
-              <div class="breath-label" id="breath-label"></div>
-              <div class="breath-countdown" id="breath-cd"></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="phase-panel">
-          <div class="phase-step-label" id="phase-step-label">Step 1 · Heart-Focused Breathing</div>
-          <div class="phase-text" id="phase-text" aria-live="polite">Breathe in gently through the heart. Soften the chest and let the love that is already there come forward.</div>
-        </div>
-
-        <div class="coherence-indicators">
-          <div class="ci-row"><div class="ci-dot" id="ci-breath"></div><div class="ci-label">Rhythm</div></div>
-          <div class="ci-row"><div class="ci-dot" id="ci-heart"></div><div class="ci-label">Heart focus</div></div>
-          <div class="ci-row"><div class="ci-dot" id="ci-feeling"></div><div class="ci-label">Feeling</div></div>
-        </div>
-
-        <div class="s1s-progress"><div class="progress-fill" id="progress-fill"></div></div>
-      </div>
-
-    </div>
-
-    <!-- ── HOW IT WORKS (explanations, beneath the exercise) ── -->
-    <div class="s1-howto">
-      <h2 class="s1-howto-head">How it works</h2>
-
-      <p class="theory-lede">
-        The practice you are about to do is not a visualisation, a relaxation exercise
-        or a spiritual technique in disguise. It is a <em>physiological protocol. </em>
-        A specific breathing cadence paired with a specific quality of felt
-        experience, producing a measurable state the cardiovascular, autonomic,
-        endocrine, and cortical systems enter together. The theory below exists so
-        that you know what is happening in your body when you practise, and why
-        love in particular is the feeling the body is being asked to sustain.
-      </p>
-
-      <div class="theory-grid">
-
-        <div class="theory-card">
-          <div class="theory-card-eyebrow">I &middot; The heart as an intelligent organ</div>
-          <h3 class="theory-card-title">Why love is already in the cells</h3>
-          <div class="theory-card-body">
-            The heart is not a pump with feelings attached. It has its own nervous
-            system of roughly forty thousand sensory neurons (Armour's
-            neurocardiology) that <em>sense, learn and remember independently</em>
-            of the brain. which is why a transplanted, denervated heart continues
-            to beat coordinately. It is also an <strong>endocrine organ</strong>:
-            it synthesises oxytocin, with concentrations in the right atrium roughly
-            nineteen times higher than in uterine tissue (Jankowski et al.,
-            <em>PNAS</em>, 1998). Every experience of love and connection you have ever had.
-            Being held, loving another, being loved. All of it has inscribed itself on this
-            tissue. The feeling of love is not retrieved from memory in the mind;
-            it is <strong>re-activated in tissue that already holds it</strong>. This
-            is why the instruction is to soften the chest and let it surface, not
-            to imagine or construct it.
-          </div>
-        </div>
-
-        <div class="theory-card">
-          <div class="theory-card-eyebrow">II &middot; Resonance at 0.1 Hz</div>
-          <h3 class="theory-card-title">Why the breath is the carrier</h3>
-          <div class="theory-card-body">
-            The cardiovascular loop, so the heart, baroreceptors, brainstem, vascular
-            tree; it has an intrinsic transit delay of roughly five seconds, giving it a natural <strong>resonance frequency near 0.1 Hz</strong>
-            (Lehrer &amp; Gevirtz, 2014). When you breathe at about six per minute,
-            respiration, heart rate, and blood pressure phase-align; heart-rate
-            variability amplitude saturates; the vagus nerve modulates the
-            sino-atrial node with each exhale; and the heart-rate trace smooths
-            into a clean sine wave. Balaji &amp; McCraty's analysis of <strong>1.8
-            million sessions</strong> (<em>Scientific Reports</em>, 2025) confirmed
-            this peak across the global population. The breath is not the point.
-            It is the carrier wave that allows the feeling to inscribe itself on
-            physiology.
-          </div>
-        </div>
-
-        <div class="theory-card">
-          <div class="theory-card-eyebrow">III &middot; Why love, not just breath</div>
-          <h3 class="theory-card-title">What love adds that breath does not</h3>
-          <div class="theory-card-body">
-            Breath alone at 0.1&nbsp;Hz produces coherence. Love on top of it
-            recruits four additional pathways. First, the
-            <strong>caregiving-and-reward network</strong> - medial orbitofrontal
-            cortex, anterior cingulate, ventral striatum, VTA - which uniquely
-            deactivates the amygdala and social-judgment circuitry (Bartels &amp;
-            Zeki, 2000, 2004). Second, <strong>oxytocin release</strong>, which
-            potentiates vagal efferent activity and independently suppresses
-            cortisol. Third, a narrow high-amplitude HRV spectral peak that
-            appreciation produces and anger does not, <em>even at matched
-            respiration</em> (McCraty et al., 1995). Fourth - and this is the
-            strongest cellular evidence - loving-kindness meditation protects
-            telomere length where attention-only mindfulness does not (Le Nguyen
-            et al., 2019). The love component, not just the attention component,
-            has cellular consequences.
-          </div>
-        </div>
-
-        <div class="theory-card">
-          <div class="theory-card-eyebrow">IV &middot; Authenticity as physiology</div>
-          <h3 class="theory-card-title">Why sincerity is not a preference</h3>
-          <div class="theory-card-body">
-            The oxytocin–vagal–reward axis does not reliably open for hollow performance. Duchenne-smile research links genuine enjoyment with involuntary eye-muscle recruitment and distinct frontal brain activity, while Gross and Levenson’s suppression work shows that performative emotional control can increase sympathetic load rather than produce clean regulation. But this does not mean feeling cannot be intensified. It means the system must begin from a sincere signal. Once honest warmth is online, attention can locate its bodily coordinates, follow its natural vector, and amplify it through alignment. A small true feeling can become powerful when strengthened along its own trajectory. A large forced feeling collapses because it is imposed against the organism’s truth. The technique therefore does not prohibit intensity; it prohibits falsification. Let the feeling come forward, find its coordinate, then move upward through its line of coherence.
-          </div>
-        </div>
-
-      </div>
-
-      <h2 class="theory-divider">The Technique</h2>
-
-      <div class="depth-content active">
-
-        <div class="step-block">
-          <div class="step-num">01</div>
-          <div>
-            <h3 class="step-title">Breathe Through the Heart</h3>
-            <div class="step-desc">
-              Rest your attention in the centre of the heart. Let the breath flow in and out through that spot. Five seconds in, five seconds out, unforced. At this cadence the cardiovascular system hits its natural resonance near 0.1 Hz and HRV smooths into a clean wave. The breath is the scaffolding.
-            </div>
-          </div>
-        </div>
-
-        <div class="step-block">
-          <div class="step-num">02</div>
-          <div>
-            <h3 class="step-title">Heart Feeling</h3>
-            <div class="step-desc">
-              Activate a sincere feeling of love in the heart. Not as an idea held in the mind, but as a felt sense in the body - it is already there, in the tissue. Soften the chest and let it come forward. Breathe it through the heart as it arrives. This is the regenerative feeling you sustain for the rest of the session.
-            </div>
-          </div>
-        </div>
-
-        <div class="step-block">
-          <div class="step-num">03</div>
-          <div>
-            <h3 class="step-title">Deepen</h3>
-            <div class="step-desc">
-              Stay with the love and deepen it. The effort stays, never so hard that it takes you away from the feeling, always enough to sustain it and move to a subtler, deeper and more powerful level. The longer it is sustained, the stronger it becomes.
-            </div>
-          </div>
-        </div>
-
-        <div class="instr-safety">
-          If attention to the heart feels distressing, open your eyes, shorten the session, and let <em>ease</em> lead before love.
-        </div>
-      </div>
-    </div>
-
-  </div>
+<section class="screen setup-screen" id="screen-breath" hidden aria-labelledby="breath-title">
+<button type="button" class="back-button" data-open="heart">← Heart practice</button>
+<div class="section-heading"><p class="eyebrow">01 · Breathe</p><h1 id="breath-title" tabindex="-1">Breathe with ease</h1><p class="lede">Let your breath be small and easy.<br>Add a kind wish, if you want.</p></div>
+<div class="practice-card setup-card">
+<p class="start-lede">Sit in a way that feels easy. Let your shoulders rest. You can keep your eyes open.</p>
+<fieldset><legend>How much time?</legend><div class="choice-row time-choices">
+<button type="button" data-duration="breath" data-seconds="180" aria-pressed="false">3 min</button><button type="button" data-duration="breath" data-seconds="300" aria-pressed="true">5 min</button><button type="button" data-duration="breath" data-seconds="600" aria-pressed="false">10 min</button><button type="button" data-duration="breath" data-seconds="900" aria-pressed="false">15 min</button>
+</div></fieldset>
+<fieldset><legend>Choose an easy pace</legend><div class="choice-row pace-choices"><button type="button" data-pace="0" aria-pressed="false">My own breath</button><button type="button" data-pace="4" aria-pressed="false">4 seconds each way</button><button type="button" data-pace="5" aria-pressed="true">5 seconds each way</button></div><p class="small-copy">If following the circle feels hard, choose your own breath. Slower is not a harder level.</p></fieldset>
+<div class="check-options"><label><input type="checkbox" id="add-care" checked><span>Add a kind wish<span class="small-copy">No need to make a warm or happy feeling.</span></span></label><label><input type="checkbox" id="with-child"><span>With a child<span class="small-copy">A grown-up joins in. We use their own easy breath.</span></span></label></div>
+<p class="care-note">Do not take huge breaths or hold your breath. If you feel dizzy, short of breath or uncomfortable, stop and breathe as usual.</p>
+<button type="button" class="primary start-button" id="start-breath">Start breathing</button>
+<details class="sound-settings"><summary>Choose a sound</summary><div class="settings-body"><p>Sound is optional. Choose what you like and keep it quiet. You can turn all sound off during practice.</p><div class="sound-options" role="group" aria-label="Sound"><button type="button" class="rate-btn" aria-pressed="false" data-hz="1" data-call="setWave" data-value="1">Slow 1</button><button type="button" class="rate-btn" aria-pressed="false" data-hz="2" data-call="setWave" data-value="2">Slow 2</button><button type="button" class="rate-btn" aria-pressed="false" data-hz="3" data-call="setWave" data-value="3">Slow 3</button><button type="button" class="rate-btn" aria-pressed="false" data-hz="8" data-call="setWave" data-value="8">Soft 1</button><button type="button" class="rate-btn on" aria-pressed="true" data-hz="10" data-call="setWave" data-value="10">Soft 2</button><button type="button" class="rate-btn" aria-pressed="false" data-hz="12" data-call="setWave" data-value="12">Soft 3</button><button type="button" class="rate-btn" aria-pressed="false" data-hz="0" data-call="setWave" data-value="0">Bell only</button></div><label class="bell-vol-row"><span>Bell volume</span><input type="range" class="bell-vol" min="0" max="1.5" step="0.01" value="1"><output class="bell-vol-val">100%</output></label><button type="button" class="secondary bell-test" data-call="testBell">Try the bell</button><details class="sound-detail"><summary>What changes between sounds?</summary><p>The first three use slower pulses, settling at 1, 2 or 3 cycles a second. The next three settle at 8, 10 or 12. The sound slowly changes as it plays. A cycle per second is also called one hertz, or Hz.</p><p>These are sound settings, not your brain’s speed. The mix has not been shown to put people into a set brain state. The volume number cannot tell us how loud your headphones are. <a href="https://www.who.int/news-room/questions-and-answers/item/deafness-and-hearing-loss-safe-listening" target="_blank" rel="noopener noreferrer">Read about quiet listening<span class="sr-only"> (opens a new tab)</span></a>.</p></details></div></details>
 </div>
-
-<div class="screen hidden" id="screen-stage2">
-  <div class="s2-scroll">
-
-    <button class="stage-back" data-call="restartStage2ToIntro">&larr; Main menu</button>
-    <div class="s2-header">
-      <div class="s2-eyebrow">Stage Two</div>
-      <h1 class="s2-title" tabindex="-1">Body-Sensation Mapping</h1>
-      <div class="s2-subtitle">Feeling the Architecture Within</div>
-    </div>
-
-    <!-- ── THE EXERCISE (top of the page) ── -->
-    <div class="s2-exercise">
-
-      <!-- start controls, shown before a session -->
-      <div id="s2-start">
-        <div class="s2-ex-lede">
-          Pick one sensation and walk it through the practice. Choose a length and begin &mdash;
-          you can end whenever you need to.
-        </div>
-        <div class="dur-label">Choose Duration &middot; Tap to Begin</div>
-        <div class="duration-row s2-ex-durations">
-          <button class="dur-btn" data-call="startStage2WithDuration" data-value="900">15 min</button>
-          <button class="dur-btn" data-call="startStage2WithDuration" data-value="1800">30 min</button>
-          <button class="dur-btn" data-call="startStage2WithDuration" data-value="3600">60 min</button>
-        </div>
-        <div class="wave-select" role="group" aria-label="Brainwave entrainment">
-          <div class="wave-row">
-            <span class="wave-band">Delta &middot; rest</span>
-            <button class="rate-btn" aria-pressed="false" data-hz="1" data-call="setWave" data-value="1">1 Hz</button>
-            <button class="rate-btn" aria-pressed="false" data-hz="2" data-call="setWave" data-value="2">2 Hz</button>
-            <button class="rate-btn" aria-pressed="false" data-hz="3" data-call="setWave" data-value="3">3 Hz</button>
-          </div>
-          <div class="wave-row">
-            <span class="wave-band">Alpha &middot; focus</span>
-            <button class="rate-btn" aria-pressed="false" data-hz="8" data-call="setWave" data-value="8">8 Hz</button>
-            <button class="rate-btn on" aria-pressed="true" data-hz="10" data-call="setWave" data-value="10">10 Hz</button>
-            <button class="rate-btn" aria-pressed="false" data-hz="12" data-call="setWave" data-value="12">12 Hz</button>
-          </div>
-          <div class="wave-row">
-            <button class="rate-btn" aria-pressed="false" data-hz="0" data-call="setWave" data-value="0">Off</button>
-          </div>
-        </div>
-        <div class="rate-hint">Delta (0.5&ndash;4 Hz) for deep, restorative rest; alpha (8&ndash;12 Hz) for relaxed focus &mdash; 10 Hz the rate most linked to creativity. &ldquo;Off&rdquo; plays the bell alone.</div>
-        <div class="bell-vol-row">
-          <span class="bell-vol-label">Bell volume</span>
-          <input type="range" class="bell-vol" min="0" max="1.5" step="0.01" value="1" aria-label="Bell volume">
-          <span class="bell-vol-val">100%</span>
-          <button class="bell-test" type="button" data-call="testBell">Test</button>
-        </div>
-        <div class="s2-ex-note">
-          Start with 15 minutes for the basics &mdash; picking one sensation and walking it
-          through the seven questions cleanly. Use 30 once you want the fine-noticing warm-up
-          and the confidence check; 60 only for the test-a-fear protocol, and only after several
-          steady sessions. If activation climbs past what you can handle, end the session no
-          matter which phase you're in.
-        </div>
-      </div>
-
-      <!-- live guided session, shown once running -->
-      <div id="s2-live" class="is-hidden">
-        <div class="s2-live-bar">
-          <div class="session-timer-disp" id="s2s-timer">15:00</div>
-          <button class="session-end" data-call="endStage2Session">End</button>
-        </div>
-        <div class="s2s-orbit-label" id="s2s-center">Arrive</div>
-        <div class="s2s-phase-label" id="s2s-phase-label">Phase &middot; Arrive</div>
-        <div class="s2s-next">Next step in <span id="s2s-countdown">0:30</span></div>
-        <div class="s2s-prompt" id="s2s-prompt" aria-live="polite">Let the breath stay slow, about five to six breaths per minute. Feel the ground under you. Let one sensation in your body come forward on its own. Whatever it is, wherever it is. You're not searching. You're receiving. That first sensation is the one you'll work with for the whole session.</div>
-        <div class="s2s-chain" id="s2s-chain">
-          <button type="button" class="s2s-chip" data-dim="0" data-call="peekStage2Dimension" data-value="0" aria-pressed="false">Location</button>
-          <button type="button" class="s2s-chip" data-dim="1" data-call="peekStage2Dimension" data-value="1" aria-pressed="false">Quality</button>
-          <button type="button" class="s2s-chip" data-dim="2" data-call="peekStage2Dimension" data-value="2" aria-pressed="false">Intensity</button>
-          <button type="button" class="s2s-chip" data-dim="3" data-call="peekStage2Dimension" data-value="3" aria-pressed="false">Movement</button>
-          <button type="button" class="s2s-chip" data-dim="4" data-call="peekStage2Dimension" data-value="4" aria-pressed="false">Direction</button>
-          <button type="button" class="s2s-chip" data-dim="5" data-call="peekStage2Dimension" data-value="5" aria-pressed="false">Coherence</button>
-          <button type="button" class="s2s-chip" data-dim="6" data-call="peekStage2Dimension" data-value="6" aria-pressed="false">Meaning-tone</button>
-        </div>
-        <div class="s2s-progress"><div class="s2s-progress-fill" id="s2s-progress-fill"></div></div>
-      </div>
-
-    </div>
-
-    <!-- ── HOW TO DO IT (explanations, beneath the exercise) ── -->
-    <div class="s2-howto">
-      <h2 class="s2-howto-head">How to do it</h2>
-
-      <div class="s2-lede">
-        Stage One calms the body. Stage Two teaches you to <strong>read</strong> what's in the
-        calmed body. These are two halves of one practice. Stage One turns the noise down; Stage
-        Two lets you hear what was always playing underneath. What you used to call &ldquo;a bad
-        mood&rdquo; turns out to have a shape. What you used to take as &ldquo;who I am&rdquo; turns
-        out to be a pattern. What felt inevitable turns out to be something you can work with.
-      </div>
-
-      <div class="s2-teach">
-        <h3 class="s2-teach-title">A sensation is what an emotion is made of</h3>
-        <p>
-          An emotion is not a separate thing sitting on top of the body &mdash; at the felt level it
-          <em>is</em> a pattern of sensation you have learned to name. Underneath the word there is
-          always something physical: a place, a weight, a temperature, a direction of movement.
-          <em>Sadness</em>, before it is the word, is often a heaviness or a downward pull in the
-          chest, a thickening in the throat, a hollow sinking low in the belly. <em>Joy</em>, before
-          it is the word, is often a lightness and an opening in that same chest, a warmth spreading
-          outward, a quickening that rises rather than sinks. Same region of the body, opposite
-          architecture. The sensation and the feeling are not two events &mdash; the sensation
-          <strong>is</strong> the feeling, met before it has been named.
-        </p>
-        <h3 class="s2-teach-title">The mapping sharpens with practice</h3>
-        <p>
-          At first the body speaks in a blur &mdash; &ldquo;I feel bad,&rdquo; &ldquo;I feel
-          off&rdquo; &mdash; one undivided mass. Each time you map a sensation cleanly (where it is,
-          what it feels like, which way it moves) you lay down one more entry in a private dictionary
-          that links sensation to the emotion it carries. Over weeks that map sharpens. You begin to
-          recognise a feeling by its early shape &mdash; the faint tightening high in the chest that
-          pulls attention toward what you lack &mdash; and to name it (&ldquo;this is the front edge
-          of anxiety&rdquo;) before the story it wants to tell takes hold. Accuracy improves, and so
-          does speed: you catch the feeling at its sensory root, while it is still small and workable,
-          instead of only later, once it has hardened into a mood or a belief about who you are.
-        </p>
-        <h3 class="s2-teach-title">Walking one feeling down to its body</h3>
-        <p>
-          Say a vague unease shows up. <em>Where:</em> high in the chest, no clear edge.
-          <em>Quality:</em> a tight, buzzing pressure. <em>Intensity:</em> a six &mdash; louder as a
-          feeling than as a sensation. <em>Movement:</em> a fast flutter, coming in waves.
-          <em>Direction:</em> pulling up and inward toward the throat. <em>Coherence:</em> the raw
-          sensation, an image of something going wrong, and an urge to brace all point the same way.
-          <em>Tone, then name:</em> unpleasant, urging you to act &mdash; this is anxiety, the dread
-          of something not yet here. Read this way, it stops being &ldquo;I am anxious&rdquo; (a fact
-          about who you are) and becomes &ldquo;there is a tight, rising flutter in my chest reading
-          the future as a threat&rdquo; &mdash; a passing state you can question, not a verdict. Run
-          the same walk on joy and you find the opposite map: low and broad in the chest, warm, light,
-          opening outward, everything agreeing. Do this enough and the body becomes legible.
-        </p>
-      </div>
-
-      <div class="s2-law">
-        <div class="s2-law-label">Core Design Law</div>
-        <div class="s2-law-text">
-          Notice &rarr; describe &rarr; rate your confidence &rarr; test under pressure &rarr; see
-          how the body is shaping meaning. See clearly before interpreting. A strong feeling isn't
-          automatically true. Feeling confident isn't the same as being right.
-        </div>
-      </div>
-
-      <div class="s2-modules">
-        <div class="s2-module">
-          <h3 class="s2-mod-name">Finding Your Anchor</h3>
-          <div class="s2-mod-desc">
-            Learn to put your attention <em>inside</em> a specific part of your body and hold it
-            there. A light hand on the upper chest, the side ribs, or the lower belly can help
-            at first - once attention can stay on its own, the hand comes away. The point is
-            steadiness: one region, held.
-          </div>
-        </div>
-
-        <div class="s2-module">
-          <h3 class="s2-mod-name">Fine Noticing</h3>
-          <div class="s2-mod-desc">
-            Put two very similar inner states next to each other, for instance breath in versus
-            breath out, just-before-swallowing versus just-after, hand on your chest versus hand
-            lifted - and judge which one carries the stronger sensation. Small, honest comparisons
-            train the eye for what's actually there, as opposed to what you expect or hope is there.
-          </div>
-        </div>
-
-        <div class="s2-module">
-          <h3 class="s2-mod-name">The Seven Questions</h3>
-          <div class="s2-mod-desc">
-            Pick one sensation in your body and walk it through seven questions:
-            <em>where is it &middot; what does it feel like &middot; how strong is it &middot; is it
-            moving &middot; which direction &middot; is it one thing or several &middot; what's its
-            tone</em>. Describe in the simplest physical words. No interpretation until the full
-            walk is done.
-          </div>
-        </div>
-
-        <div class="s2-module">
-          <h3 class="s2-mod-name">Testing a Fear</h3>
-          <div class="s2-mod-desc">
-            When you're steady enough, deliberately raise a sensation you've been avoiding -
-            a faster heart, breathlessness, heat, trembling - and watch what you feared would
-            happen fail to happen. You are not trying to make the sensation go away. You are
-            giving the body a chance to learn, first-hand, that the sensation and the disaster
-            aren't the same thing. Small doses. Known exit. Only after Stage One is solid.
-          </div>
-        </div>
-
-        <div class="s2-module">
-          <h3 class="s2-mod-name">From Sensation to Meaning</h3>
-          <div class="s2-mod-desc">
-            Only after you've mapped a sensation clearly, watch how the body turns it into
-            meaning: <em>raw sensation &rarr; what grabs your attention &rarr; the interpretation
-            you jump to &rarr; what the body wants to do next</em>. See each step form. Name the
-            emotion in a single word if one fits. Watch the bridge build, and don't automatically
-            cross it just because it's there.
-          </div>
-        </div>
-      </div>
-
-      <div class="s2-closing">
-        Stage Two exists to make your inner life readable enough that you can actually <em>work
-        with it</em>. If you can't see it, you can't shape it.
-      </div>
-    </div>
-
-  </div>
-</div>
-
-<!-- Stage Two completion overlay -->
-<dialog id="stage2-completion" aria-labelledby="stage2-completion-title">
-  <h2 class="s2c-title" id="stage2-completion-title" tabindex="-1" autofocus>Field Mapped</h2>
-  <div class="s2c-text">
-    You moved from calming the body to reading it. You held one sensation, walked it through
-    seven questions, rated your confidence separately from what you saw, and watched how the
-    body turns a sensation into a meaning, without automatically going along with it. What
-    felt like one solid thing is actually three separate things: a sensation, an
-    interpretation, and what the body wants to do next. Carry this into the rest of your day:
-    every strong feeling is now a starting point, not a verdict.
-  </div>
-  <button class="s2c-btn" data-call="restartStage2ToIntro">Return to Beginning</button>
-</dialog>
-
-<!-- Completion overlay -->
-<dialog class="completion-overlay" id="completion" aria-labelledby="completion-title">
-  <h2 class="completion-title" id="completion-title" tabindex="-1" autofocus>Session Complete</h2>
-  <div class="completion-text">
-    You trained the nervous system through love. Carry the slower breath, the open chest, and the warmth you generated into your next moment. Love leaves an ordered signature in the body. That signature, once cultivated, is always available again.
-  </div>
-  <button class="restart-btn" data-call="restartToIntro">Return to Beginning</button>
-</dialog>
-
+<details class="compare-card"><summary><span>Try both ways</span><small>A small personal test · 4 minutes, plus a few taps</small></summary><div class="learn-body"><p>Try breathing alone and breathing with a kind wish. Make a guess first. Then try each way twice, for one minute each.</p><p>Keep the same easy pace and sound. The page picks which way comes first. After each round, tap how easy it felt. “Not clear” and “Skip” both count as honest answers.</p><p>You will see your four reports. They cannot prove what caused a change. What you expect, what came before, and changes in breathing may still matter.</p><button type="button" class="primary" id="start-compare">Try both ways</button><details class="small-inquiry"><summary>Why repeat and change the order?</summary><p>One way comes first and last. The other comes in the middle. Next time, the page may swap them. Each gets the same practice time.</p><p>This helps you question a simple “the last thing worked best” story. It does not remove every effect of order. A kind thought can carry into the next round. You also know which way you are trying.</p><p>Decide what you are comparing before you start: how easy the practice feels. That is a report of experience, not a heart, hormone or brain measurement.</p></details></div></details>
+<div class="learning" aria-labelledby="breath-learning"><p class="eyebrow">Keep asking</p><h2 id="breath-learning">Why might this help?</h2><p class="learning-lede">Start with one question. Open another when you want to go further.</p><details class="learn-card"><summary>What changes when I slow my breath?</summary><div class="learn-body"><p>Your heart does not leave the same gap between every beat. Breathing helps change those gaps. A slow, easy breath can make the changes follow a more regular wave.</p><p>Your body also checks blood pressure and adjusts each beat. At some breathing speeds, these changes line up and make a larger wave. Researchers call this <strong>resonance</strong>: two rhythms helping each other grow.</p><p><strong>Heart rate variability, or HRV,</strong> means changes in the gaps between beats. It is not the same as heart rate. This page has no heart sensor. The circle keeps time; it does not show your heartbeat.</p><p class="think-question"><strong>Think about it</strong>If a bigger wave appears only while you follow the circle, what would you need to check after it stops?</p><p class="sources">Read the research: <a href="https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2014.00756/full" target="_blank" rel="noopener noreferrer">How breathing and heart rhythms interact (2014)<span class="sr-only"> (opens a new tab)</span></a> · <a href="https://research.leedstrinity.ac.uk/en/publications/effects-of-voluntary-slow-breathing-on-heart-rate-and-heart-rate-/" target="_blank" rel="noopener noreferrer">A review of 223 studies (2022)<span class="sr-only"> (opens a new tab)</span></a></p></div></details>
+<details class="learn-card"><summary>Does a smoother heart rhythm mean I feel better?</summary><div class="learn-body"><p>It can go with feeling better. It is not the same thing. A regular wave does not tell us whether you feel safe, kind, happy or wise.</p><p>A review of 31 studies found clearer evidence for changes in heart measures than for an immediate drop in unpleasant feelings. In a 2026 trial, both breathing groups reported fewer symptoms after four weeks, but their resting HRV did not improve.</p><p>That is why this practice welcomes “about the same”, “less settled” and “not sure”. A useful report does not need to be a happy report.</p><p class="think-question"><strong>Think about it</strong>Could a practice help in one way and leave another measure unchanged?</p><p class="sources">Read the research: <a href="https://link.springer.com/article/10.1007/s12671-023-02294-2" target="_blank" rel="noopener noreferrer">Heart measures and feelings (2024)<span class="sr-only"> (opens a new tab)</span></a> · <a href="https://www.nature.com/articles/s41598-026-53333-6" target="_blank" rel="noopener noreferrer">Four weeks of breathing practice (2026)<span class="sr-only"> (opens a new tab)</span></a></p></div></details>
+<details class="learn-card"><summary>What does HeartMath add?</summary><div class="learn-body"><p>HeartMath brings together easy breathing, attention near the heart, and a feeling such as care or thanks. Here, you can add a kind wish. You can also choose to focus on breathing alone.</p><p>A study of about 1.8 million app sessions found that people who reported positive feelings also had higher heart-rhythm scores. These were many sessions from repeated users, not 1.8 million different people.</p><p>The study did not randomly give people breath-only or kind-attention practice. It cannot tell us which part caused the difference. Several authors worked with HeartMath. The study is useful evidence of a link, with limits on what that link means.</p><p>This is Dream Unity’s adapted practice. It is not a HeartMath device or a measure of “coherence”, the name often used for a regular heart-rhythm pattern.</p><p class="think-question"><strong>Think about it</strong>Did the feeling change the rhythm, did the rhythm change the feeling, or did something else change both?</p><p class="sources">Read the research: <a href="https://www.nature.com/articles/s41598-025-87729-7" target="_blank" rel="noopener noreferrer">The large HeartMath app study (2025)<span class="sr-only"> (opens a new tab)</span></a></p></div></details>
+<details class="learn-card"><summary>Why use small, easy breaths?</summary><div class="learn-body"><p>A slow breath can still be too large. Taking in much more air than you need can make you dizzy or uncomfortable. In a small study of 16 adults, some people breathed too much air even at six breaths a minute.</p><p>Let each breath be ordinary in size. Do not fill your lungs as much as you can. There is no breath hold. If the pace feels hard, choose <strong>My own breath</strong> or stop. You do not need to push through discomfort.</p><p class="think-question"><strong>Think about it</strong>How can you tell the difference between a slower breath and a larger breath?</p><p class="sources">Read the research: <a href="https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0218550" target="_blank" rel="noopener noreferrer">Slow breathing and too much air (2019)<span class="sr-only"> (opens a new tab)</span></a></p></div></details>
+<details class="learn-card"><summary>Do I have to feel love?</summary><div class="learn-body"><p>No. You can wish yourself, a person, an animal or a plant well. A small kind wish is enough. Nothing special has to happen in your chest.</p><p>One study found that pleasant pictures made slow breathing feel easier for some people. It did not prove that privately making a kind feeling adds a special health effect.</p><p>If a kind thought feels hard, leave it out. Not feeling warm or happy is not a failure. The “Try both ways” practice lets you compare your own reports without choosing a winner for you.</p><p class="think-question"><strong>Think about it</strong>Are you noticing what changed, or what you hoped would change?</p><p class="sources">Read the research: <a href="https://onlinelibrary.wiley.com/doi/10.1111/j.1469-8986.2011.01344.x" target="_blank" rel="noopener noreferrer">Pleasant pictures and breathing comfort (2012)<span class="sr-only"> (opens a new tab)</span></a></p></div></details>
+<details class="learn-card"><summary>Can a few minutes make my thinking sharper?</summary><div class="learn-body"><p>We should not promise that. In a study of 135 young adults with high worry or anxiety scores, slow breathing changed HRV during practice. It did not clearly improve the later thinking task or worry.</p><p>Another small study found no overall benefit to attention. Some results may depend on how stressed people were. We need stronger tests before calling this an instant boost to thinking.</p><p>You can still practise a useful action: notice when your mind wanders, then choose where to put your attention next.</p><p class="think-question"><strong>Think about it</strong>Would feeling more able to think and doing better on a thinking task always agree?</p><p class="sources">Read the research: <a href="https://link.springer.com/article/10.1007/s10484-025-09687-0" target="_blank" rel="noopener noreferrer">A breathing and thinking trial (2025)<span class="sr-only"> (opens a new tab)</span></a> · <a href="https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2023.1292983/full" target="_blank" rel="noopener noreferrer">Breathing and attention (2023)<span class="sr-only"> (opens a new tab)</span></a></p></div></details>
+<details class="learn-card"><summary>How do my heart and brain work together?</summary><div class="learn-body"><p>Your heart and brain send messages to each other. Nerves inside the heart help control its work. This is real biology. It does not show that the heart stores memories of people you love.</p><p>A much-cited study found that rat hearts made <strong>oxytocin</strong>, a chemical that can send messages in the body. Its often-quoted “19 times” result compared two kinds of tissue in rats. It was not a finding about love stored in human heart tissue.</p><p>Studies of adults looking at loved ones found changes in brain activity. They did not test this breathing exercise or measure all the hormone effects sometimes claimed for it.</p><p class="think-question"><strong>Think about it</strong>What extra evidence would connect a finding about tissue in a lab to an experience in a person?</p><p class="sources">Read the research: <a href="https://pubmed.ncbi.nlm.nih.gov/9026008/" target="_blank" rel="noopener noreferrer">Nerves inside human hearts (1997)<span class="sr-only"> (opens a new tab)</span></a> · <a href="https://pubmed.ncbi.nlm.nih.gov/9826739/" target="_blank" rel="noopener noreferrer">The rat-heart study (1998)<span class="sr-only"> (opens a new tab)</span></a> · <a href="https://pubmed.ncbi.nlm.nih.gov/11117499/" target="_blank" rel="noopener noreferrer">Looking at a loved one (2000)<span class="sr-only"> (opens a new tab)</span></a></p></div></details>
+<details class="learn-card"><summary>Can kind practice slow ageing?</summary><div class="learn-body"><p>Cells hold bundles of instructions called chromosomes. Small caps on their ends are called <strong>telomeres</strong>. One study of 142 adults looked at changes in these caps. People learning kind-attention meditation lost less telomere length than a waiting group.</p><p>Another group learned mindfulness: noticing the present moment. This group fell between the other two groups and did not clearly differ from either. That does not show that kindness works while mindfulness does not. A change in one cell measure also does not prove a longer life.</p><p>This result raises a research question. It is not a reason to promise that this exercise heals cells or reverses ageing.</p><p class="think-question"><strong>Think about it</strong>If one result is clear and another is unclear, have you shown that the two results differ?</p><p class="sources">Read the research: <a href="https://pubmed.ncbi.nlm.nih.gov/31185369/" target="_blank" rel="noopener noreferrer">Kindness, mindfulness and a cell measure (2019)<span class="sr-only"> (opens a new tab)</span></a></p></div></details>
+<details class="learn-card"><summary>What do the sound choices do?</summary><div class="learn-body"><p>They change the sound you hear. Slow pulses and faster pulses are sound choices, not readings of your brain. Choose what you like, keep it quiet, or turn sound off.</p><p>A review of 14 brain-recording studies found mixed results from beats made by playing slightly different tones to each ear. Some experiments found brain responses without better mood. A newer study found some attention benefits with different, faster sound settings.</p><p>The sound here mixes tones, pulses and soft noise. Those studies do not test this exact mix. No setting here is proven best for sleep, calm or creativity. A brain responding to sound does not by itself mean the sound helped.</p><p class="think-question"><strong>Think about it</strong>Would you still choose this sound if it had no “brain” label?</p><p class="sources">Read the research: <a href="https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0286023" target="_blank" rel="noopener noreferrer">Mixed results across sound studies (2023)<span class="sr-only"> (opens a new tab)</span></a> · <a href="https://www.eneuro.org/content/7/2/ENEURO.0232-19.2020" target="_blank" rel="noopener noreferrer">A brain response without a mood change (2020)<span class="sr-only"> (opens a new tab)</span></a> · <a href="https://pubmed.ncbi.nlm.nih.gov/39910150/" target="_blank" rel="noopener noreferrer">A newer sound experiment (2025)<span class="sr-only"> (opens a new tab)</span></a></p></div></details>
+<details class="learn-card"><summary>Is there one best pace or length?</summary><div class="learn-body"><p>No single pace or length has been shown to be best for everyone. Five seconds in and five seconds out is a common adult practice pace. This page does not find your personal heart-rhythm peak.</p><p>In a 2026 trial, 88 adults were assigned to a personal pace, a fixed pace, or a waiting group. Both training groups reported improvements. The study did not find a clear winner between the two paces; its small size also leaves uncertainty.</p><p>The short sessions here are choices that make practice easier to start. They are not proven treatment doses. Longer and slower do not automatically mean better.</p><p>Children should practise with a trusted grown-up and use their own easy breath. Research with adults does not establish what works for a five-year-old. Easy words do not make an adult breathing pace right for every child.</p><p class="think-question"><strong>Think about it</strong>What would “best” mean: easier now, easier tomorrow, or better at something else?</p><p class="sources">Read the research: <a href="https://www.nature.com/articles/s41598-026-53333-6" target="_blank" rel="noopener noreferrer">Personal and fixed breathing paces (2026)<span class="sr-only"> (opens a new tab)</span></a> · <a href="https://pubmed.ncbi.nlm.nih.gov/34155631/" target="_blank" rel="noopener noreferrer">Research on children and teenagers (2021)<span class="sr-only"> (opens a new tab)</span></a></p></div></details></div>
+</section>
+<section class="screen setup-screen" id="screen-body" hidden aria-labelledby="body-title">
+<button type="button" class="back-button" data-open="heart">← Heart practice</button><div class="section-heading"><p class="eyebrow">02 · Notice</p><h1 id="body-title" tabindex="-1">Notice your body</h1><p class="lede">Notice a feeling.<br>Leave room for another explanation.</p></div>
+<div class="practice-card setup-card"><p class="start-lede">Choose an easy place to notice, such as a hand or the breath. You can feel the floor or look around instead.</p><p>We will guide you through one question at a time. You can answer in your head. Some steps also let you tap an answer.</p><fieldset><legend>How much time?</legend><div class="choice-row time-choices"><button type="button" data-duration="body" data-seconds="240" aria-pressed="true">4 min</button><button type="button" data-duration="body" data-seconds="480" aria-pressed="false">8 min</button><button type="button" data-duration="body" data-seconds="720" aria-pressed="false">12 min</button></div></fieldset><p class="small-copy">Each round takes four minutes. More rounds add new questions, not stronger sensations.</p><p class="care-note">Breathe as usual. Do not try to make a feared feeling happen. You can pause, look around or finish at any time.</p><button type="button" class="primary start-button" id="start-body">Start noticing</button><details class="sound-settings"><summary>Choose a sound</summary><div class="settings-body"><p>Sound is optional. Choose what you like and keep it quiet. You can turn all sound off during practice.</p><div class="sound-options" role="group" aria-label="Sound"><button type="button" class="rate-btn" aria-pressed="false" data-hz="1" data-call="setWave" data-value="1">Slow 1</button><button type="button" class="rate-btn" aria-pressed="false" data-hz="2" data-call="setWave" data-value="2">Slow 2</button><button type="button" class="rate-btn" aria-pressed="false" data-hz="3" data-call="setWave" data-value="3">Slow 3</button><button type="button" class="rate-btn" aria-pressed="false" data-hz="8" data-call="setWave" data-value="8">Soft 1</button><button type="button" class="rate-btn on" aria-pressed="true" data-hz="10" data-call="setWave" data-value="10">Soft 2</button><button type="button" class="rate-btn" aria-pressed="false" data-hz="12" data-call="setWave" data-value="12">Soft 3</button><button type="button" class="rate-btn" aria-pressed="false" data-hz="0" data-call="setWave" data-value="0">Bell only</button></div><label class="bell-vol-row"><span>Bell volume</span><input type="range" class="bell-vol" min="0" max="1.5" step="0.01" value="1"><output class="bell-vol-val">100%</output></label><button type="button" class="secondary bell-test" data-call="testBell">Try the bell</button><details class="sound-detail"><summary>What changes between sounds?</summary><p>The first three use slower pulses, settling at 1, 2 or 3 cycles a second. The next three settle at 8, 10 or 12. The sound slowly changes as it plays. A cycle per second is also called one hertz, or Hz.</p><p>These are sound settings, not your brain’s speed. The mix has not been shown to put people into a set brain state. The volume number cannot tell us how loud your headphones are. <a href="https://www.who.int/news-room/questions-and-answers/item/deafness-and-hearing-loss-safe-listening" target="_blank" rel="noopener noreferrer">Read about quiet listening<span class="sr-only"> (opens a new tab)</span></a>.</p></details></div></details></div>
+<div class="learning" aria-labelledby="body-learning"><p class="eyebrow">Keep asking</p><h2 id="body-learning">A feeling is a clue.</h2><p class="learning-lede">What did you notice? What did you guess? What else could fit?</p><details class="learn-card"><summary>What am I learning to notice?</summary><div class="learn-body"><p>Your brain keeps track of changes inside your body. The name for sensing these inner changes is <strong>interoception</strong>. Breath, hunger and the heartbeat are examples.</p><p>In this practice you also use touch, the floor, sights and sounds. These are helpful ways to place attention. They are not all signals from inside your organs.</p><p>The aim is to notice a little, leave room for doubt, and choose what to do next. You do not need to search for a strong or unusual feeling.</p><p class="think-question"><strong>Think about it</strong>Which part came from your body, and which part came from your idea about your body?</p><p class="sources">Read the research: <a href="https://pubmed.ncbi.nlm.nih.gov/25451381/" target="_blank" rel="noopener noreferrer">Different parts of body awareness (2015)<span class="sr-only"> (opens a new tab)</span></a></p></div></details>
+<details class="learn-card"><summary>Does one body feeling have one meaning?</summary><div class="learn-body"><p>No. A fast heart can go with running, worry or excitement. A tight feeling does not, by itself, tell you its cause. Look at what else is happening.</p><p>In studies with 701 people, researchers found shared patterns in drawings of where emotions were felt. These were reports from groups. They were not organ measurements or a private code that can tell you exactly what another person feels.</p><p>You can try a name such as “worried” and still leave room to change your mind. You can also say, “I do not know yet.”</p><p class="think-question"><strong>Think about it</strong>If two different causes can make the same feeling, what second clue could help you tell them apart?</p><p class="sources">Read the research: <a href="https://pubmed.ncbi.nlm.nih.gov/24379370/" target="_blank" rel="noopener noreferrer">People’s drawings of body feelings (2014)<span class="sr-only"> (opens a new tab)</span></a></p></div></details>
+<details class="learn-card"><summary>What is the difference between strong, clear and sure?</summary><div class="learn-body"><p><strong>Strong</strong> means how big a sensation feels. <strong>Clear</strong> means how well you can describe it. <strong>Sure</strong> means how much you trust your answer. These can differ.</p><p>A strong feeling can be hard to describe. A faint feeling can seem clear. You can feel very sure and still be wrong about the cause.</p><p>To measure accuracy, researchers need a suitable check outside the person’s guess. This page has no such body measurement. Your taps describe your experience; they do not earn a body-reading score.</p><p class="think-question"><strong>Think about it</strong>What would count as a fair check of your answer, rather than another guess?</p><p class="sources">Read the research: <a href="https://pubmed.ncbi.nlm.nih.gov/25451381/" target="_blank" rel="noopener noreferrer">Why certainty and accuracy differ (2015)<span class="sr-only"> (opens a new tab)</span></a> · <a href="https://pubmed.ncbi.nlm.nih.gov/37708919/" target="_blank" rel="noopener noreferrer">How researchers check body perception (2023)<span class="sr-only"> (opens a new tab)</span></a></p></div></details>
+<details class="learn-card"><summary>Why look away and then come back?</summary><div class="learn-body"><p>Attention can stay on one thing or move to another. Here, moving it is part of the practice. Look at a colour, hear a sound, then return only if you want.</p><p>A study of everyday feelings linked inward attention with several ways of handling emotions, including both looking at a problem in a new way and going over worries. It did not show that more body checking is always better.</p><p>When you return, the feeling may seem the same, different or unclear. The body may have changed. Your attention or memory may have changed too. Matching your first report does not prove accuracy.</p><p class="think-question"><strong>Think about it</strong>Can looking away be the more skilful choice right now?</p><p class="sources">Read the research: <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC9512845/" target="_blank" rel="noopener noreferrer">Attention and everyday emotion habits (2022)<span class="sr-only"> (opens a new tab)</span></a></p></div></details>
+<details class="learn-card"><summary>Does body practice make people more accurate?</summary><div class="learn-body"><p>The findings are mixed. One small heartbeat-training study found an early change, but no clear lasting advantage after three weeks.</p><p>In a body-scan study, the practice did not clearly beat listening to an audiobook on the main change in accuracy. It did better against a group that did no training. What you compare an exercise with matters.</p><p>Older studies often used heartbeat counting. That task can reward knowing or guessing a usual heart rate. We do not use it here as an accuracy score.</p><p class="think-question"><strong>Think about it</strong>Did practice help, or did time, attention and having something to do help?</p><p class="sources">Read the research: <a href="https://pubmed.ncbi.nlm.nih.gov/35615275/" target="_blank" rel="noopener noreferrer">Three weeks of heartbeat training (2022)<span class="sr-only"> (opens a new tab)</span></a> · <a href="https://www.frontiersin.org/journals/human-neuroscience/articles/10.3389/fnhum.2017.00452/full" target="_blank" rel="noopener noreferrer">Body scans and two different comparisons (2017)<span class="sr-only"> (opens a new tab)</span></a> · <a href="https://sites.uclouvain.be/FOOD4GUT/wp-content/uploads/2018/10/Zamariola-et-al.-Biological-Psychology.-2018..pdf" target="_blank" rel="noopener noreferrer">Why heartbeat counting can mislead (2018)<span class="sr-only"> (opens a new tab)</span></a></p></div></details>
+<details class="learn-card"><summary>Can this kind of training help with anxiety?</summary><div class="learn-body"><p>Some carefully supported training has helped particular groups. A trial with 121 autistic adults found a modest anxiety benefit from training with real heartbeat feedback.</p><p>Only half the participants supplied the three-month follow-up. One person reported increased anxiety about the heart. The training used equipment and activities that are not part of this page.</p><p>This supports further research. It does not show that our steps treat anxiety. We keep the target gentle, include looking outward, and let you finish without having to face or increase a feared sensation.</p><p class="think-question"><strong>Think about it</strong>Which parts of a whole treatment would need testing before we copy its claims?</p><p class="sources">Read the research: <a href="https://pubmed.ncbi.nlm.nih.gov/34401684/" target="_blank" rel="noopener noreferrer">A trial with autistic adults (2021)<span class="sr-only"> (opens a new tab)</span></a></p></div></details>
+<details class="learn-card"><summary>Does one body skill carry over to every other one?</summary><div class="learn-body"><p>Not necessarily. A person can do well on one body task and less well on another. In a 2026 study of 241 people, most measures of sensing heart and breathing signals did not go together.</p><p>How sure people felt was shared more than several measures of performance. Confidence may travel further than the evidence that supports it.</p><p>The study compared people at one time. It did not prove that learning can never carry over. Transfer is a question to test, not a prize this page can promise.</p><p class="think-question"><strong>Think about it</strong>If you get better at noticing breath, how would you test whether that helps you notice hunger?</p><p class="sources">Read the research: <a href="https://www.nature.com/articles/s44271-026-00404-z" target="_blank" rel="noopener noreferrer">Heart and breathing skills compared (2026)<span class="sr-only"> (opens a new tab)</span></a> · <a href="https://www.frontiersin.org/journals/human-neuroscience/articles/10.3389/fnhum.2018.00223/full" target="_blank" rel="noopener noreferrer">Six kinds of body sensing (2018)<span class="sr-only"> (opens a new tab)</span></a></p></div></details>
+<details class="learn-card"><summary>Would perfect body sensing make me feel well?</summary><div class="learn-body"><p>It is not that simple. A 2026 study tested heart sensing in 456 people and breathing sensing in 245. Most measured performance was not linked to mental-health symptoms.</p><p>People’s beliefs about their body awareness were more closely linked with symptoms. The wording of those reports may explain some of that link.</p><p>This does not rule out useful body practice. It does challenge the idea that higher sensing scores must mean better mental health. How you interpret a feeling and respond to it may matter too.</p><p class="think-question"><strong>Think about it</strong>Could someone notice a feeling accurately, yet give it an unhelpful meaning?</p><p class="sources">Read the research: <a href="https://www.nature.com/articles/s44220-026-00688-4" target="_blank" rel="noopener noreferrer">Body-task performance and mental health (2026)<span class="sr-only"> (opens a new tab)</span></a></p></div></details>
+<details class="learn-card"><summary>Can a word change the feeling I am trying to name?</summary><div class="learn-body"><p>A word can help you make sense of a feeling. It can also lead your attention. Calling a sensation “danger” and calling it “getting ready” may invite different next steps.</p><p>A brain-imaging experiment found that naming emotions changed responses to negative pictures. It did not prove that a label reveals the true cause of a body feeling.</p><p>Try a name lightly. Then ask what else fits and what new clue would change your mind. You can keep the sensation real while keeping the explanation open.</p><p class="think-question"><strong>Think about it</strong>Am I using this word because it fits, or does the feeling seem to fit because I used this word?</p><p class="sources">Read the research: <a href="https://pubmed.ncbi.nlm.nih.gov/17576282/" target="_blank" rel="noopener noreferrer">Naming feelings in a picture task (2007)<span class="sr-only"> (opens a new tab)</span></a></p></div></details>
+<details class="learn-card"><summary>How could these exercises be tested better?</summary><div class="learn-body"><p>Researchers could compare the full practice with an equally clear exercise of the same length. They would decide what “help” means before seeing results.</p><p>They could check whether benefits last, whether people can move attention by choice, and whether a skill helps in a new task. They would record discomfort and people who stop, as well as people who improve.</p><p>Our new step sequence and personal comparison are learning designs, not proven treatments. Researchers have not yet tested this exact set of steps against another exercise. The open questions are part of the work.</p><p class="think-question"><strong>Think about it</strong>Which result would make you change your mind about whether this practice helps?</p></div></details></div>
+</section>
+<section class="screen practice-screen" id="screen-session" hidden aria-labelledby="session-name">
+<div class="session-heading"><h1 id="session-name" tabindex="-1">Heart practice</h1><div><span class="sr-only">Practice time left</span><span id="session-timer" role="timer">05:00</span></div></div>
+<div class="session-toolbar" role="group" aria-label="Practice controls"><button type="button" id="pause-session">Pause</button><button type="button" id="look-around">Look around</button><button type="button" id="sound-toggle" aria-pressed="true">Sound on</button><button type="button" id="end-session">Finish now</button></div>
+<div class="practice-card live-card"><p class="eyebrow" id="session-step"></p><h2 id="step-title" tabindex="-1" aria-live="polite"></h2><p id="step-prompt" class="step-prompt"></p>
+<div id="breath-visual" class="breath-visual" hidden><div class="breath-stage"><div id="breath-ball" aria-hidden="true"></div><div class="breath-readout"><span id="breath-word">Breathe in</span><span id="breath-count"></span></div></div></div>
+<button type="button" class="secondary own-breath" id="own-breath" hidden>Use my own breath</button>
+<div id="step-choices" class="step-choices" role="group" aria-label="Your answer"></div><p id="step-feedback" class="answer-note" role="status"></p><button type="button" class="primary" id="continue-step" hidden>Next</button>
+<details id="deeper-step" class="deeper-step"><summary>Go further</summary><p id="step-question"></p></details>
+<div class="practice-progress"><label for="session-progress" class="sr-only">Practice time passed</label><progress id="session-progress" max="100" value="0"></progress><p id="session-time-note" class="small-copy"></p></div></div><p class="session-footnote">The page guides the steps. It does not read your body.<br>Your answers stay on this page and are cleared when you leave.</p>
+</section>
+<section class="screen finish-screen" id="screen-finish" hidden aria-labelledby="finish-title"><p class="eyebrow">A moment to notice</p><h1 id="finish-title" tabindex="-1">You made time to practise.</h1><p id="finish-summary" class="lede"></p><div id="finish-results" class="finish-results"></div><p id="finish-note"></p><div class="finish-check"><h2>How do you feel now?</h2><p>Compared with before you started. No answer is better than another.</p><div id="finish-feeling" class="choice-row" role="group" aria-label="How you feel now"><button type="button" data-feeling="more" aria-pressed="false">More settled</button><button type="button" data-feeling="same" aria-pressed="false">About the same</button><button type="button" data-feeling="less" aria-pressed="false">Less settled</button><button type="button" data-feeling="unclear" aria-pressed="false">Not sure</button></div><p id="finish-response" role="status"></p></div><div class="finish-actions"><button type="button" class="primary" id="try-again">Choose another session</button><button type="button" class="secondary" id="forget-session">Clear answers and return to Heart</button></div></section>
 </main>
-<noscript><p>Turn on JavaScript to use the Heart exercises.</p></noscript>
+<footer class="heart-footer"><p>Practice, with room for doubt.</p><p>These tools are for learning. They do not diagnose a problem or replace care from a health professional.</p><p>Science checked September 2026. Open the questions inside each exercise to read the studies.</p></footer>
+<dialog id="pause-dialog" aria-labelledby="pause-title" aria-describedby="pause-message"><h2 id="pause-title" tabindex="-1" autofocus>Take your time</h2><p id="pause-message">Your practice is paused.</p><div class="dialog-actions"><button type="button" class="primary" id="resume-session">Keep going</button><button type="button" class="secondary" id="finish-paused">Finish here</button></div></dialog>
+<noscript><p class="noscript-note">Turn on JavaScript to start a timed practice. You can still read the research below.</p><style>.setup-screen[hidden]{display:block!important}.setup-card,.compare-card,.back-button{display:none!important}</style></noscript>
 </div>
-<script src="./audio.js?v=heart-20260905-2" defer></script>
-<script src="./session.js?v=heart-20260905-2" defer></script>
+<script src="./audio.js?v=heart-research-20260905-1" defer></script>
+<script src="./practice.js?v=heart-research-20260905-1" defer></script>
+<script src="./session.js?v=heart-research-20260905-1" defer></script>
 </body>
 </html>

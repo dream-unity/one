@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import { test } from 'node:test';
@@ -8,35 +7,8 @@ const read = name => readFile(new URL(`../exercises/heart/${name}`, import.meta.
 const audioSource = await read('audio.js');
 const html = await read('index.html');
 const sessionSource = await read('session.js');
-const sha = value => createHash('sha256').update(value).digest('hex');
+const practiceSource = await read('practice.js');
 const plain = value => JSON.parse(JSON.stringify(value));
-
-function teachingText(className) {
-  const opener = new RegExp(`<([a-z0-9]+)[^>]*class="[^"]*\\b${className}\\b[^"]*"[^>]*>`, 'i').exec(html);
-  assert.ok(opener, `missing source teaching section ${className}`);
-  const start = opener.index + opener[0].length, tag = opener[1]; let depth = 1, end = start;
-  for (const token of html.slice(start).matchAll(new RegExp(`<(/?)${tag}\\b[^>]*>`, 'gi'))) {
-    depth += token[1] ? -1 : 1;
-    if (!depth) { end = start + token.index; break; }
-  }
-  const entities = { amp: '&', larr: '←', ldquo: '“', mdash: '—', middot: '·', nbsp: '\u00a0', ndash: '–', rarr: '→', rdquo: '”', rsquo: '’' };
-  return html.slice(start, end).replace(/<[^>]+>/g, '').replace(/&([a-z]+);/g, (all, name) => entities[name] ?? all).replace(/\s+/g, ' ').trim();
-}
-
-test('all original teaching, safety guidance and completion messages remain intact', () => {
-  // Fingerprints independently recorded from the user-supplied index(4).html,
-  // SHA256 9b273d55b47ed3b0719e128b074a13b86d3ccd5b42864f265fdd11decc3a197f.
-  const expected = {
-    's1-howto': 'f2fb603f63f0b7c9cc92ae9df58d12df2ab6d53ed2122b5d956390ac59d3ebe1',
-    's2-howto': '7006dfa2054e50eb8ed66ade959e79baf6aa49d3745a74caec0aedccc409a39d',
-    's1-ex-note': 'e458037fc3b3428eea47d056a59dc2854ecd75aa53a89b94f055c5c4c04a519c',
-    's2-ex-note': '96f72c5689ec443c99903cc2ede70c07582cedc963ae10a4192a1b2143065318',
-    'completion-text': '8f727c51d45c0cb7f73a1c4cda5bb36e6844664e0144bc13e48b9c731a94aba9',
-    's2c-text': 'de907d6db3d18cd64b788fe912308131250e148234ba5e4f02fad2088148c425'
-  };
-  for (const [section, fingerprint] of Object.entries(expected)) assert.equal(sha(teachingText(section)), fingerprint, section);
-  assert.doesNotMatch(html, /<iframe|screen-intro|Project Meaning<|pillar-mind|stage3-icon|stage4-icon/);
-});
 
 class Clock {
   now = 0; next = 1; tasks = new Map();
@@ -66,23 +38,65 @@ class Classes {
   contains(name) { return this.values.has(name); }
   toggle(name, force = !this.contains(name)) { force ? this.add(name) : this.remove(name); return force; }
 }
+const decode = value => value.replace(/&(#x[\da-f]+|#\d+|[a-z]+);/gi, (all, name) => {
+  if (name.startsWith('#x')) return String.fromCodePoint(parseInt(name.slice(2), 16));
+  if (name.startsWith('#')) return String.fromCodePoint(Number(name.slice(1)));
+  return ({ amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', middot: '·', ndash: '–', mdash: '—' })[name] ?? all;
+});
+class DOMEvent {
+  constructor(type, options = {}) { Object.assign(this, { type, bubbles: false, cancelable: true, defaultPrevented: false }, options); }
+  preventDefault() { if (this.cancelable) this.defaultPrevented = true; }
+  stopPropagation() { this.stopped = true; }
+}
 class Element {
   constructor(tag, attrs = {}) {
-    this.tagName = tag.toUpperCase(); this.attributes = { ...attrs }; this.dataset = {}; this.children = [];
+    this.tagName = tag.toUpperCase(); this.attributes = { ...attrs }; this.children = []; this._text = '';
+    this.dataset = new Proxy({}, {
+      get: (_, key) => this.attributes[`data-${String(key).replace(/[A-Z]/g, c => `-${c.toLowerCase()}`)}`],
+      set: (_, key, value) => { this.attributes[`data-${String(key).replace(/[A-Z]/g, c => `-${c.toLowerCase()}`)}`] = String(value); return true; }
+    });
     this.classList = new Classes(); this.classList.add(...(attrs.class || '').split(/\s+/).filter(Boolean));
-    this.style = { setProperty(name, value) { this[name] = value; } }; this.listeners = new Map();
-    this.value = attrs.value || ''; this.textContent = ''; this.innerHTML = ''; this.open = false;
-    for (const [name, value] of Object.entries(attrs)) if (name.startsWith('data-')) this.dataset[name.slice(5).replace(/-([a-z])/g, (_, c) => c.toUpperCase())] = value;
+    this.style = { setProperty(name, value) { this[name] = value; }, removeProperty(name) { delete this[name]; } }; this.listeners = new Map();
+    this.value = attrs.value || ''; this.checked = Object.hasOwn(attrs, 'checked'); this.open = false;
   }
   get id() { return this.attributes.id || ''; }
+  set id(value) { this.attributes.id = value; }
+  get className() { return [...this.classList.values].join(' '); }
+  set className(value) { this.classList.values = new Set(value.split(/\s+/).filter(Boolean)); }
+  get disabled() { return Object.hasOwn(this.attributes, 'disabled'); }
+  set disabled(value) { value ? this.attributes.disabled = '' : delete this.attributes.disabled; }
+  get textContent() { return this._text + this.children.map(child => child.textContent).join(''); }
+  set textContent(value) { this._text = String(value); this.children.forEach(child => { child.parentElement = null; }); this.children = []; }
+  get innerHTML() { return this.textContent; }
+  set innerHTML(value) { this.textContent = decode(String(value).replace(/<[^>]*>/g, '')); }
   get hidden() { return Object.hasOwn(this.attributes, 'hidden'); }
   set hidden(value) { value ? this.attributes.hidden = '' : delete this.attributes.hidden; }
-  setAttribute(name, value) { this.attributes[name] = String(value); }
+  setAttribute(name, value) { this.attributes[name] = String(value); if (name === 'class') this.className = String(value); }
   hasAttribute(name) { return Object.hasOwn(this.attributes, name); }
   getAttribute(name) { return this.attributes[name] ?? null; }
   removeAttribute(name) { delete this.attributes[name]; }
   addEventListener(name, callback) { this.listeners.set(name, [...this.listeners.get(name) || [], callback]); }
-  dispatchEvent(event) { for (const callback of this.listeners.get(event.type) || []) callback(event); }
+  dispatchEvent(event) {
+    if (!event.target) event.target = this;
+    event.currentTarget = this;
+    for (const callback of this.listeners.get(event.type) || []) callback(event);
+    if (event.bubbles && !event.stopped) this.parentElement?.dispatchEvent(event);
+    return !event.defaultPrevented;
+  }
+  click() {
+    if (this.disabled) return;
+    if (this.tagName === 'SUMMARY' && this.parentElement?.tagName === 'DETAILS') this.parentElement.open = !this.parentElement.open;
+    const checkbox = this.tagName === 'INPUT' && this.getAttribute('type') === 'checkbox';
+    if (checkbox) this.checked = !this.checked;
+    this.dispatchEvent(new DOMEvent('click', { bubbles: true }));
+    if (checkbox) { this.dispatchEvent(new DOMEvent('input', { bubbles: true })); this.dispatchEvent(new DOMEvent('change', { bubbles: true })); }
+  }
+  appendChild(child) { child.parentElement?.removeChild(child); child.parentElement = this; this.children.push(child); return child; }
+  append(...children) { children.forEach(child => this.appendChild(typeof child === 'string' ? Object.assign(new Element('text'), { textContent: child }) : child)); }
+  removeChild(child) { this.children = this.children.filter(item => item !== child); child.parentElement = null; return child; }
+  replaceChildren(...children) { this.textContent = ''; this.append(...children); }
+  remove() { this.parentElement?.removeChild(this); }
+  contains(child) { return child === this || this.children.some(item => item.contains(child)); }
   matches(selector) {
     if (selector.includes(',')) return selector.split(',').some(part => this.matches(part.trim()));
     const parts = selector.trim().split(/\s+/), own = parts.pop();
@@ -93,6 +107,7 @@ class Element {
     for (const [, name, value] of own.matchAll(/\[([\w-]+)(?:=["']?([^\]"']+)["']?)?\]/g)) {
       if (!Object.hasOwn(this.attributes, name) || value !== undefined && this.attributes[name] !== value) return false;
     }
+    if (own.includes(':checked') && !this.checked) return false;
     return true;
   }
   closest(selector) { return this.matches(selector) ? this : this.parentElement?.closest(selector) || null; }
@@ -105,19 +120,29 @@ class Element {
 }
 
 function documentFixture() {
+  // Parses the actual checked-in page rather than maintaining a second copy of
+  // its controls. This small DOM model covers controller events, not layout.
   const doc = new Element('document'), stack = [doc];
   const voids = new Set(['meta', 'link', 'input', 'br', 'hr', 'img']);
+  let previousEnd = 0;
   for (const match of html.matchAll(/<\/?([a-z][\w-]*)\b([^>]*)>/gi)) {
+    stack.at(-1)._text += decode(html.slice(previousEnd, match.index).replace(/<!--[\s\S]*?-->/g, ''));
+    previousEnd = match.index + match[0].length;
     const tag = match[1].toLowerCase();
     if (match[0].startsWith('</')) { const index = stack.findLastIndex(el => el.tagName === tag.toUpperCase()); if (index > 0) stack.length = index; continue; }
-    const attrs = Object.fromEntries([...match[2].matchAll(/([\w-]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g)].map(m => [m[1], m[2] ?? m[3] ?? m[4] ?? '']));
+    const attrs = Object.fromEntries([...match[2].matchAll(/([\w-]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g)].map(m => [m[1], decode(m[2] ?? m[3] ?? m[4] ?? '')]));
     const el = new Element(tag, attrs); el.parentElement = stack.at(-1); el.parentElement.children.push(el);
     if (!voids.has(tag)) stack.push(el);
   }
-  const ids = new Map(doc.querySelectorAll('*').filter(el => el.id).map(el => [el.id, el]));
-  doc.getElementById = id => ids.get(id) || null;
+  const staticIds = new Map(doc.querySelectorAll('*').filter(el => el.id).map(el => [el.id, el]));
+  doc.getElementById = id => staticIds.get(id) || doc.querySelectorAll('*').find(el => el.id === id) || null;
+  doc.createElement = tag => new Element(tag);
+  doc.createTextNode = value => Object.assign(new Element('text'), { textContent: value });
+  doc.createDocumentFragment = () => new Element('fragment');
   doc.body = doc.querySelector('body'); doc.documentElement = doc.querySelector('html');
-  doc.visibilityState = 'visible'; return doc;
+  doc.visibilityState = 'visible';
+  Object.defineProperty(doc, 'hidden', { get: () => doc.visibilityState === 'hidden' });
+  return doc;
 }
 
 class Param {
@@ -135,12 +160,12 @@ class AudioNode {
   stop(at) { this.stops.push(at); }
 }
 
-function harness({ session = false, initialState = 'running', panning = true, silentBells = false, reducedMotion = false } = {}) {
-  const clock = new Clock(), document = documentFixture(), contexts = [], events = new Map(), bells = [];
+function harness({ session = false, initialState = 'running', panning = true, silentBells = false, reducedMotion = false, unavailableAudio = false, rejectResume = false } = {}) {
+  const clock = new Clock(), document = documentFixture(), contexts = [], events = new Map(), bells = [], externalCalls = [];
   class AudioContext {
     constructor() { this.state = initialState; this.sampleRate = 8000; this.nodes = []; this.buffers = []; this.destination = new AudioNode('destination'); contexts.push(this); if (!panning) this.createStereoPanner = undefined; }
     get currentTime() { return clock.now / 1000; }
-    resume() { this.resumes = (this.resumes || 0) + 1; this.state = 'running'; return Promise.resolve(); }
+    resume() { this.resumes = (this.resumes || 0) + 1; if (rejectResume) return Promise.reject(new Error('audio blocked')); this.state = 'running'; return Promise.resolve(); }
     node(kind) { const node = new AudioNode(kind); this.nodes.push(node); return node; }
     createGain() { return this.node('gain'); }
     createOscillator() { return this.node('oscillator'); }
@@ -155,13 +180,17 @@ function harness({ session = false, initialState = 'running', panning = true, si
     }
   }
   const context = vm.createContext({
-    console, document, AudioContext, Element, HTMLElement: Element, URL, URLSearchParams,
+    console, document, AudioContext: unavailableAudio ? undefined : AudioContext, Element, HTMLElement: Element, URL, URLSearchParams, Event: DOMEvent,
     setTimeout: (fn, ms = 0) => clock.schedule(fn, ms), clearTimeout: id => clock.clear(id),
     setInterval: (fn, ms) => clock.schedule(fn, ms, true), clearInterval: id => clock.clear(id),
     requestAnimationFrame: fn => clock.schedule(() => fn(clock.now), 16), cancelAnimationFrame: id => clock.clear(id),
     performance: { now: () => clock.now }, scrollTo() {},
     matchMedia: () => ({ matches: reducedMotion }),
     location: { href: 'https://dreamunity.one/exercises/heart/' },
+    localStorage: { getItem: key => { externalCalls.push(['storage-read', key]); return null; }, setItem: (key, value) => externalCalls.push(['storage-write', key, value]) },
+    sessionStorage: { getItem: key => { externalCalls.push(['session-read', key]); return null; }, setItem: (key, value) => externalCalls.push(['session-write', key, value]) },
+    fetch: (...args) => { externalCalls.push(['fetch', ...args]); throw new Error('Practice must not transmit answers'); },
+    navigator: { sendBeacon: (...args) => { externalCalls.push(['beacon', ...args]); return true; } },
     CustomEvent: class { constructor(type, init = {}) { this.type = type; this.detail = init.detail; } },
     addEventListener(name, fn) { events.set(name, [...events.get(name) || [], fn]); },
     dispatchEvent(event) { for (const fn of events.get(event.type) || []) fn(event); },
@@ -169,15 +198,20 @@ function harness({ session = false, initialState = 'running', panning = true, si
   context.window = context; context.globalThis = context;
   vm.runInContext(audioSource, context, { filename: 'heart/audio.js' });
   if (silentBells) { context.bowl = (fund, peak, decay) => { bells.push({ at: clock.now, fund, peak, decay }); return true; }; context.setWave(0); }
-  if (session) vm.runInContext(sessionSource, context, { filename: 'heart/session.js' });
-  return { context, clock, document, contexts, bells, el: id => document.getElementById(id), evaluate: expression => vm.runInContext(expression, context), emit: type => context.dispatchEvent({ type }) };
+  if (session) {
+    vm.runInContext(practiceSource, context, { filename: 'heart/practice.js' });
+    vm.runInContext(sessionSource, context, { filename: 'heart/session.js' });
+  }
+  return {
+    context, clock, document, contexts, bells, externalCalls,
+    el: id => document.getElementById(id),
+    click: selector => { const element = document.querySelector(selector); assert.ok(element, `Missing control ${selector}`); element.click(); return element; },
+    input: (selector, value) => { const element = document.querySelector(selector); assert.ok(element, `Missing input ${selector}`); element.value = String(value); element.dispatchEvent(new DOMEvent('input', { bubbles: true })); },
+    visibility: state => { document.visibilityState = state; document.dispatchEvent(new DOMEvent('visibilitychange')); },
+    evaluate: expression => vm.runInContext(expression, context),
+    emit: type => context.dispatchEvent(new DOMEvent(type))
+  };
 }
-
-test('Heart keeps the exact authored breathing prompts and seven mapping questions', () => {
-  const h = harness({ session: true });
-  assert.equal(sha(h.evaluate('JSON.stringify(PHASES)')), '46032bfb16a2a7b45abc026af6609b84a1ad92017304c49c0667b3d7fe6f0c92');
-  assert.equal(sha(h.evaluate('JSON.stringify(S2_DIMENSIONS)')), '2e9db874f0e6e1d0d6b462a2f59f54b63e70f7e78b80503f6b97715c927df16f');
-});
 
 test('bell volume is remembered separately for all seven options and 150% means 2.5 times gain', () => {
   const h = harness(), c = h.context;
@@ -291,167 +325,294 @@ test('audio works without stereo panners and releases its fallback graph', () =>
   assert.ok(h.contexts[0].nodes.every(n => n.disconnected));
 });
 
-for (const seconds of [900, 1800, 3600, 7200, 10800]) test(`Stage One runs the full ${seconds}-second duration and naturally completes once`, () => {
-  const h = harness({ session: true, silentBells: true }), c = h.context;
-  c.startWithDuration(seconds);
-  assert.equal(c.s1.total, seconds); assert.equal(c.s1.rem, seconds);
-  assert.equal(h.el('session-timer').textContent, `${String(seconds / 60).padStart(2, '0')}:00`);
-  assert.equal(h.el('s1-live').classList.contains('is-hidden'), false);
-  assert.equal(h.el('s1-start').classList.contains('is-hidden'), true);
-  h.clock.advance(seconds * 1000 - 1);
-  assert.equal(c.s1.rem, 1); assert.equal(h.el('completion').open, false);
-  h.clock.advance(1);
-  assert.equal(c.s1.rem, 0); assert.equal(c.s1.active, false);
-  assert.equal(h.el('session-timer').textContent, '00:00'); assert.equal(h.el('progress-fill').style.width, '100.00%');
-  assert.equal(h.el('completion').open, true);
-  assert.equal(h.document.activeElement, h.el('completion-title'), 'completion opens at its message heading rather than scrolling to its bottom button');
-  const closing = () => h.bells.filter(bell => bell.decay > 8);
-  assert.deepEqual(closing(), [{ at: seconds * 1000, fund: 392, peak: 0.13, decay: 8.5 }]);
-  h.clock.advance(3000);
-  assert.deepEqual(closing()[1], { at: (seconds + 3) * 1000, fund: 293.66, peak: 0.11, decay: 9.5 });
-  h.clock.advance(20000); assert.equal(closing().length, 2); assert.equal(h.clock.tasks.size, 0);
-  c.restartToIntro(); assert.equal(h.el('completion').open, false); assert.equal(h.el('screen-heart').classList.contains('hidden'), false);
-});
+function closeBells(h) { return h.bells.filter(bell => bell.decay > 8); }
+function start(h, kind, seconds) {
+  h.click(`[data-open="${kind}"]`);
+  if (seconds) h.click(`[data-duration="${kind}"][data-seconds="${seconds}"]`);
+  h.click(`#start-${kind}`);
+  assert.equal(h.el('screen-session').hidden, false);
+}
+function choose(h, value) { return h.click(`#step-choices [data-choice="${value}"]`); }
+function compareStart(h) {
+  h.click('[data-open="breath"]'); h.click('#start-compare');
+  assert.equal(h.el('continue-step').disabled, true);
+}
 
-test('Stage One keeps five-second breathing, independent second countdowns and the three indicator delays', () => {
-  const h = harness({ session: true, silentBells: true }), c = h.context;
-  c.startWithDuration(900);
-  assert.equal(h.el('breath-label').textContent, 'Inhale'); assert.equal(h.el('breath-cd').textContent, '5');
-  assert.equal(h.el('breath-ball').classList.contains('inhale-state'), true);
-  h.clock.advance(399); assert.equal(h.el('ci-breath').classList.contains('active'), false);
-  h.clock.advance(1); assert.equal(h.el('ci-breath').classList.contains('active'), true);
-  h.clock.advance(600); assert.equal(Number(h.el('breath-cd').textContent), 4); assert.equal(h.el('session-timer').textContent, '14:59');
-  h.clock.advance(2999); assert.equal(h.el('ci-heart').classList.contains('active'), false);
-  h.clock.advance(1); assert.equal(h.el('ci-heart').classList.contains('active'), true);
-  h.clock.advance(999); assert.equal(h.el('breath-label').textContent, 'Inhale');
-  h.clock.advance(1); assert.equal(h.el('breath-label').textContent, 'Exhale'); assert.equal(h.el('breath-cd').textContent, '5');
-  assert.equal(h.el('breath-ball').classList.contains('inhale-state'), false);
-  assert.equal(h.el('phase-text').textContent, h.evaluate('PHASES.early.exhale.text'));
-  h.clock.advance(3999); assert.equal(h.el('ci-feeling').classList.contains('active'), false);
-  h.clock.advance(1); assert.equal(h.el('ci-feeling').classList.contains('active'), true);
-  h.clock.advance(1000); assert.equal(h.el('breath-label').textContent, 'Inhale');
-  assert.deepEqual(h.bells.slice(0, 3).map(bell => [bell.at, bell.fund]), [[0, 392], [5000, 293.66], [10000, 392]]);
-  assert.equal(h.el('progress-fill').style.width, '1.11%');
-});
-
-test('Stage One thirds are relative to total time and refresh only at the next breathing transition', () => {
-  const h = harness({ session: true, silentBells: true }), c = h.context;
-  for (const total of [900, 1800, 3600, 7200, 10800]) {
-    c.s1.total = total;
-    for (const [fractionRemaining, expected] of [[0.6701, 'early'], [0.6699, 'middle'], [0.3401, 'middle'], [0.3399, 'late']]) {
-      c.s1.rem = total * fractionRemaining; assert.equal(c.s1PhaseKey(), expected);
+// These tests operate through the page's real controls and rendered output.
+// The engine's separate tests cover every plan duration and state transition.
+test('both entry buttons open their own setup; every visible duration starts the selected time', () => {
+  const h = harness({ session: true, silentBells: true });
+  assert.equal(h.el('screen-heart').hidden, false);
+  for (const [kind, lengths] of [['breath', [180, 300, 600, 900]], ['body', [240, 480, 720]]]) {
+    for (const seconds of lengths) {
+      start(h, kind, seconds);
+      assert.equal(h.el('session-timer').textContent, `${String(seconds / 60).padStart(2, '0')}:00`);
+      assert.equal(h.el('session-progress').value, 0);
+      h.click('#end-session'); h.click('#forget-session');
+      assert.equal(h.el('screen-heart').hidden, false);
+      assert.equal(h.clock.tasks.size, 0);
     }
   }
-  c.startWithDuration(900); h.clock.advance(298000);
-  assert.equal(c.s1PhaseKey(), 'middle'); assert.equal(h.el('phase-step-label').textContent, 'Step 1 · Heart-Focused Breathing');
-  h.clock.advance(2000); assert.equal(h.el('phase-step-label').textContent, 'Step 2 · Heart Feeling');
-  h.clock.advance(300000); assert.equal(h.el('phase-step-label').textContent, 'Step 3 · Deepen');
-  assert.equal(h.el('phase-text').textContent, h.evaluate('PHASES.late.inhale.text'));
 });
 
-test('Stage One End cancels every breathing and indicator callback without completion bells', () => {
-  const h = harness({ session: true, silentBells: true }), c = h.context;
-  c.startWithDuration(900); h.clock.advance(100); c.endSession(); const count = h.bells.length;
+test('breathing guide follows the selected pace and live own-breath stops pacing without stopping practice', () => {
+  const h = harness({ session: true, silentBells: true });
+  start(h, 'breath', 180);
+  assert.equal(h.el('breath-word').textContent, 'Breathe in');
+  assert.equal(h.el('breath-count').textContent, '5');
+  h.clock.advance(5000);
+  assert.equal(h.el('breath-word').textContent, 'Breathe out');
+  assert.equal(h.el('session-timer').textContent, '02:55');
+  assert.deepEqual(h.bells.map(bell => [bell.at, bell.fund]), [[0, 392], [5000, 293.66]]);
+  h.click('#own-breath');
+  assert.equal(h.el('breath-word').textContent, 'Your own breath');
+  assert.equal(h.el('breath-ball').classList.contains('is-paced'), false);
+  const count = h.bells.length;
   h.clock.advance(20000);
-  assert.equal(c.s1.rem, 900); assert.equal(h.bells.length, count); assert.equal(h.clock.tasks.size, 0);
-  assert.equal(h.el('s1-start').classList.contains('is-hidden'), false); assert.equal(h.el('s1-live').classList.contains('is-hidden'), true);
-  for (const id of ['ci-breath', 'ci-heart', 'ci-feeling']) assert.equal(h.el(id).classList.contains('active'), false);
-  assert.equal(h.el('completion').open, false);
+  assert.equal(h.el('session-timer').textContent, '02:35');
+  assert.equal(h.bells.length, count, 'no timed breath bells after choosing an ordinary breath');
+  h.click('#end-session');
+  assert.equal(closeBells(h).length, 0);
 });
 
-for (const seconds of [900, 1800, 3600]) test(`Stage Two rotates for the complete ${seconds}-second session, independently of its step timer`, () => {
-  const h = harness({ session: true, silentBells: true }), c = h.context;
-  c.startStage2WithDuration(seconds);
-  assert.equal(c.s2.lastDim, 0); assert.equal(c.s2.stepRem, 30); assert.equal(c.s2.rem, seconds);
-  assert.equal(h.el('s2s-countdown').textContent, '0:30');
-  h.clock.advance(seconds * 1000 - 1);
-  assert.equal(c.s2.rem, 1); assert.equal(h.el('stage2-completion').open, false);
-  assert.equal(h.bells.filter(b => b.decay === 3.3).length, seconds / 30, 'all seven questions keep rotating, including after one full cycle');
-  h.clock.advance(1);
-  assert.equal(c.s2.active, false); assert.equal(c.s2.tick, null); assert.equal(c.s2.rem, 0);
-  assert.equal(h.el('s2s-timer').textContent, '00:00'); assert.equal(h.el('s2s-progress-fill').style.width, '100.00%');
-  assert.equal(h.el('stage2-completion').open, true);
-  assert.equal(h.document.activeElement, h.el('stage2-completion-title'), 'the long completion message starts at its heading on narrow screens');
-  h.clock.advance(3000);
-  assert.deepEqual(h.bells.filter(b => b.decay > 8), [{ at: seconds * 1000, fund: 392, peak: 0.13, decay: 8.5 }, { at: (seconds + 3) * 1000, fund: 293.66, peak: 0.11, decay: 9.5 }]);
-  h.clock.advance(30000); assert.equal(h.clock.tasks.size, 0);
-  c.restartStage2ToIntro(); assert.equal(h.el('stage2-completion').open, false); assert.equal(h.el('screen-heart').classList.contains('hidden'), false);
+test('the kind-wish option changes the middle step and the final step releases the breath guide', () => {
+  const h = harness({ session: true, silentBells: true });
+  h.click('[data-open="breath"]'); h.click('[data-duration="breath"][data-seconds="180"]');
+  assert.equal(h.el('add-care').checked, true);
+  h.click('#add-care'); h.click('[data-pace="4"]'); h.click('#start-breath');
+  assert.equal(h.el('breath-count').textContent, '4');
+  h.clock.advance(60000);
+  assert.equal(h.el('step-title').textContent, 'Stay with your breath');
+  h.clock.advance(60000);
+  assert.equal(h.el('breath-word').textContent, 'Your own breath');
+  assert.equal(h.el('own-breath').hidden, true);
+  h.click('#end-session'); h.click('#try-again'); h.click('#add-care'); h.click('#start-breath');
+  h.clock.advance(60000);
+  assert.equal(h.el('step-title').textContent, 'Try a kind wish');
 });
 
-test('Stage Two displays all seven exact questions, parity bells and wrap-around chip states every thirty seconds', () => {
-  const h = harness({ session: true, silentBells: true }), c = h.context;
-  c.startStage2WithDuration(900);
-  const chips = h.document.querySelectorAll('#s2s-chain .s2s-chip'), dimensions = h.evaluate('S2_DIMENSIONS');
-  assert.equal(chips.length, 7);
-  h.clock.advance(299); assert.equal(h.el('s2s-center').classList.contains('fading'), true);
-  h.clock.advance(1); assert.equal(h.el('s2s-center').textContent, 'LOCATION');
-  h.clock.advance(19); assert.equal(h.el('s2s-prompt').classList.contains('fading'), true);
-  h.clock.advance(1); assert.equal(h.el('s2s-prompt').innerHTML, dimensions[0].prompt);
-  for (let step = 0; step < 9; step++) {
-    const index = step % 7;
-    assert.equal(c.s2.lastDim, index); assert.equal(h.el('s2s-center').textContent, dimensions[index].label);
-    assert.equal(h.el('s2s-phase-label').textContent, `Step ${index + 1} / 7`);
-    assert.equal(h.el('s2s-prompt').innerHTML, dimensions[index].prompt);
-    chips.forEach((chip, i) => { assert.equal(chip.classList.contains('active'), i === index); assert.equal(chip.classList.contains('done'), i < index); });
-    assert.equal(h.bells[step].at, step * 30000); assert.equal(h.bells[step].fund, index % 2 ? 293.66 : 392);
-    if (step < 8) h.clock.advance(30000);
+test('with a child selects a short unpaced breath and restores the earlier adult settings when unchecked', () => {
+  const h = harness({ session: true, silentBells: true });
+  h.click('[data-open="breath"]'); h.click('[data-pace="4"]');
+  h.click('[data-duration="breath"][data-seconds="600"]'); h.click('#with-child');
+  assert.equal(h.el('with-child').checked, true);
+  assert.equal(h.document.querySelector('[data-pace="0"]').getAttribute('aria-pressed'), 'true');
+  for (const pace of [4, 5]) assert.equal(h.document.querySelector(`[data-pace="${pace}"]`).disabled, true);
+  h.click('[data-pace="5"]'); h.click('#start-breath');
+  assert.equal(h.el('session-timer').textContent, '03:00');
+  assert.equal(h.el('breath-word').textContent, 'Your own breath');
+  assert.equal(h.el('breath-count').textContent, '');
+  h.clock.advance(10000); assert.equal(h.bells.length, 0);
+  h.click('#end-session'); h.click('#try-again'); h.click('#with-child'); h.click('#start-breath');
+  assert.equal(h.el('session-timer').textContent, '10:00');
+  assert.equal(h.el('breath-count').textContent, '4');
+});
+
+test('Pause and Look around stop time and sound, keep the same step, and need an explicit resume', () => {
+  const h = harness({ session: true, silentBells: true });
+  start(h, 'body', 240); h.clock.advance(12000);
+  const title = h.el('step-title').textContent, timer = h.el('session-timer').textContent;
+  h.click('#pause-session');
+  assert.equal(h.el('pause-dialog').open, true); assert.equal(h.clock.tasks.size, 0);
+  const cancelled = new DOMEvent('cancel'); h.el('pause-dialog').dispatchEvent(cancelled);
+  assert.equal(cancelled.defaultPrevented, true); assert.equal(h.el('pause-dialog').open, true);
+  const bells = h.bells.length;
+  h.clock.advance(60000);
+  assert.equal(h.el('session-timer').textContent, timer); assert.equal(h.bells.length, bells);
+  h.click('#resume-session');
+  assert.equal(h.el('pause-dialog').open, false); assert.equal(h.el('step-title').textContent, title);
+  h.clock.advance(1000); assert.equal(h.el('session-timer').textContent, '03:47');
+  h.click('#look-around');
+  assert.equal(h.el('pause-title').textContent, 'Look around');
+  assert.equal(h.el('pause-dialog').open, true); assert.equal(h.clock.tasks.size, 0);
+  h.click('#finish-paused');
+  assert.equal(h.el('screen-finish').hidden, false); assert.equal(h.el('pause-dialog').open, false);
+  assert.equal(closeBells(h).length, 0);
+});
+
+test('background time is excluded and bringing the page back never silently resumes', () => {
+  const h = harness({ session: true, silentBells: true });
+  start(h, 'breath', 180); h.clock.advance(11000);
+  const before = h.el('session-timer').textContent;
+  h.visibility('hidden');
+  assert.equal(h.el('pause-dialog').open, true); assert.equal(h.clock.tasks.size, 0);
+  const count = h.bells.length;
+  h.clock.advance(3600000); h.click('#resume-session');
+  assert.equal(h.el('pause-dialog').open, true); assert.equal(h.bells.length, count);
+  assert.equal(h.el('session-timer').textContent, before);
+  h.visibility('visible'); h.clock.advance(2000);
+  assert.equal(h.el('pause-dialog').open, true); assert.equal(h.el('session-timer').textContent, before);
+  h.click('#resume-session'); h.clock.advance(1000);
+  assert.equal(h.el('session-timer').textContent, '02:48');
+});
+
+test('comparison waits for an explicit prediction and each rating, including zero, unclear and skip', () => {
+  const h = harness({ session: true, silentBells: true });
+  compareStart(h);
+  h.click('#continue-step'); h.clock.advance(120000);
+  assert.equal(h.el('session-timer').textContent, '04:00');
+  assert.match(h.el('session-step').textContent, /^Step 1 of 9\b/);
+  assert.equal(h.clock.tasks.size, 0); assert.equal(h.bells.length, 0);
+  choose(h, 'same'); assert.equal(h.el('continue-step').disabled, false);
+  h.click('#continue-step');
+  for (const [index, value] of [0, 2, 'unclear', 'skip'].entries()) {
+    h.clock.advance(60000);
+    assert.equal(h.el('continue-step').hidden, false); assert.equal(h.el('continue-step').disabled, true);
+    assert.equal(h.el('breath-visual').hidden, true); assert.equal(h.clock.tasks.size, 0);
+    const remaining = h.el('session-timer').textContent;
+    h.clock.advance(45000);
+    assert.equal(h.el('session-timer').textContent, remaining);
+    choose(h, value);
+    assert.equal(h.el('continue-step').disabled, false, `round ${index + 1} accepts ${value}`);
+    h.click('#continue-step');
   }
-  assert.equal(c.s2.rem, 660); assert.equal(h.el('s2s-progress-fill').style.width, '26.67%');
+  assert.equal(h.el('screen-finish').hidden, false);
+  assert.equal(h.el('finish-summary').textContent, 'You practised for 04:00.');
+  const results = h.el('finish-results').textContent;
+  assert.match(results, /1 of 5/); assert.match(results, /3 of 5/); assert.match(results, /Not clear/); assert.match(results, /Skipped/);
+  assert.equal(h.el('finish-results').children.length, 5, 'one prediction and four reports, no derived medical score');
+  assert.doesNotMatch(results, /winner|coherence|vagal|hormone|accuracy|brainwave|improved|percent/i);
+  assert.equal(closeBells(h).length, 1); h.clock.advance(3000); assert.equal(closeBells(h).length, 2);
+  h.clock.advance(30000); assert.equal(closeBells(h).length, 2); assert.equal(h.clock.tasks.size, 0);
+  assert.deepEqual(h.externalCalls, []);
 });
 
-test('re-reading never changes either timer or plays a bell, and the next scheduled step exits peek', () => {
-  const h = harness({ session: true, silentBells: true }), c = h.context;
-  c.startStage2WithDuration(900); h.clock.advance(7000); const bells = h.bells.length;
-  c.peekStage2Dimension(5); h.clock.advance(320);
-  assert.equal(h.el('s2s-center').textContent, 'COHERENCE'); assert.equal(c.s2.lastDim, 0); assert.equal(c.s2.stepRem, 23);
-  assert.equal(h.document.querySelector('[data-dim="5"]').classList.contains('peek'), true); assert.equal(h.bells.length, bells);
-  h.clock.advance(3680); assert.equal(c.s2.rem, 889); assert.equal(c.s2.stepRem, 19);
-  c.peekStage2Dimension(5); h.clock.advance(320); assert.equal(c.s2.peek, null); assert.equal(h.el('s2s-center').textContent, 'LOCATION'); assert.equal(h.bells.length, bells);
-  c.peekStage2Dimension(6); h.clock.advance(18680);
-  assert.equal(c.s2.peek, null); assert.equal(c.s2.lastDim, 1); assert.equal(c.s2.stepRem, 30); assert.equal(c.s2.rem, 870);
-  assert.equal(h.document.querySelectorAll('.s2s-chip').some(chip => chip.classList.contains('peek')), false);
-  h.clock.advance(320); assert.equal(h.el('s2s-center').textContent, 'QUALITY'); assert.equal(h.bells.length, bells + 1);
+test('waiting choices survive a pause without starting the next timed round', () => {
+  const h = harness({ session: true, silentBells: true });
+  compareStart(h); choose(h, 'unclear');
+  h.click('#pause-session'); h.clock.advance(15000); h.click('#resume-session');
+  assert.equal(h.el('continue-step').disabled, false);
+  assert.match(h.el('session-step').textContent, /^Step 1 of 9\b/); assert.equal(h.clock.tasks.size, 0);
+  assert.equal(h.document.querySelector('[data-choice="unclear"]').getAttribute('aria-pressed'), 'true');
+  h.click('#continue-step'); assert.match(h.el('session-step').textContent, /^Step 2 of 9\b/);
 });
 
-test('rapid peeks keep only the latest prompt, and End prevents delayed writes into the start screen', () => {
-  const h = harness({ session: true, silentBells: true }), c = h.context;
-  c.startStage2WithDuration(900); h.clock.advance(1000);
-  c.peekStage2Dimension(1); h.clock.advance(100); c.peekStage2Dimension(4); h.clock.advance(100); c.peekStage2Dimension(6); h.clock.advance(320);
-  assert.equal(h.el('s2s-center').textContent, 'MEANING-TONE'); assert.equal(h.el('s2s-prompt').innerHTML, h.evaluate('S2_DIMENSIONS[6].prompt'));
-  c.peekStage2Dimension(0); c.endStage2Session(); const prompt = h.el('s2s-prompt').innerHTML, rem = c.s2.rem, count = h.bells.length;
-  h.clock.advance(35000); assert.equal(h.el('s2s-prompt').innerHTML, prompt); assert.equal(c.s2.rem, rem); assert.equal(h.bells.length, count);
-  assert.equal(h.clock.tasks.size, 0); assert.equal(h.el('s2-start').classList.contains('is-hidden'), false);
+test('old choice clicks cannot answer a later step or reopen a finished session', () => {
+  const h = harness({ session: true, silentBells: true });
+  start(h, 'body', 240); h.clock.advance(60000);
+  const stale = h.document.querySelector('[data-choice="0"]'); assert.ok(stale);
+  h.clock.advance(30000); stale.click();
+  assert.equal(h.el('step-title').textContent, 'How sure are you?');
+  assert.equal(h.el('step-feedback').textContent, '');
+  choose(h, 'high'); h.click('#end-session');
+  assert.match(h.el('finish-results').textContent, /Very sure/);
+  assert.doesNotMatch(h.el('finish-results').textContent, /None|How strong/);
+  stale.click(); assert.equal(h.el('screen-finish').hidden, false);
 });
 
-test('screen changes and pagehide stop both stages and cancel completion bells', () => {
-  const h = harness({ session: true, silentBells: true }), c = h.context;
-  c.startWithDuration(900); h.clock.advance(100); c.showStage2Preview(); const rem = c.s1.rem;
-  h.clock.advance(10000); assert.equal(c.s1.rem, rem); assert.equal(c.s1.active, false);
-  c.startStage2WithDuration(900); h.clock.advance(30000); c.showInstructions(); assert.equal(c.s2.active, false);
-  c.startWithDuration(900); h.clock.advance(900000); c.restartToIntro(); const count = h.bells.length;
-  h.clock.advance(4000); assert.equal(h.bells.length, count, 'return cancels the pending second completion bell');
-  c.startStage2WithDuration(900); c.peekStage2Dimension(3); h.emit('pagehide'); const afterExit = h.bells.length;
-  h.clock.advance(40000); assert.equal(h.bells.length, afterExit); assert.equal(h.clock.tasks.size, 0); assert.equal(c.s1.active, false); assert.equal(c.s2.active, false);
+test('Go further reveals one question without restarting practice or recording private text', () => {
+  const h = harness({ session: true, silentBells: true });
+  start(h, 'body', 240); h.clock.advance(1000);
+  const question = h.el('step-question').textContent;
+  h.click('#deeper-step summary'); assert.equal(h.el('deeper-step').open, true);
+  assert.ok(question.length > 0); assert.equal(h.el('session-timer').textContent, '03:59');
+  h.clock.advance(29000);
+  assert.equal(h.el('deeper-step').open, false, 'the next step starts with its optional question collapsed');
+  assert.notEqual(h.el('step-question').textContent, question);
+  assert.equal(h.document.querySelectorAll('textarea,input[type="text"],input[type="email"]').length, 0);
+  assert.deepEqual(h.externalCalls, []);
 });
 
-test('reduced motion keeps the exercise cadence and source prompts while skipping text fades', () => {
-  const h = harness({ session: true, silentBells: true, reducedMotion: true }), c = h.context;
-  c.startStage2WithDuration(900); assert.equal(h.el('s2s-center').textContent, 'LOCATION');
-  assert.equal(h.el('s2s-prompt').innerHTML, h.evaluate('S2_DIMENSIONS[0].prompt'));
-  h.clock.advance(30000); assert.equal(h.el('s2s-center').textContent, 'QUALITY'); assert.equal(c.s2.stepRem, 30);
-  c.startWithDuration(900); h.clock.advance(5000); assert.equal(h.el('breath-label').textContent, 'Exhale'); assert.equal(c.s1.rem, 895);
+test('natural completion plays one closing pair; early Finish plays none; leaving cancels a pending pair', () => {
+  const h = harness({ session: true, silentBells: true });
+  start(h, 'breath', 180); h.clock.advance(180000);
+  assert.equal(h.el('finish-title').textContent, 'Practice finished'); assert.equal(closeBells(h).length, 1);
+  h.click('#forget-session'); h.clock.advance(4000);
+  assert.equal(closeBells(h).length, 1, 'return cancels the second completion strike');
+  start(h, 'body', 240); h.clock.advance(1000); h.click('#end-session');
+  assert.equal(h.el('finish-title').textContent, 'You finished here');
+  h.clock.advance(30000); assert.equal(closeBells(h).length, 1); assert.equal(h.clock.tasks.size, 0);
 });
 
-test('real page controls invoke the supplied actions and native completion dismissal returns to Heart', () => {
-  const h = harness({ session: true, silentBells: true }), c = h.context;
-  const click = selector => { const target = h.document.querySelector(selector); assert.ok(target, selector); h.document.dispatchEvent({ type: 'click', target }); };
-  click('[data-call="showInstructions"]'); assert.equal(h.el('screen-instructions').classList.contains('hidden'), false);
-  click('#s1-start [data-call="startWithDuration"][data-value="900"]'); assert.equal(c.s1.active, true);
-  click('#s1-live [data-call="endSession"]'); assert.equal(c.s1.active, false);
-  c.restartToIntro(); click('[data-call="showStage2Preview"]');
-  click('#s2-start [data-call="startStage2WithDuration"][data-value="900"]');
-  click('[data-call="peekStage2Dimension"][data-value="4"]'); assert.equal(c.s2.peek, 4);
-  h.clock.advance(900000); assert.equal(h.el('stage2-completion').open, true);
-  let prevented = false; h.el('stage2-completion').dispatchEvent({ type: 'cancel', preventDefault() { prevented = true; } });
-  assert.equal(prevented, true); assert.equal(h.el('stage2-completion').open, false); assert.equal(h.el('screen-heart').classList.contains('hidden'), false);
+test('mute cancels active audio and pending test cues while practice keeps time', () => {
+  const h = harness({ session: true });
+  h.click('[data-open="breath"]'); h.click('[data-call="testBell"]');
+  assert.equal(h.context._heartCueTimers.size, 1);
+  h.click('#start-breath');
+  assert.equal(h.context._heartCueTimers.size, 0, 'new session cancels the preview second bell');
+  assert.equal(h.context.getHeartAudioState().soundActive, true);
+  h.click('#sound-toggle');
+  assert.equal(h.el('sound-toggle').textContent, 'Use sound');
+  assert.equal(h.el('sound-toggle').getAttribute('aria-pressed'), 'false');
+  assert.equal(h.context.getHeartAudioState().soundActive, false);
+  const count = h.contexts[0].nodes.length;
+  h.clock.advance(10000); assert.equal(h.contexts[0].nodes.length, count);
+  assert.equal(h.el('session-timer').textContent, '04:50');
+  h.click('#sound-toggle'); assert.equal(h.context.getHeartAudioState().padActive, true);
+  h.click('#end-session'); h.click('#forget-session');
+  assert.equal(h.context.getHeartAudioState().soundActive, false); assert.equal(h.clock.tasks.size, 0);
+});
+
+test('unavailable or blocked sound never prevents practice, pause, or finishing', async () => {
+  for (const options of [{ unavailableAudio: true }, { initialState: 'suspended', rejectResume: true }]) {
+    const h = harness({ session: true, ...options });
+    start(h, 'breath', 180);
+    for (let turn = 0; turn < 6; turn++) await Promise.resolve();
+    assert.equal(h.context.getHeartAudioState().soundActive, false);
+    h.clock.advance(1000); assert.equal(h.el('session-timer').textContent, '02:59');
+    h.click('#pause-session'); h.clock.advance(10000); h.click('#resume-session');
+    h.clock.advance(1000); assert.equal(h.el('session-timer').textContent, '02:58');
+    h.click('#end-session'); assert.equal(h.el('screen-finish').hidden, false);
+    h.click('#forget-session'); assert.equal(h.clock.tasks.size, 0);
+  }
+});
+
+test('return, restart and pagehide clear answers, reflections and all owned cues', () => {
+  const h = harness({ session: true, silentBells: true });
+  start(h, 'body', 240); h.clock.advance(60000); choose(h, 0); h.click('#end-session');
+  assert.match(h.el('finish-results').textContent, /None/);
+  h.click('[data-feeling="less"]'); assert.ok(h.el('finish-response').textContent.length > 0);
+  h.click('#try-again');
+  assert.equal(h.el('finish-results').children.length, 0); assert.equal(h.el('finish-response').textContent, '');
+  assert.ok(h.document.querySelectorAll('[data-feeling]').every(button => button.getAttribute('aria-pressed') === 'false'));
+  h.click('#start-body'); h.clock.advance(60000); choose(h, 1);
+  h.emit('pagehide'); const count = h.bells.length;
+  h.clock.advance(300000);
+  assert.equal(h.el('screen-heart').hidden, false); assert.equal(h.el('step-choices').children.length, 0);
+  assert.equal(h.el('finish-results').children.length, 0); assert.equal(h.bells.length, count);
+  assert.equal(h.clock.tasks.size, 0); assert.deepEqual(h.externalCalls, []);
+  start(h, 'body', 240); h.click('#end-session'); assert.equal(h.el('finish-results').textContent, '');
+});
+
+test('both exercises link their research, keep valid return navigation, and expose no physiological score output', () => {
+  const document = documentFixture();
+  for (const id of ['screen-breath', 'screen-body']) {
+    const references = document.getElementById(id).querySelectorAll('a[href]');
+    assert.ok(references.length > 0, `${id} offers research links`);
+    for (const link of references) {
+      assert.equal(new URL(link.getAttribute('href')).protocol, 'https:');
+      if (link.getAttribute('target') === '_blank') assert.match(link.getAttribute('rel'), /noopener/);
+    }
+  }
+  assert.equal(document.querySelector('.heart-home').getAttribute('href'), '../../?return=machine-heart');
+  assert.equal(document.querySelectorAll('iframe').length, 0);
+  const scoreFields = document.querySelectorAll('output,progress').map(node => node.id || node.className);
+  assert.ok(scoreFields.every(name => name === 'session-progress' || name === 'bell-vol-val'));
+  assert.equal(document.getElementById('session-timer').getAttribute('role'), 'timer');
+  assert.equal(document.getElementById('pause-dialog').getAttribute('aria-describedby'), 'pause-message');
+});
+
+test('hiding the page at the completion boundary cannot trigger background completion bells', () => {
+  const h = harness({ session: true, silentBells: true });
+  start(h, 'breath', 180); h.clock.advance(179750);
+  // Simulate visibilitychange arriving before the interval queued at the same
+  // deadline, as can happen when a browser backgrounds a page.
+  h.clock.now += 250; h.visibility('hidden');
+  assert.equal(h.el('screen-finish').hidden, false);
+  assert.equal(closeBells(h).length, 0); assert.equal(h.clock.tasks.size, 0);
+  h.clock.advance(10000); h.visibility('visible');
+  assert.equal(closeBells(h).length, 0);
+});
+
+test('comparison reports changes to pace, sound and pauses alongside raw answers', () => {
+  const h = harness({ session: true, silentBells: true });
+  compareStart(h); choose(h, 'skip'); h.click('#continue-step');
+  h.clock.advance(5000); h.click('#pause-session'); h.click('#resume-session');
+  h.click('#own-breath'); h.click('#sound-toggle');
+  h.clock.advance(55000); choose(h, 0); h.click('#end-session');
+  const report = h.el('finish-results').textContent;
+  assert.match(report, /1 of 5/);
+  assert.match(report, /Pauses: 1/); assert.match(report, /Sound changes: 1/); assert.match(report, /Breath guide changes: 1/);
+  assert.equal(closeBells(h).length, 0);
+  assert.deepEqual(h.externalCalls, []);
 });
