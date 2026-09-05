@@ -8,6 +8,51 @@ function svgElement(name, attributes = {}) {
   return element;
 }
 
+export function portalFramePaths(kind, width, height) {
+  const inset = 1.5;
+  const left = kind !== "maker";
+  const right = kind !== "machine";
+  const bevel = Math.min(13, width / 8, height / 3);
+  const x0 = inset;
+  const x1 = width - inset;
+  const y0 = inset;
+  const y1 = height - inset;
+  const start = left ? bevel + inset : x0;
+  const end = right ? width - bevel - inset : x1;
+  const points = [
+    [start, y0], [end, y0],
+    ...(right ? [[x1, height / 2], [end, y1]] : [[x1, y1]]),
+    [start, y1], ...(left ? [[x0, height / 2]] : [])
+  ];
+  return {
+    outline: `M${points.map((point) => point.join(",")).join("L")}Z`,
+    light: `M${start + 2},${y0 + 1.5}H${end - 2}`,
+    accent: `M${width * 0.36},${y1 - 3}H${width * 0.64}`
+  };
+}
+
+function initializePortalFrames() {
+  const frames = [...document.querySelectorAll(".portal-frame")];
+  const update = (frame) => {
+    const { width, height } = frame.parentElement.getBoundingClientRect();
+    if (width < 30 || height < 12) return;
+    const paths = portalFramePaths(frame.closest("[data-portal]").dataset.portal, width, height);
+    frame.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    for (const [name, d] of Object.entries(paths)) {
+      frame.querySelector(`.portal-frame-${name}`).setAttribute("d", d);
+    }
+  };
+  frames.forEach(update);
+  if (typeof ResizeObserver !== "undefined") {
+    const observer = new ResizeObserver((entries) => {
+      entries.forEach(({ target }) => update(target.querySelector(".portal-frame")));
+    });
+    frames.forEach((frame) => observer.observe(frame.parentElement));
+  } else {
+    window.addEventListener("resize", () => frames.forEach(update), { passive: true });
+  }
+}
+
 export function convexHull(points) {
   if (points.length < 3) return points;
   points.sort((a, b) => a.x - b.x || a.y - b.y);
@@ -138,6 +183,8 @@ export function attachPortalDepth(unity) {
 }
 
 if (typeof window !== "undefined") {
+  // Panel outlines remain available even when the WebGL scene cannot start.
+  initializePortalFrames();
   const start = () => {
     const unity = window.__DREAM_UNITY__?.scene;
     if (unity) attachPortalDepth(unity);
