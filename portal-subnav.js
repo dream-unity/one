@@ -291,10 +291,22 @@
     renderMind: renderMindDomains
   };
 
+  function revealMachinePanel() {
+    document.body.dataset.worldSelected = "true";
+    worldPanel?.style.setProperty("--unity", "#4e91ef");
+    worldPanel?.classList.add("is-visible");
+    worldPanel?.setAttribute("aria-hidden", "false");
+    document.querySelectorAll("[data-portal]").forEach((portal) => {
+      portal.classList.toggle("is-active", portal.dataset.portal === "machine");
+    });
+    setPortalExpansion("machine");
+  }
+
   function restoreModelContext() {
     if (returnTarget !== "machine-mind-model") return;
 
     window.__DREAM_UNITY__?.focus?.("machine");
+    revealMachinePanel();
     renderMindDomains();
     const modelButton = worldSteps.querySelector('[data-domain="model"]');
     if (modelButton) {

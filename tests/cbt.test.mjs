@@ -47,6 +47,9 @@ test("CBT is the visible Model experience and the former URL remains compatible"
   assert.match(html, /CBT is a structured way to examine how a situation/);
   assert.match(navigation, /new URL\("\.\/exercises\/cbt\/"/);
   assert.match(navigation, /machine-mind-model/);
+  assert.match(navigation, /function revealMachinePanel\(\)/);
+  assert.match(navigation, /worldPanel\?\.classList\.add\("is-visible"\)/);
+  assert.match(navigation, /worldPanel\?\.setAttribute\("aria-hidden", "false"\)/);
   assert.match(legacy, /url=\.\.\/cbt\//);
   assert.doesNotMatch(`${html}\n${app}\n${engine}\n${navigation}\n${legacy}`, /Model Forge/i);
 });
