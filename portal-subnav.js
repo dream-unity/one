@@ -105,7 +105,7 @@
     document.body.dataset.domainSelected = `${world}:${domain.toLowerCase()}`;
     emitSelection(world, domain);
     if (world === "machine" && domain === "HEART") {
-      window.location.href = new URL("./exercises/heart/?v=heart-research-20260905-1", document.baseURI).href;
+      window.location.href = new URL("./exercises/heart/?v=heart-research-20260905-2", document.baseURI).href;
     } else if (world === "machine" && domain === "MIND") {
       renderMindDomains();
       worldTitle?.focus({ preventScroll: true });

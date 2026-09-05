@@ -164,10 +164,17 @@
     if (session.status === 'ended') { finishView(false); return; }
     var step = engine.currentStep(session); if (!step) return;
     var changed = shownStep !== step.id;
+    if (changed || force) {
+      var unpacedStart = step.id === 'breath-settle' && (ownBreath || Number(step.pace) === 0);
+      var prompt = unpacedStart ? 'Let your breath stay small and easy. There is no pace to match. Notice one breath at a time.' : step.prompt;
+      if (ownBreath || Number(step.pace) === 0) prompt = prompt.replace('Follow the guide only if it feels comfortable.', 'Let your breath use its own pace.');
+      var question = unpacedStart ? 'Can you notice your breath without trying to change it?' : step.question;
+      text('step-prompt', prompt); text('step-question', question || '');
+      var deeper = el('deeper-step'); if (deeper) { deeper.hidden = !question; if (changed) deeper.open = false; }
+    }
     if (changed) {
       shownStep = step.id; phaseKey = null;
-      text('step-title', step.title); text('step-prompt', step.prompt); text('step-question', step.question || '');
-      var deeper = el('deeper-step'); if (deeper) { deeper.hidden = !step.question; deeper.open = false; }
+      text('step-title', step.title);
       text('step-feedback', ''); drawChoices(step);
       if (kind() === 'body' && session.status === 'running' && soundOn && !document.hidden) breathBell('inhale');
     }
@@ -184,7 +191,10 @@
     syncBall(step, force || changed);
     if (waiting) {
       clearTick(); hush();
-      if (changed) focus(el('step-title'));
+      if (changed) {
+        if (kind() === 'compare') window.scrollTo(0, 0);
+        focus(el('step-title'));
+      }
     }
   }
   function pausePractice(reason) {
@@ -212,7 +222,10 @@
     if (!session || session.status !== 'waiting' || !button || document.hidden) return;
     engine.continueStep(session, now(), button.dataset.stepId);
     render(true); runClock();
-    if (session && session.status === 'running') focus(el('pause-session'));
+    if (session && session.status === 'running') {
+      window.scrollTo(0, 0);
+      focus(el('pause-session'));
+    }
   }
   function endPractice() {
     if (!session) return;
