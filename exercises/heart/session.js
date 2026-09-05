@@ -38,7 +38,8 @@ function showHeartCompletion(id){
   if(!el) return;
   el.classList.add('show');
   if(!el.open && typeof el.showModal === 'function') el.showModal();
-  heartFocus(el.querySelector('button'));
+  el.scrollTop = 0;
+  heartFocus($(el.getAttribute('aria-labelledby')) || el.querySelector('button'));
 }
 function stopHeartSessions(options){
   s1Stop();

@@ -1,5 +1,5 @@
 /* Exercise-local styles. Dream Unity's global stylesheet and scene are unchanged. */
-body.heart-page { margin:0; min-width:320px; background:radial-gradient(ellipse at 8% 0%,#dfe9ff88,transparent 42%),radial-gradient(ellipse at 93% 22%,#e6defc77,transparent 42%),#f4f6fc; }
+body.heart-page { margin:0; min-width:320px; min-height:100vh; background:radial-gradient(ellipse at 8% 0%,#dfe9ff88,transparent 42%),radial-gradient(ellipse at 93% 22%,#e6defc77,transparent 42%),#f4f6fc; }
 #heart-training { --bg:#f4f6fc; --surface:#fff; --ink:#28314b; --muted:#546078; --line:#c9d1e4; --accent:#6653a6; --accent-soft:#eeebfa; --focus:#2863b6; color:var(--ink); font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:20px; line-height:1.65; -webkit-text-size-adjust:100%; -webkit-font-smoothing:antialiased; }
 #heart-training *, #heart-training *::before, #heart-training *::after { box-sizing:border-box; }
 #heart-training h1, #heart-training h2, #heart-training h3, #heart-training p { margin:0; }
@@ -122,7 +122,6 @@ body.heart-page { margin:0; min-width:320px; background:radial-gradient(ellipse 
 #heart-training .restart-btn, #heart-training .s2c-btn { background:var(--accent); color:#fff; border-color:var(--accent); }
 #heart-training .heart-skip { position:fixed; z-index:100; top:12px; left:16px; padding:14px 18px; background:#fff; border:2px solid var(--focus); border-radius:12px; opacity:0; pointer-events:none; }
 #heart-training .heart-skip:focus { opacity:1; pointer-events:auto; }
-#heart-training .heart-audio-status { max-width:788px; margin:0 auto 24px; padding:16px; font-size:16px; color:var(--muted); }
 @media(min-width:680px) { #heart-training .s2-modules { grid-template-columns:1fr 1fr; } }
 @media(max-width:1320px) { #heart-training .heart-topbar { margin-left:26px; margin-right:26px; } }
 @media(max-width:600px) {

@@ -98,7 +98,7 @@ class Element {
   closest(selector) { return this.matches(selector) ? this : this.parentElement?.closest(selector) || null; }
   querySelectorAll(selector) { return this.children.flatMap(child => [child, ...child.querySelectorAll('*')]).filter(child => selector === '*' || child.matches(selector)); }
   querySelector(selector) { return this.querySelectorAll(selector)[0] || null; }
-  focus() { this.focused = true; }
+  focus() { this.focused = true; let root = this; while (root.parentElement) root = root.parentElement; root.activeElement = this; }
   scrollIntoView() {}
   showModal() { this.open = true; }
   close() { this.open = false; }
@@ -184,6 +184,10 @@ test('bell volume is remembered separately for all seven options and 150% means 
   assert.equal(c.WAVE_HZ, 10); assert.equal(c.WAVE_ON, true);
   for (const hz of [0, 1, 2, 3, 8, 10, 12]) {
     c.setWave(hz); assert.equal(c.bellVol(), hz > 0 && hz < 5 ? 0.48 : 1);
+    for (const button of h.document.querySelectorAll('.rate-btn')) {
+      assert.equal(button.getAttribute('aria-pressed'), String(Number(button.dataset.hz) === hz));
+      assert.equal(button.classList.contains('on'), Number(button.dataset.hz) === hz);
+    }
     c.setBellVol((hz + 1) / 10);
   }
   for (const hz of [0, 1, 2, 3, 8, 10, 12]) { c.setWave(hz); assert.equal(c.bellVol(), (hz + 1) / 10); }
@@ -300,6 +304,7 @@ for (const seconds of [900, 1800, 3600, 7200, 10800]) test(`Stage One runs the f
   assert.equal(c.s1.rem, 0); assert.equal(c.s1.active, false);
   assert.equal(h.el('session-timer').textContent, '00:00'); assert.equal(h.el('progress-fill').style.width, '100.00%');
   assert.equal(h.el('completion').open, true);
+  assert.equal(h.document.activeElement, h.el('completion-title'), 'completion opens at its message heading rather than scrolling to its bottom button');
   const closing = () => h.bells.filter(bell => bell.decay > 8);
   assert.deepEqual(closing(), [{ at: seconds * 1000, fund: 392, peak: 0.13, decay: 8.5 }]);
   h.clock.advance(3000);
@@ -366,6 +371,7 @@ for (const seconds of [900, 1800, 3600]) test(`Stage Two rotates for the complet
   assert.equal(c.s2.active, false); assert.equal(c.s2.tick, null); assert.equal(c.s2.rem, 0);
   assert.equal(h.el('s2s-timer').textContent, '00:00'); assert.equal(h.el('s2s-progress-fill').style.width, '100.00%');
   assert.equal(h.el('stage2-completion').open, true);
+  assert.equal(h.document.activeElement, h.el('stage2-completion-title'), 'the long completion message starts at its heading on narrow screens');
   h.clock.advance(3000);
   assert.deepEqual(h.bells.filter(b => b.decay > 8), [{ at: seconds * 1000, fund: 392, peak: 0.13, decay: 8.5 }, { at: (seconds + 3) * 1000, fund: 293.66, peak: 0.11, decay: 9.5 }]);
   h.clock.advance(30000); assert.equal(h.clock.tasks.size, 0);

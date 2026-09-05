@@ -215,7 +215,9 @@ function setWave(hz, btn){
   else { WAVE_ON = true; WAVE_HZ = Math.max(0.5, Math.min(12, hz)); }
   document.querySelectorAll('.rate-btn').forEach(function(b){
     var v = parseFloat(b.dataset.hz) || 0;
-    b.classList.toggle('on', v <= 0 ? !WAVE_ON : (WAVE_ON && v === WAVE_HZ));
+    var on = v <= 0 ? !WAVE_ON : (WAVE_ON && v === WAVE_HZ);
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
   });
   syncBellVolUI();                         // show this option's saved bell volume
 }
