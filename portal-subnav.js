@@ -8,6 +8,7 @@
   };
 
   const MACHINE_MIND_DOMAINS = ["PERCEIVE", "MODEL", "PREDICT"];
+  const returnTarget = new URLSearchParams(window.location.search).get("return");
 
   const WORLD_NAMES = {
     machine: "Dream Machine",
@@ -195,7 +196,7 @@
 
     if (domain === "MODEL") {
       window.setTimeout(() => {
-        window.location.href = new URL("./exercises/model-forge/", document.baseURI).href;
+        window.location.href = new URL("./exercises/cbt/", document.baseURI).href;
       }, 110);
     }
   }
@@ -289,4 +290,27 @@
     render: renderDomainButtons,
     renderMind: renderMindDomains
   };
+
+  function restoreModelContext() {
+    if (returnTarget !== "machine-mind-model") return;
+
+    window.__DREAM_UNITY__?.focus?.("machine");
+    renderMindDomains();
+    const modelButton = worldSteps.querySelector('[data-domain="model"]');
+    if (modelButton) {
+      modelButton.setAttribute("aria-pressed", "true");
+      document.body.dataset.domainSelected = "machine:mind:model";
+      modelButton.focus({ preventScroll: true });
+    }
+    if (worldDescription) {
+      worldDescription.textContent = "Model is ready. Cognitive Behavioural Therapy (CBT) practises how to trace interpretations, test explanations and update only what evidence changes.";
+    }
+
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.searchParams.delete("return");
+    cleanUrl.searchParams.delete("focus");
+    window.history.replaceState({}, "", `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
+  }
+
+  window.setTimeout(restoreModelContext, 0);
 })();

@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en-AU">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#f5f7fb" />
+    <meta name="referrer" content="no-referrer" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'"
+    />
+    <meta
+      name="description"
+      content="Cognitive Behavioural Therapy (CBT) — fictional, privacy-preserving skills practice inside Dream Unity."
+    />
+    <title>Cognitive Behavioural Therapy (CBT) · Dream Unity</title>
+    <link rel="stylesheet" href="./styles.css?v=cbt-v2" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='none' stroke='%236b63a8' stroke-width='3' d='M32 3 51 32 32 61 13 32zM32 3v58M13 32h38'/%3E%3C/svg%3E"
+    />
+  </head>
+  <body>
+    <a class="skip-link" href="#screen">Skip to the current exercise</a>
+
+    <div class="ambient-field" aria-hidden="true">
+      <div class="ambient-orbit ambient-orbit-a"></div>
+      <div class="ambient-orbit ambient-orbit-b"></div>
+      <div class="ambient-node ambient-node-a"></div>
+      <div class="ambient-node ambient-node-b"></div>
+      <div class="ambient-node ambient-node-c"></div>
+    </div>
+
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="breadcrumb" href="../../?return=machine-mind-model" id="returnTop" aria-label="Return to Dream Unity, Dream Machine, Mind, Model">
+          <span class="brand-crystal" aria-hidden="true"><i></i><i></i></span>
+          <span>DREAM MACHINE <b>·</b> MIND <b>·</b> MODEL</span>
+        </a>
+
+        <div class="top-actions" id="topActions" hidden>
+          <button class="quiet-button" type="button" id="referenceButton" aria-expanded="false">Reference</button>
+          <button class="quiet-button" type="button" id="changeSceneButton">Change scene</button>
+          <button class="quiet-button" type="button" id="helpButton">Help</button>
+          <button class="quiet-button" type="button" id="pauseButton">Pause</button>
+        </div>
+      </header>
+
+      <main>
+        <section class="identity" aria-labelledby="experienceTitle">
+          <p class="identity-kicker">Dream Unity · Cognitive skills practice</p>
+          <h1 id="experienceTitle">Cognitive Behavioural Therapy <span>(CBT)</span></h1>
+          <p class="identity-intro">
+            CBT is a structured way to examine how a situation, the meaning given to it, feelings and body responses,
+            and actions affect one another. Here you practise that process through fictional cases—without entering a personal story.
+          </p>
+        </section>
+
+        <section class="practice-frame" id="practiceFrame" aria-label="CBT practice">
+          <div class="session-rail" id="sessionRail" hidden>
+            <div class="phase-map" aria-label="Session phases">
+              <span data-phase="trace"><b>01</b> Trace</span>
+              <i aria-hidden="true"></i>
+              <span data-phase="test"><b>02</b> Test</span>
+              <i aria-hidden="true"></i>
+              <span data-phase="update"><b>03</b> Update</span>
+              <i aria-hidden="true"></i>
+              <span data-phase="transfer"><b>04</b> Transfer</span>
+            </div>
+
+            <div class="session-status">
+              <button class="timer" id="timerButton" type="button" aria-label="Change time display">
+                <svg viewBox="0 0 44 44" aria-hidden="true">
+                  <circle class="timer-track" cx="22" cy="22" r="18"></circle>
+                  <circle class="timer-value" id="timerArc" cx="22" cy="22" r="18"></circle>
+                </svg>
+                <span id="timerText">8 min</span>
+              </button>
+              <span class="screen-count" id="screenCount">1 of 21</span>
+            </div>
+          </div>
+
+          <div class="reference-tray" id="referenceTray" hidden>
+            <div>
+              <p>Reference tray</p>
+              <strong>Review note: “These need work.”</strong>
+              <span>Two components marked · Review due 16:00</span>
+            </div>
+            <button type="button" id="closeReference">Close</button>
+          </div>
+
+          <section id="screen" class="screen" tabindex="-1" aria-live="polite" aria-atomic="false"></section>
+        </section>
+
+        <p class="safety-line">
+          CBT skills practice for adults. Fictional material only. Not diagnosis, crisis support, or a substitute for professional care.
+          <button type="button" id="supportButton">Need support?</button>
+        </p>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <div class="modal-layer" id="settingsModal" hidden>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle" tabindex="-1">
+        <div class="modal-head">
+          <div><p>Display and pacing</p><h2 id="settingsTitle">Settings</h2></div>
+          <button class="icon-button" type="button" data-close-modal aria-label="Close settings">×</button>
+        </div>
+        <div class="settings-grid">
+          <fieldset><legend>Pacing</legend><label><input type="radio" name="pacing" value="clock" /> Session clock</label><label><input type="radio" name="pacing" value="pace" /> At my pace</label></fieldset>
+          <fieldset><legend>Time display</legend><label><input type="radio" name="timeDisplay" value="arc" /> Quiet arc</label><label><input type="radio" name="timeDisplay" value="exact" /> Exact time</label><label><input type="radio" name="timeDisplay" value="hidden" /> Hidden</label></fieldset>
+          <fieldset><legend>Motion</legend><label><input type="radio" name="motion" value="standard" /> Standard</label><label><input type="radio" name="motion" value="reduced" /> Reduced</label><label><input type="radio" name="motion" value="static" /> Static</label></fieldset>
+          <fieldset><legend>Text size</legend><label><input type="radio" name="textScale" value="100" /> 100%</label><label><input type="radio" name="textScale" value="125" /> 125%</label><label><input type="radio" name="textScale" value="150" /> 150%</label><label><input type="radio" name="textScale" value="200" /> 200%</label></fieldset>
+          <fieldset><legend>Contrast</legend><label><input type="radio" name="contrast" value="standard" /> Standard</label><label><input type="radio" name="contrast" value="high" /> High</label></fieldset>
+          <fieldset><legend>Scene intensity</legend><label><input type="radio" name="intensity" value="gentle" /> Gentle</label><label><input type="radio" name="intensity" value="standard" /> Standard</label></fieldset>
+          <fieldset><legend>Sound</legend><label><input type="checkbox" name="sound" /> Quiet transition cue</label><p>No speech or microphone.</p></fieldset>
+        </div>
+        <div class="modal-actions modal-actions-split">
+          <button class="text-button" type="button" id="eraseProgress">Erase saved practice data</button>
+          <button class="primary-button" type="button" id="saveSettings">Apply settings</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="modal-layer" id="helpModal" hidden>
+      <section class="modal modal-narrow" role="dialog" aria-modal="true" aria-labelledby="helpTitle" tabindex="-1">
+        <div class="modal-head">
+          <div><p>Smallest useful cue</p><h2 id="helpTitle">Help</h2></div>
+          <button class="icon-button" type="button" data-close-modal aria-label="Close help">×</button>
+        </div>
+        <div id="helpContent" class="modal-copy"></div>
+        <div class="modal-actions"><button class="primary-button" type="button" data-close-modal>Return to the exercise</button></div>
+      </section>
+    </div>
+
+    <div class="modal-layer" id="pauseModal" hidden>
+      <section class="modal modal-narrow" role="dialog" aria-modal="true" aria-labelledby="pauseTitle" tabindex="-1">
+        <div class="modal-head"><div><p>Session paused</p><h2 id="pauseTitle">Leave this session?</h2></div></div>
+        <p class="modal-copy">Leaving does not affect your progress.</p>
+        <div class="stacked-actions">
+          <button class="primary-button" type="button" id="continueButton">Continue practice</button>
+          <button class="secondary-button" type="button" id="keepExitButton">Keep on this device and exit</button>
+          <button class="text-button" type="button" id="forgetExitButton">End session and forget this attempt</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="modal-layer" id="sceneModal" hidden>
+      <section class="modal modal-narrow" role="dialog" aria-modal="true" aria-labelledby="sceneTitle" tabindex="-1">
+        <div class="modal-head">
+          <div><p>No explanation needed</p><h2 id="sceneTitle">Change the fictional scene</h2></div>
+          <button class="icon-button" type="button" data-close-modal aria-label="Close scene chooser">×</button>
+        </div>
+        <p class="modal-copy">Choose an equal-or-lower-intensity case. The current item will be marked not assessed.</p>
+        <div class="scene-choices">
+          <button type="button" data-scene="greenhouse"><strong>The Greenhouse Trial</strong><span>Gentle · condition and evidence</span></button>
+          <button type="button" data-scene="relay"><strong>The Silent Relay</strong><span>Gentle · ambiguity and source checking</span></button>
+        </div>
+      </section>
+    </div>
+
+    <div class="modal-layer" id="supportModal" hidden>
+      <section class="modal modal-narrow" role="dialog" aria-modal="true" aria-labelledby="supportTitle" tabindex="-1">
+        <div class="modal-head">
+          <div><p>Need support?</p><h2 id="supportTitle">Choose what helps now</h2></div>
+          <button class="icon-button" type="button" data-close-modal aria-label="Close support panel">×</button>
+        </div>
+        <p class="modal-copy">
+          This CBT exercise is skills practice, not crisis support or medical care. If you may be in immediate danger,
+          contact your local emergency service. You can leave immediately or open a maintained international support directory.
+        </p>
+        <div class="stacked-actions">
+          <a class="primary-button" href="https://findahelpline.com/" target="_blank" rel="noreferrer">Find local support</a>
+          <button class="secondary-button" type="button" data-close-modal>Return to practice</button>
+          <a class="text-button centred" href="../../?return=machine-mind-model">Exit to Dream Unity</a>
+        </div>
+      </section>
+    </div>
+
+    <noscript><div class="noscript">This interactive CBT exercise requires JavaScript.</div></noscript>
+    <script type="module" src="./app.js?v=cbt-v2"></script>
+  </body>
+</html>
