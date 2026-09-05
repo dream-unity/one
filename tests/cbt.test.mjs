@@ -1,206 +1,318 @@
-import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
-import { test } from "node:test";
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { pathToFileURL } from 'node:url';
+import { test } from 'node:test';
 
-import {
-  ACTIVE_SESSION_KEY,
-  FAMILIES,
-  GOLD,
-  PREFERENCES_KEY,
-  PROGRESS_KEY,
-  RESUME_SNAPSHOT_KEY,
-  SCENARIO_SCHEMA,
-  SESSION_PLANS,
-  advanceSession,
-  assistanceLevelFor,
-  chooseNextSkill,
-  createSession,
-  evaluateAction,
-  evaluateEvidence,
-  evaluateModel,
-  evaluateReassurance,
-  evaluateScope,
-  evaluateSort,
-  evaluateTest,
-  evaluateTransfer,
-  evaluateUpdate,
-  lockCausalWorld,
-  mergeSessionIntoProgress,
-  recordEvaluation,
-  resolveCausalWorld,
-  safeProgress,
-  selectNextFamily,
-  totalBudget
-} from "../exercises/cbt/engine.js";
+// CBT_TEST_ROOT is only needed when running this review copy outside tests/.
+const root = process.env.CBT_TEST_ROOT
+  ? pathToFileURL(`${process.env.CBT_TEST_ROOT.replace(/\/$/, '')}/`)
+  : new URL('../', import.meta.url);
+const engine = await import(new URL('exercises/cbt/engine.js', root));
+const { TRANSFER_CASES } = await import(new URL('exercises/cbt/scenarios.js', root));
+const {
+  VERSION, VARIANTS, WORLDS, EVIDENCE, ORIGINAL, SORT_CARDS, LOOP, STAGES,
+  createSession, probeResult, executeProbe, knowledgeFrom, warrantedStatement,
+  inspectTargets, evaluateSort, evaluateScope, evaluateLoop, evaluatePrediction,
+  evaluateInspect, evaluateUpdate, evaluateAction, evaluateTransfer, recordAttempt,
+  safeProgress, mergeProgress, assistanceFor, selectCases, completionSummary,
+  planFor, nextStage
+} = engine;
+const read = name => readFile(new URL(name, root), 'utf8');
+const make = (variant = 'local', extra = {}) => createSession({ variant, cases: TRANSFER_CASES, now: 1_800_000_000_000, ...extra });
+const commitPrediction = session => { session.prediction = { model: ['units'], forecast: 'units', counter: 'history' }; };
+const observed = (variant, probe = 'clarify') => { const session = make(variant); commitPrediction(session); executeProbe(session, probe); return session; };
+const action = { unit: 'mm', value: 200, columns: 4, practice: 30, question: 'criteria', returnWhen: 'new-or-review' };
+const withRandom = (value, fn) => { const old = Math.random; Math.random = () => value; try { return fn(); } finally { Math.random = old; } };
 
-const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
-
-test("CBT is the visible Model experience and the former URL remains compatible", async () => {
-  const [html, app, engine, navigation, legacy] = await Promise.all([
-    read("exercises/cbt/index.html"),
-    read("exercises/cbt/app.js"),
-    read("exercises/cbt/engine.js"),
-    read("portal-subnav.js"),
-    read("exercises/model-forge/index.html")
-  ]);
-  assert.match(html, /Cognitive Behavioural Therapy \(CBT\)/);
-  assert.match(html, /CBT is a structured way to examine how a situation/);
-  assert.match(navigation, /new URL\("\.\/exercises\/cbt\/"/);
-  assert.match(navigation, /machine-mind-model/);
-  assert.match(navigation, /function revealMachinePanel\(\)/);
-  assert.match(navigation, /worldPanel\?\.classList\.add\("is-visible"\)/);
-  assert.match(navigation, /worldPanel\?\.setAttribute\("aria-hidden", "false"\)/);
-  assert.match(legacy, /url=\.\.\/cbt\//);
-  assert.doesNotMatch(`${html}\n${app}\n${engine}\n${navigation}\n${legacy}`, /Model Forge/i);
+test('all 24 world/action combinations release only their authored source records', () => {
+  const direct = {
+    local: { rubric: ['L1', 'L2'], clarify: ['L1', 'L2', 'L3'] },
+    broader: { rubric: ['B1'], clarify: ['B1', 'B2', 'B3'] },
+    mixed: { rubric: ['M1', 'M2'], clarify: ['M1', 'M2', 'M3', 'M4'] },
+    unresolved: { rubric: ['U2'], clarify: ['U2', 'U3'] }
+  };
+  const other = { reassure: ['R1'], cosmetic: ['C1'], accuse: ['A1'], wait: ['W1'] };
+  assert.deepEqual(VARIANTS, Object.keys(direct));
+  for (const [variant, tests] of Object.entries(direct)) {
+    for (const [probe, expected] of Object.entries({ ...tests, ...other })) {
+      const response = probeResult(WORLDS[variant], probe);
+      assert.deepEqual(response.ids, expected, `${variant}/${probe} released the wrong evidence`);
+      assert.ok(response.effect.length > 10 && response.source.length > 3);
+      assert.ok(response.ids.every(id => EVIDENCE[id]));
+    }
+  }
+  assert.throws(() => probeResult(WORLDS.local, 'invent-a-reply'), /Unknown action/);
+  assert.throws(() => probeResult({ id: 'invent-a-world' }, 'clarify'), /Unknown authored world/);
 });
 
-test("the three session envelopes are exact complete cycles", () => {
-  const expected = new Map([[4, [17, 240]], [8, [21, 480]], [12, [25, 720]]]);
-  for (const [duration, [screens, seconds]] of expected) {
-    const plan = SESSION_PLANS[duration];
-    assert.equal(plan.length, screens);
-    assert.equal(totalBudget(plan), seconds);
-    assert.equal(plan[0].id, "MF8-01");
-    assert.equal(plan.at(-1).id, "MF8-21");
-    for (const requiredPhase of ["trace", "test", "update", "transfer", "close"]) {
-      assert.ok(plan.some((item) => item.phase === requiredPhase), `${duration} minutes omits ${requiredPhase}`);
-    }
+test('a forecast is required before a consequence appears; failure leaves state untouched', () => {
+  const session = make('mixed');
+  assert.throws(() => executeProbe(session, 'clarify'), /prediction before/);
+  assert.deepEqual(session.evidence, []);
+  assert.deepEqual(session.probes, []);
+  commitPrediction(session);
+  assert.deepEqual(executeProbe(session, 'rubric').ids, ['M1', 'M2']);
+});
+
+test('the initial world survives a contaminated probe and its single focused repair', () => {
+  for (const variant of VARIANTS) {
+    const session = make(variant), locked = session.world;
+    assert.ok(Object.isFrozen(locked) && Object.isFrozen(locked.full) && Object.isFrozen(locked.rubric));
+    const before = structuredClone(locked);
+    commitPrediction(session);
+    executeProbe(session, 'accuse');
+    assert.deepEqual(session.evidence, ['A1']);
+    executeProbe(session, 'clarify');
+    assert.equal(session.world, locked);
+    assert.deepEqual(session.world, before);
+    assert.deepEqual(session.evidence, ['A1', ...before.full]);
+    const evidenceBeforeThird = [...session.evidence];
+    assert.throws(() => executeProbe(session, 'clarify'), /One initial probe and one focused repair/);
+    assert.deepEqual(session.evidence, evidenceBeforeThird);
+    assert.equal(session.probes.length, 2);
   }
 });
 
-test("a repair replaces optional four-minute variation without removing transfer or closure", () => {
-  const session = createSession({ duration: 4, pacing: "clock" });
-  session.attempts["MF8-04"] = 2;
-  session.cursor = session.plan.findIndex((item) => item.id === "MF8-16");
-  assert.equal(advanceSession(session, Infinity), "MF8-18");
-  assert.ok(!session.plan.some((item) => item.id === "MF8-17"));
-  assert.ok(session.plan.some((item) => item.id === "MF8-19"));
-  assert.equal(session.plan.at(-1).id, "MF8-21");
+test('returned evidence arrays cannot rewrite the underlying world and duplicate cards are not new evidence', () => {
+  const result = probeResult(WORLDS.mixed, 'rubric');
+  result.ids.push('B2');
+  assert.deepEqual(probeResult(WORLDS.mixed, 'rubric').ids, ['M1', 'M2']);
+  const session = observed('local', 'rubric');
+  executeProbe(session, 'clarify');
+  assert.deepEqual(session.evidence, ['L1', 'L2', 'L3']);
 });
 
-test("the authored causal world rewards evidence accuracy rather than reassurance", () => {
-  const placements = Object.fromEntries(GOLD.sortCards.map((card) => [card.id, card.target]));
-  const evidence = Object.fromEntries(GOLD.evidenceRows.map((row) => [row.id, row.target]));
-  const updates = Object.fromEntries(GOLD.updateClaims.map((claim) => [claim.id, claim.target]));
-
-  assert.ok(evaluateSort(placements).pass);
-  assert.ok(evaluateScope(0).pass);
-  assert.ok(!evaluateScope(4).pass);
-  assert.ok(evaluateModel({ cause: "threshold", scope: "parts", unknowns: ["reviewer-opinion"] }).pass);
-  assert.ok(!evaluateModel({ cause: "broad-concern", scope: "role", unknowns: [] }).pass);
-  assert.ok(evaluateTest({ source: "reviewer", action: "ask-criteria", result: "specific-scope", stop: "one-answer" }).pass);
-  assert.ok(!evaluateTest({ source: "team-rumours", action: "ask-approval", result: "reassurance", stop: "until-certain" }).pass);
-  assert.ok(evaluateEvidence(evidence).pass);
-  assert.ok(evaluateUpdate(updates).pass);
-  assert.ok(evaluateAction("revise-two", true).pass);
-  assert.ok(evaluateTransfer({ scope: "Failed at 38°C", test: "Independently check the sensor" }).pass);
-  assert.ok(evaluateReassurance({ problem: "keep", identity: "open", action: "redesign" }).pass);
-  assert.ok(!evaluateReassurance({ problem: "remove", identity: "negative", action: "minimise" }).pass);
+test('hidden broader history never enters a rubric-only inference', () => {
+  const broader = observed('broader', 'rubric');
+  const mixed = observed('mixed', 'rubric');
+  assert.deepEqual(broader.evidence, ['B1']);
+  assert.equal(knowledgeFrom(broader.evidence).state, 'partial');
+  assert.equal(knowledgeFrom(mixed.evidence).state, 'local');
+  for (const session of [broader, mixed]) {
+    assert.equal(knowledgeFrom(session.evidence).repeated, false);
+    assert.equal(inspectTargets(session.evidence).find(t => t.id === 'pattern').answer, 'open');
+    assert.equal(evaluateInspect(session.evidence, { units: 'supported', pattern: 'supported', identity: 'unsupported' }).pass, false);
+  }
+  executeProbe(mixed, 'clarify');
+  assert.equal(knowledgeFrom(mixed.evidence).state, 'mixed');
+  assert.equal(knowledgeFrom(mixed.evidence).repeated, true);
 });
 
-test("the causal-world engine locks truth before action and reveals authored outcomes only", () => {
-  assert.equal(SCENARIO_SCHEMA.version, "cbt-causal-world/1");
-  assert.ok(SCENARIO_SCHEMA.invariants.includes("identity-never-outcome-variable"));
-  const lock = lockCausalWorld(GOLD);
-  const cleanTest = { source: "requirements-log", action: "compare-versions", result: "rule-changed", stop: "one-record" };
-  const first = resolveCausalWorld(lock, cleanTest);
-  const repeated = resolveCausalWorld(lock, { ...cleanTest });
-  assert.deepEqual(first, repeated);
-  assert.equal(first.branch, "authored-outcome");
-  assert.deepEqual(first.consequence, GOLD.outcome);
-
-  const contaminated = resolveCausalWorld(lock, { source: "team-rumours", action: "accuse", result: "reassurance", stop: "until-certain" });
-  assert.equal(contaminated.branch, "repair-required");
-  assert.deepEqual(contaminated.consequence, []);
-  assert.throws(() => resolveCausalWorld({ ...lock, variantId: "rewritten", lockId: "rewritten" }, cleanTest));
+test('reassurance, accusation, cosmetic changes and waiting do not settle the original question', () => {
+  for (const variant of VARIANTS) for (const probe of ['reassure', 'accuse', 'cosmetic', 'wait']) {
+    const session = observed(variant, probe), knowledge = knowledgeFrom(session.evidence);
+    assert.equal(knowledge.state, 'unresolved', `${variant}/${probe}`);
+    assert.equal(knowledge.nonDiagnostic, true);
+    assert.equal(knowledge.scopeOpen, true);
+    assert.equal(evaluateInspect(session.evidence, { units: 'open', pattern: 'open', identity: 'unsupported' }).pass, true);
+  }
+  assert.equal(knowledgeFrom(['M4']).repeated, false, 'a summary is not an additional historical observation');
 });
 
-test("failure branches repair precisely and never masquerade as independent success", () => {
-  const session = createSession({ duration: 8 });
-  const failed = evaluateScope(4);
-  assert.deepEqual(recordEvaluation(session, "MF8-06", failed), {
-    attempts: 1, demonstrated: false, repaired: false, status: "repair", grade: 0
-  });
-  assert.deepEqual(recordEvaluation(session, "MF8-06", failed), {
-    attempts: 2, demonstrated: true, repaired: false, status: "demonstrated", grade: 1
-  });
-  const repaired = recordEvaluation(session, "MF8-06", evaluateScope(0));
-  assert.equal(repaired.status, "supported");
-  assert.equal(repaired.grade, 1);
-  assert.equal(repaired.repaired, true);
+test('updates preserve the original fact and distinguish all five visible evidence states', () => {
+  const expectations = [
+    ['local', 'clarify', 'local', 'The feedback identifies two corrections; a broader evaluation has not been clarified.'],
+    ['broader', 'clarify', 'broader', 'The evidence shows a recurring measurement problem. A specific skill needs practice; it does not establish that Ari cannot improve.'],
+    ['mixed', 'clarify', 'mixed', 'A changed layout requirement and a recurring units problem both matter. Each needs its own response.'],
+    ['broader', 'rubric', 'partial', 'A measurement correction is supported. The other mark and any broader concern still need clarification.'],
+    ['unresolved', 'clarify', 'unresolved', 'Two panels were marked. The reason and scope are still unclear.']
+  ];
+  for (const [variant, probe, state, text] of expectations) {
+    const session = observed(variant, probe);
+    assert.equal(knowledgeFrom(session.evidence).state, state);
+    assert.equal(warrantedStatement(session.evidence), text);
+    assert.equal(evaluateUpdate(session, 'keep', text).pass, true);
+    assert.equal(evaluateUpdate(session, 'remove', text).pass, false);
+    for (const other of expectations.map(row => row[3]).filter(other => other !== text)) {
+      assert.equal(evaluateUpdate(session, 'keep', other).pass, false, `${state} incorrectly accepted another evidence state`);
+    }
+    assert.deepEqual(session.original, ORIGINAL, 'checking an update must not rewrite the committed original');
+  }
 });
 
-test("adaptive selection is local, bounded and based on task evidence", () => {
-  const blank = safeProgress({ enabled: true });
-  const target = chooseNextSkill(blank);
-  assert.ok(typeof target === "string" && target.length > 0);
-  const family = selectNextFamily({ ...blank, nextTarget: target }, "gentle");
-  assert.ok(family.operations.includes(chooseNextSkill(blank)));
-  assert.equal(family.intensity, "gentle");
-  assert.equal(FAMILIES.length, 15);
-  assert.equal(new Set(FAMILIES.map((item) => item.id)).size, 15);
-  assert.ok(FAMILIES.every((item) => item.variants.length >= 3 && item.twin));
+test('the practical check validates quantities, requirements, practice and a bounded return condition', () => {
+  for (const variant of VARIANTS) assert.equal(evaluateAction(observed(variant).evidence, action).pass, true);
+  const mixed = observed('mixed').evidence;
+  for (const [field, wrong, defect] of [['unit', 'cm', 'units'], ['value', 20, 'units'], ['columns', 3, 'layout'], ['practice', 300, 'practice'], ['returnWhen', 'certain', 'stopping']]) {
+    const result = evaluateAction(mixed, { ...action, [field]: wrong });
+    assert.equal(result.pass, false, `wrong ${field} passed`);
+    assert.ok(result.defects.includes(defect));
+  }
+  assert.equal(evaluateAction(mixed, { ...action, value: '200', columns: '4', practice: '30' }).pass, true, 'select control strings represent the same physical quantities');
 });
 
-test("reasoning assistance fades only after distinct unassisted variants", () => {
-  const first = createSession({ duration: 8 });
-  first.variantId = "variant-a";
-  first.outcomes.scope = { grade: 2, status: "independent", supportUsed: false };
-  let adaptive = mergeSessionIntoProgress({ enabled: true }, first);
-  assert.equal(adaptive.skills.scope.supportLevel, 1);
-
-  const repeat = createSession({ duration: 8 });
-  repeat.variantId = "variant-a";
-  repeat.outcomes.scope = { grade: 2, status: "independent", supportUsed: false };
-  adaptive = mergeSessionIntoProgress(adaptive, repeat);
-  assert.equal(adaptive.skills.scope.supportLevel, 1, "repeating one answer key must not fade support");
-
-  const changed = createSession({ duration: 8 });
-  changed.variantId = "variant-b";
-  changed.outcomes.scope = { grade: 2, status: "independent", supportUsed: false };
-  adaptive = mergeSessionIntoProgress(adaptive, changed);
-  assert.equal(adaptive.skills.scope.supportLevel, 2);
-  assert.equal(assistanceLevelFor(adaptive, "scope"), 2);
-  assert.equal(createSession({ duration: 8 }, "guided", adaptive).assistance.scope, 2);
+test('missing criteria require a question, while unobserved criteria are never certified as corrected', () => {
+  const partial = observed('broader', 'rubric').evidence;
+  assert.equal(evaluateAction(partial, { ...action, question: 'approve' }).pass, false);
+  assert.equal(evaluateAction(partial, { ...action, columns: undefined, practice: undefined }).pass, true);
+  const unresolved = observed('unresolved').evidence;
+  assert.equal(evaluateAction(unresolved, { question: 'criteria', returnWhen: 'new-or-review' }).pass, true);
+  assert.equal(evaluateAction(unresolved, { question: 'approve', returnWhen: 'new-or-review' }).pass, false);
+  assert.equal(knowledgeFrom(unresolved).units, false);
+  assert.equal(knowledgeFrom(unresolved).layout, false);
+  const local = observed('local').evidence;
+  assert.equal(evaluateAction(local, { ...action, question: undefined, practice: undefined }).pass, true);
 });
 
-test("privacy and safety boundaries are enforced by the static implementation", async () => {
-  const [html, app, engine] = await Promise.all([
-    read("exercises/cbt/index.html"), read("exercises/cbt/app.js"), read("exercises/cbt/engine.js")
-  ]);
-  assert.match(html, /Fictional material only\. Not diagnosis, crisis support, or a substitute for professional care\./);
-  assert.match(html, /connect-src 'none'/);
-  assert.doesNotMatch(`${html}\n${app}`, /<textarea|contenteditable|type=["']text["']/i);
-  assert.doesNotMatch(`${app}\n${engine}`, /\bfetch\s*\(|XMLHttpRequest|WebSocket|sendBeacon|getUserMedia|mediaDevices|clipboard/i);
-  assert.equal(ACTIVE_SESSION_KEY, "dreamunity:cbt:active:v2");
-  assert.equal(PREFERENCES_KEY, "dreamunity:cbt:preferences:v2");
-  assert.equal(PROGRESS_KEY, "dreamunity:cbt:progress:v2");
-  assert.equal(RESUME_SNAPSHOT_KEY, "dreamunity:cbt:resume:v2");
-  assert.match(app, /Remember practice progress on this device/i);
-  assert.match(app, /7 \* 24 \* 60 \* 60 \* 1000/);
-  assert.match(html, /Erase saved practice data/);
-  assert.match(app, /No global score, speed bonus or personality judgment is produced/);
+test('source attribution and causal ordering reject unsupported additions', () => {
+  const correct = Object.fromEntries(SORT_CARDS.map(c => [c.id, c.source]));
+  assert.equal(evaluateSort(correct).pass, true);
+  assert.equal(evaluateSort({ ...correct, feeling: 'unshown' }).pass, false, 'the explicitly supplied feeling is an observation about the character');
+  assert.equal(evaluateSort({ ...correct, judgment: 'message' }).pass, false);
+  assert.equal(evaluateScope('panels').pass, true);
+  assert.equal(evaluateScope('identity').pass, false);
+  const order = LOOP.map(t => t.id);
+  assert.equal(evaluateLoop(order).pass, true);
+  assert.equal(evaluateLoop([...order, 'meaning']).pass, false, 'extra links cannot be smuggled into a correct chain');
+  assert.equal(evaluateLoop([...order].reverse()).pass, false);
 });
 
-test("touch, keyboard, motion and target-size equivalents are present", async () => {
-  const [html, app, css] = await Promise.all([
-    read("exercises/cbt/index.html"), read("exercises/cbt/app.js"), read("exercises/cbt/styles.css")
-  ]);
-  assert.match(html, /viewport-fit=cover/);
-  assert.match(html, /class="skip-link"/);
-  assert.match(app, /data-bin="shown"[\s\S]*role="button"[\s\S]*tabindex="0"/);
-  assert.match(app, /addEventListener\("keydown"/);
-  assert.match(app, /addEventListener\("dragstart"/);
-  assert.match(css, /:focus-visible/);
-  assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
-  assert.ok((css.match(/(?:min-height|height):\s*44px/g) || []).length >= 10);
+test('a prediction follows the constructed cause; overlapping explanations are allowed', () => {
+  assert.equal(evaluatePrediction(['units'], 'units', 'history').pass, true);
+  assert.equal(evaluatePrediction(['units'], 'rule', 'history').pass, false);
+  assert.equal(evaluatePrediction(['rule'], 'rule', 'history').pass, true);
+  assert.equal(evaluatePrediction(['rule', 'skill'], 'skill', 'history').pass, true);
+  assert.equal(evaluatePrediction(['rule', 'skill'], 'rule', 'history').pass, true);
+  assert.equal(evaluatePrediction(['units'], 'units', 'calm').pass, false);
+  assert.equal(evaluatePrediction(['units'], 'tone', 'history').pass, false);
 });
 
-test("the clock never submits or marks an active answer when nominal time expires", async () => {
-  const app = await read("exercises/cbt/app.js");
-  const expiryBranch = app.match(/if \(remaining <= 0\) \{([\s\S]*?)\n  \}/)?.[1] || "";
-  assert.match(expiryBranch, /Finish step/);
-  assert.doesNotMatch(expiryBranch, /\b(?:advance|click|submit|recordEvaluation)\s*\(/);
-  assert.match(app, /visibilitychange/);
-  assert.match(app, /openPause\(true\)/);
+test('24 complete transfer cases form 12 contrasting families with resolvable action/reason contracts', () => {
+  assert.equal(TRANSFER_CASES.length, 24);
+  assert.equal(new Set(TRANSFER_CASES.map(c => c.id)).size, 24);
+  const families = new Map();
+  for (const c of TRANSFER_CASES) {
+    families.set(c.family, (families.get(c.family) || 0) + 1);
+    for (const field of ['id', 'family', 'title', 'scene', 'claim', 'skill', 'principle', 'explanation']) assert.ok(typeof c[field] === 'string' && c[field].trim(), `${c.id}: missing ${field}`);
+    assert.ok(c.facts.length >= 2 && c.facts.every(f => typeof f === 'string' && f.trim()));
+    assert.equal(new Set(c.options.map(o => o.id)).size, c.options.length);
+    assert.equal(new Set(c.reasons.map(r => r.id)).size, c.reasons.length);
+    assert.ok(c.options.some(o => o.valid) && c.options.some(o => !o.valid), `${c.id}: no discrimination task`);
+    for (const o of c.options) {
+      assert.ok(o.label.length > 5 && o.effect.length > 5);
+      assert.equal(typeof o.valid, 'boolean');
+      assert.ok(Array.isArray(o.reasonIds));
+      assert.ok(o.reasonIds.every(id => c.reasons.some(r => r.id === id)), `${c.id}/${o.id}: missing reason reference`);
+      if (o.valid) assert.ok(o.reasonIds.length > 0, `${c.id}/${o.id}: valid action has no defensible rationale`);
+    }
+  }
+  assert.equal(families.size, 12);
+  assert.ok([...families.values()].every(n => n === 2));
+});
+
+test('every transfer action requires its own defensible reason; an attractive reason cannot rescue a wrong action', () => {
+  for (const c of TRANSFER_CASES) {
+    for (const o of c.options) for (const r of c.reasons) {
+      assert.equal(evaluateTransfer(c, o.id, r.id).pass, o.valid && o.reasonIds.includes(r.id), `${c.id}/${o.id}/${r.id}`);
+    }
+    assert.equal(evaluateTransfer(c, 'absent-action', c.reasons[0].id).pass, false);
+    assert.equal(evaluateTransfer(c, c.options.find(o => o.valid).id, 'absent-reason').pass, false);
+  }
+});
+
+test('first independent attempts remain separate from successful repairs and familiar cue recall', () => {
+  const session = make();
+  recordAttempt(session, { stage: 'transfer', skill: 'scope', pass: false, mode: 'independent', caseId: 'prototype-local', answer: { move: 'a', reason: 'r1' }, now: 100 });
+  recordAttempt(session, { stage: 'transfer', skill: 'scope', pass: true, mode: 'repair', caseId: 'prototype-local', answer: { move: 'b', reason: 'r2' }, now: 101 });
+  recordAttempt(session, { stage: 'close', skill: 'retrieval', pass: true, mode: 'guided', answer: ['fact', 'test', 'update'], now: 102 });
+  const summary = completionSummary(session);
+  assert.equal(summary.independentAttempts, 1);
+  assert.equal(summary.independentSuccesses, 0);
+  assert.equal(summary.repairs, 1);
+  assert.equal(summary.complete, false);
+  const progress = mergeProgress({}, session);
+  assert.deepEqual(progress.records.map(r => [r.skill, r.pass, r.mode]), [['scope', false, 'independent'], ['scope', true, 'repair'], ['retrieval', true, 'guided']]);
+  assert.deepEqual(progress.used, ['prototype-local']);
+});
+
+test('preserved attempt answers are snapshots rather than references to a later mutable response', () => {
+  const session = make(), answer = { move: 'a', model: ['units'] };
+  recordAttempt(session, { stage: 'transfer', skill: 'scope', pass: false, mode: 'independent', caseId: 'prototype-local', answer });
+  answer.move = 'b'; answer.model.push('skill');
+  assert.deepEqual(session.attempts[0].answer, { move: 'a', model: ['units'] });
+});
+
+test('support fades after independent success in distinct cases and returns after difficulty', () => {
+  const rec = (caseId, pass = true, mode = 'independent') => ({ skill: 'scope', caseId, pass, mode, at: 100 });
+  assert.equal(assistanceFor({ records: [rec('same'), rec('same')] }, 'scope'), 'guided');
+  assert.equal(assistanceFor({ records: [rec('one'), rec('two', true, 'repair')] }, 'scope'), 'guided');
+  assert.equal(assistanceFor({ records: [rec('one'), rec('two')] }, 'scope'), 'faded');
+  assert.equal(assistanceFor({ records: [rec('one'), rec('two'), rec('three', false)] }, 'scope'), 'guided');
+  assert.equal(assistanceFor({ records: [rec('one'), rec('two')] }, 'prediction'), 'guided');
+});
+
+test('case selection responds to practiced IDs and skill gaps while varying families', () => {
+  const pool = [
+    { id: 'seen', family: 'a', skill: 'scope' },
+    { id: 'fresh-scope', family: 'b', skill: 'scope' },
+    { id: 'fresh-action', family: 'c', skill: 'action' },
+    { id: 'same-family', family: 'b', skill: 'scope' }
+  ];
+  const progress = { used: ['seen'], records: [{ skill: 'scope', caseId: 'seen', at: 100, pass: false, mode: 'independent' }] };
+  const picks = selectCases(pool, progress, 2, () => 0.99);
+  assert.equal(picks[0].id, 'fresh-scope');
+  assert.equal(picks[1].id, 'fresh-action');
+  assert.equal(new Set(picks.map(c => c.family)).size, 2);
+});
+
+test('a delayed skill return reserves a different case from the new transfer items', () => {
+  const pool = [
+    { id: 'fresh-scope', family: 'a', skill: 'scope' },
+    { id: 'fresh-action', family: 'b', skill: 'action' },
+    { id: 'fresh-source', family: 'c', skill: 'sources' }
+  ];
+  const now = 1_800_000_000_000;
+  const progress = { used: ['old-scope'], records: [{ skill: 'scope', caseId: 'old-scope', at: now - 2 * 86400000, pass: true, mode: 'independent' }] };
+  const session = withRandom(0.99, () => createSession({ minutes: 12, cases: pool, progress, now }));
+  assert.ok(session.plan.includes('recall'));
+  assert.equal(session.cases[2].skill, 'scope');
+  assert.notEqual(session.cases[2].id, 'old-scope');
+  assert.equal(new Set(session.cases.map(c => c.id)).size, session.cases.length, 'the recall case must not repeat later as an unfamiliar case');
+});
+
+test('expiry cannot skip committed inspection, update or practical action', () => {
+  for (const minutes of [4, 8, 12]) {
+    const session = make('mixed', { minutes });
+    commitPrediction(session); executeProbe(session, 'clarify');
+    session.cursor = session.plan.indexOf('probe');
+    assert.equal(nextStage(session, 0), 'inspect');
+    assert.equal(nextStage(session, 0), 'update');
+    assert.equal(nextStage(session, 0), 'act');
+  }
+  const extended = make('local', { minutes: 12 });
+  extended.cursor = extended.plan.indexOf('act');
+  assert.equal(nextStage(extended, 0), 'transfer', 'optional enrichment is dropped before the main independent case');
+  assert.ok(planFor(4).includes('close'));
+  assert.equal(planFor(8).reduce((sum, id) => sum + STAGES[id].seconds, 0), 480);
+});
+
+test('partial closure never claims a complete cycle or action that was not performed', () => {
+  const session = make();
+  session.completed = ['arrival', 'probe', 'inspect'];
+  let summary = completionSummary(session);
+  assert.equal(summary.complete, false); assert.equal(summary.updated, false); assert.equal(summary.acted, false);
+  session.completed.push('update');
+  summary = completionSummary(session);
+  assert.equal(summary.complete, false); assert.equal(summary.updated, true); assert.equal(summary.acted, false);
+  session.completed.push('act'); session.actionDone = true;
+  summary = completionSummary(session);
+  assert.equal(summary.complete, true); assert.equal(summary.acted, true);
+});
+
+test('progress keeps only bounded task records, without answers or personal narratives', () => {
+  const records = Array.from({ length: 150 }, (_, i) => ({ skill: 'scope', caseId: `case-${i}`, at: i, pass: true, mode: 'independent', answer: 'discard this', story: 'discard this' }));
+  const cleaned = safeProgress({ sessions: 5, records, secret: 'discard this' });
+  assert.equal(cleaned.version, VERSION); assert.equal(cleaned.records.length, 120);
+  assert.ok(cleaned.records.every(r => !('answer' in r) && !('story' in r)));
+  assert.equal('secret' in cleaned, false);
+  assert.deepEqual(safeProgress(null).records, []);
+});
+
+test('the browser clock offers continuation or an honest partial finish rather than submitting', async () => {
+  const app = await read('exercises/cbt/app.js');
+  const tick = app.slice(app.indexOf('function tick()'), app.indexOf('setInterval(tick'));
+  assert.match(tick, /document\.hidden/);
+  assert.match(tick, /Continue.*add 2 minutes/);
+  assert.match(tick, /Finish here/);
+  assert.doesNotMatch(tick, /\b(?:submit|markAndNext|executeProbe|evaluateUpdate|recordAttempt)\s*\(/);
 });
