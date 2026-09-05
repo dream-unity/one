@@ -389,8 +389,8 @@ function renderMinimap() {
   }
 
   const corners = [
-    screenToWorld(0, 72), screenToWorld(viewport.width, 72),
-    screenToWorld(viewport.width, viewport.height - 168), screenToWorld(0, viewport.height - 168),
+    screenToWorld(0, viewport.playTop), screenToWorld(viewport.width, viewport.playTop),
+    screenToWorld(viewport.width, viewport.playBottom), screenToWorld(0, viewport.playBottom),
   ];
   miniCtx.strokeStyle = 'rgba(255,236,182,.75)';
   miniCtx.lineWidth = 1;

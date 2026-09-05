@@ -59,22 +59,77 @@ test("the Dream Unity title remains legible above the central crystal", async ()
   assert.match(css, /\.intro::before[\s\S]*?radial-gradient/, "the title lost its readability veil");
 });
 
-test("the known-good visual implementation is protected byte for byte", async () => {
+test("the known-good scene and deployed renderer are protected byte for byte", async () => {
   assert.equal(
     await sha256("src/scene.js"),
     "ad007d172071c5d075c180ac53c44c8c2e0f1e4047d08941c92b4dc0cd7d6332",
-    "the 3D scene changed during an audio-only request"
-  );
-  assert.equal(
-    await sha256("styles.css"),
-    "ced29cd9e0fef6db38ca9e0bf27f0513b00e12abaed946cf140bce781e22a0cf",
-    "the visual layout changed during an audio-only request"
+    "the approved 3D scene must remain unchanged during the readability update"
   );
   assert.equal(
     JSON.parse(await read("runtime/chunks/manifest.json")).revision,
     "2c7a596e4dcc54a48a1bea3a8f232669859ae7e6a4e0100d28346f3491de4a91",
-    "the known-good deployed visualization runtime changed during an audio-only request"
+    "the approved deployed visualization runtime must remain unchanged during the readability update"
   );
+});
+
+test("home portal positions and shapes stay unchanged while their text can grow", async () => {
+  const css = (await read("styles.css")).replace(/\/\*[\s\S]*?\*\//g, "");
+  // Geometry recorded from HEAD before the authorized readability changes.
+  // Preserve both the desktop rules and their later narrow-screen overrides.
+  const expected = {
+    ".experience": [
+      { position: "relative", width: "100%", height: "100%", "min-height": "520px" },
+      { "min-height": "450px" }
+    ],
+    ".scene, .scene > canvas, .scene > div": [
+      { position: "absolute", inset: "0", width: "100%", height: "100%" }
+    ],
+    ".visual-scaffold": [{ position: "absolute", "z-index": "0", inset: "0" }],
+    ".intro": [
+      { position: "absolute", "z-index": "14", top: "clamp(58px, 9vh, 84px)", left: "50%", width: "min(290px, 46vw)", transform: "translate(-50%, -50%)" },
+      { top: "clamp(56px, 8.5vh, 72px)", width: "190px" }
+    ],
+    ".portal-label.machine": [{ top: "24.5%", left: "2.1%" }, { top: "25%", left: "8px" }],
+    ".portal-label.maker": [{ top: "24.5%", right: "2.1%" }, { top: "25%", right: "8px" }],
+    ".portal-label.world": [{ bottom: "7.5%", left: "50%", transform: "translateX(-50%)" }, { bottom: "8.5%" }],
+    ".portal-card": [
+      { position: "relative", width: "clamp(270px, 26vw, 408px)", height: "clamp(68px, 6.8vw, 98px)", padding: "0 clamp(21px, 2vw, 33px)" },
+      { width: "190px", height: "68px", "padding-inline": "19px" }
+    ],
+    ".portal-label.machine .portal-card": [
+      { "clip-path": "polygon(13px 0, 100% 0, 100% 100%, 13px 100%, 0 50%)" },
+      { "padding-right": "16px" }
+    ],
+    ".portal-label.maker .portal-card": [
+      { "clip-path": "polygon(0 0, calc(100% - 13px) 0, 100% 50%, calc(100% - 13px) 100%, 0 100%)" },
+      { "padding-left": "16px" }
+    ],
+    ".portal-label.world .portal-card": [
+      { width: "clamp(205px, 18vw, 286px)", height: "clamp(59px, 5.7vw, 82px)", "clip-path": "polygon(13px 0, calc(100% - 13px) 0, 100% 50%, calc(100% - 13px) 100%, 13px 100%, 0 50%)" },
+      { width: "190px", height: "60px" }
+    ],
+    ".portal-card, .portal-label.world .portal-card": [
+      { width: "139px", height: "49px", padding: "0 13px" }
+    ]
+  };
+  const properties = new Set([
+    "position", "inset", "top", "right", "bottom", "left", "width", "height", "min-height",
+    "padding", "padding-inline", "padding-left", "padding-right", "transform", "clip-path", "z-index"
+  ]);
+  const actual = Object.fromEntries(Object.keys(expected).map((selector) => [selector, []]));
+  for (const [, selectorText, declarationText] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const selector = selectorText.trim().replace(/\s+/g, " ");
+    if (!Object.hasOwn(expected, selector)) continue;
+    const declarations = {};
+    for (const declaration of declarationText.split(";")) {
+      const colon = declaration.indexOf(":");
+      if (colon < 0) continue;
+      const property = declaration.slice(0, colon).trim();
+      if (properties.has(property)) declarations[property] = declaration.slice(colon + 1).trim();
+    }
+    actual[selector].push(declarations);
+  }
+  assert.deepEqual(actual, expected, "the front page geometry changed outside the authorized text resizing");
 });
 
 test("the page cannot remain trapped behind its loading screen", async () => {
@@ -85,7 +140,7 @@ test("the page cannot remain trapped behind its loading screen", async () => {
   ]);
   assert.match(html, /__DREAM_UNITY_WATCHDOG__/);
   assert.match(html, /setTimeout\(revealStaticExperience, 6000\)/);
-  assert.match(html, /defer src="\.\/runtime\/loader\.js\?v=cbt-return-20260905-2"/);
+  assert.match(html, /defer src="\.\/runtime\/loader\.js\?v=clear-20260905-1"/);
   assert.match(main, /clearTimeout\(window\.__DREAM_UNITY_WATCHDOG__\)/);
   assert.doesNotMatch(html, /<script[^>]+src="\.\/runtime\/dream-unity\.min\.js"/);
   assert.match(loader, /fetch\(manifestUrl, \{ cache: "no-store" \}\)/);
@@ -103,7 +158,7 @@ test("Dream Maker Eye overrides only the music event without rebuilding the visu
     read("audio-controller.js")
   ]);
   const audioScript = html.indexOf("audio-controller.js?v=audio-crossbrowser-b23033e55592-v3");
-  const runtimeScript = html.indexOf("runtime/loader.js?v=cbt-return-20260905-2");
+  const runtimeScript = html.indexOf("runtime/loader.js?v=clear-20260905-1");
   assert.ok(audioScript > -1, "the independent audio controller is not loaded");
   assert.ok(audioScript < runtimeScript, "the audio controller should initialize independently of the 3D runtime");
   assert.match(html, /id="sound-toggle"[^>]*aria-pressed="false"[^>]*data-audio-state="starting"[^>]*data-audio-intent="on"/,

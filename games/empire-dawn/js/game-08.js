@@ -1,14 +1,19 @@
 /* Empire Dawn runtime · part 8 */
 function updateCommandUI() {
-  DOM.commandGrid.innerHTML = '';
-  const buttons = buildCommandButtons();
-  buttons.slice(0, 12).forEach((button) => DOM.commandGrid.appendChild(button));
+  const previousScroll = DOM.commandGrid.scrollTop;
+  const previousActions = [...DOM.commandGrid.children].map((button) => button.dataset.action).join('|');
+  const buttons = buildCommandButtons().slice(0, 12);
+  const nextMarkup = buttons.map((button) => button.outerHTML).join('');
+  if (DOM.commandGrid.innerHTML !== nextMarkup) {
+    DOM.commandGrid.replaceChildren(...buttons);
+    if (buttons.map((button) => button.dataset.action).join('|') === previousActions) DOM.commandGrid.scrollTop = previousScroll;
+  }
   const building = selectedBuildings()[0];
   let queue = null;
   let queueName = '';
   if (building?.research) {
     queue = building.research;
-    queueName = building.research.kind === 'age' ? `Advancing to ${getAgeName(building.research.targetAge)}` : TECHNOLOGIES[building.research.id].name;
+    queueName = building.research.kind === 'age' ? `Learning ${getAgeName(building.research.targetAge)}` : TECHNOLOGIES[building.research.id].name;
   } else if (building?.queue?.length) {
     queue = building.queue[0];
     queueName = `Training ${UNIT_TYPES[queue.type].name}`;
@@ -50,13 +55,10 @@ function handleCommandAction(action) {
   if (action.startsWith('age:')) { queueAgeUp(selectedBuildings()[0], Number(action.split(':')[1])); return; }
   if (action.startsWith('target:')) {
     const type = action.split(':')[1];
-    if (type === 'repair') {
-      notify('Right-click a damaged friendly building with Villagers selected.', 'good');
-      return;
-    }
     runtime.targeting = { type };
     runtime.placement = null;
-    DOM.placementHint.textContent = type === 'attackMove' ? 'Choose attack-move destination · Left-click to confirm · Right-click or Esc to cancel' : type === 'rally' ? 'Choose rally point · Left-click to confirm · Right-click or Esc to cancel' : 'Choose target';
+    const hints = { attackMove: 'Tap a place. Your people will go there and fight foes on the way.', rally: 'Tap where new people should meet.', repair: 'Tap one of your buildings to fix it.', context: 'Tap a place, food, a tree or a foe.' };
+    DOM.placementHint.textContent = `${hints[type] || 'Choose a place.'} Choose Cancel to stop.`;
     DOM.placementHint.classList.remove('hidden');
     canvas.style.cursor = 'crosshair';
   }
@@ -73,16 +75,16 @@ function saveGame(manual = true) {
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
     DOM.continueButton.classList.remove('hidden');
-    if (manual) { notify('Campaign saved locally.', 'good'); sound('click'); }
+    if (manual) { notify('Game saved on this device.', 'good'); sound('click'); }
   } catch (error) {
     console.error('Save failed', error);
-    if (manual) notify('Could not save this campaign.', 'bad');
+    if (manual) notify('This device could not save your game.', 'bad');
   }
 }
 
 function loadGame() {
   const raw = localStorage.getItem(SAVE_KEY);
-  if (!raw) { notify('No saved campaign found.', 'bad'); return false; }
+  if (!raw) { notify('There is no saved game yet.', 'bad'); return false; }
   try {
     const payload = JSON.parse(raw);
     if (payload.version !== 1 || !payload.game) throw new Error('Unsupported save');
@@ -102,11 +104,11 @@ function loadGame() {
     centreCameraOnWorld(16.5, 18.5, true);
     updateFog(true);
     updateUI(true);
-    notify('Saved campaign restored.', 'good');
+    notify('Your saved game is ready.', 'good');
     return true;
   } catch (error) {
     console.error('Load failed', error);
-    notify('The saved campaign could not be loaded.', 'bad');
+    notify('This saved game could not be opened.', 'bad');
     return false;
   }
 }
@@ -124,16 +126,16 @@ function endGame(victory) {
   runtime.paused = false;
   game.endReason = victory ? 'victory' : 'defeat';
   updateObjectives();
-  DOM.endKicker.textContent = victory ? 'CAMPAIGN COMPLETE' : 'THE SETTLEMENT HAS FALLEN';
-  DOM.endTitle.textContent = victory ? 'Victory' : 'Defeat';
+  DOM.endKicker.textContent = victory ? 'YOU WON' : 'TRY AGAIN';
+  DOM.endTitle.textContent = victory ? 'You won' : 'Try again';
   DOM.endCopy.textContent = victory
-    ? 'The rival seat of power lies in ruins. Your settlement survives to enter a wider age of empires.'
-    : 'The Town Centre has been destroyed. Rebuild your strategy, secure the economy earlier, and meet the next assault with a larger army.';
+    ? 'Your village is safe. You broke the other team’s Main house.'
+    : 'Your Main house broke. Next time, bring back food and wood early. Make guards to help keep it safe.';
   const stats = getPlayer(PLAYER).stats;
   DOM.endStats.innerHTML = `
-    <div><b>${formatTime(game.elapsed)}</b><small>MISSION TIME</small></div>
-    <div><b>${Math.floor(stats.gathered)}</b><small>RESOURCES GATHERED</small></div>
-    <div><b>${stats.enemyUnitsDefeated + stats.enemyBuildingsDestroyed}</b><small>ENEMIES DEFEATED</small></div>`;
+    <div><b>${formatTime(game.elapsed)}</b><small>TIME</small></div>
+    <div><b>${Math.floor(stats.gathered)}</b><small>BROUGHT BACK</small></div>
+    <div><b>${stats.enemyUnitsDefeated + stats.enemyBuildingsDestroyed}</b><small>FOES BEATEN</small></div>`;
   DOM.endScreen.classList.add('visible');
   sound(victory ? 'victory' : 'defeat');
 }
@@ -149,15 +151,17 @@ function frame(now) {
 function wireUI() {
   resize();
   addEventListener('resize', resize);
-  canvas.addEventListener('mousedown', onCanvasMouseDown);
-  canvas.addEventListener('mousemove', onCanvasMouseMove);
-  canvas.addEventListener('mouseup', onCanvasMouseUp);
+  canvas.addEventListener('pointerdown', onWorldPointerDown);
+  canvas.addEventListener('pointermove', onWorldPointerMove);
+  canvas.addEventListener('pointerup', onWorldPointerUp);
+  canvas.addEventListener('pointercancel', resetWorldPointer);
+  canvas.addEventListener('lostpointercapture', resetWorldPointer);
   canvas.addEventListener('mouseleave', () => { runtime.mouse.edgeX = 0; runtime.mouse.edgeY = 0; runtime.mouse.down = false; });
   canvas.addEventListener('contextmenu', onCanvasContextMenu);
   canvas.addEventListener('wheel', onWheel, { passive: false });
   addEventListener('keydown', onKeyDown);
   addEventListener('keyup', onKeyUp);
-  minimap.addEventListener('mousedown', onMinimapClick);
+  minimap.addEventListener('pointerdown', (event) => { event.preventDefault(); onMinimapClick(event); });
 
   $('#civilisation-options').addEventListener('click', (event) => {
     const button = event.target.closest('[data-civ]');
@@ -187,14 +191,42 @@ function wireUI() {
   DOM.playAgainButton.addEventListener('click', () => createNewGame(game?.civilisation || runtime.civChoice, game?.difficulty || runtime.difficultyChoice));
   DOM.soundButton.addEventListener('click', () => {
     runtime.soundOn = !runtime.soundOn;
-    DOM.soundButton.textContent = runtime.soundOn ? '♪' : '×';
-    DOM.soundButton.title = runtime.soundOn ? 'Mute sound' : 'Enable sound';
+    DOM.soundButton.textContent = runtime.soundOn ? 'Sound on' : 'Sound off';
+    DOM.soundButton.title = runtime.soundOn ? 'Turn sound off' : 'Turn sound on';
+    DOM.soundButton.setAttribute('aria-pressed', String(runtime.soundOn));
     if (runtime.soundOn) sound('click');
   });
   DOM.collapseObjectives.addEventListener('click', () => {
-    const collapsed = DOM.objectivePanel.classList.toggle('collapsed');
-    DOM.collapseObjectives.textContent = collapsed ? 'Show objectives' : 'Hide objectives';
+    DOM.objectivePanel.hidden = true;
+    $('#goals-toggle').setAttribute('aria-expanded', 'false');
   });
+  $('#home-view').addEventListener('click', () => {
+    if (!game) return;
+    const home = game.buildings.find((building) => building.owner === PLAYER && building.type === 'townCenter' && isAlive(building));
+    if (home) { centreCameraOnWorld(home.x, home.y, true); selectEntity(home); }
+  });
+  $('#clear-selection').addEventListener('click', () => {
+    cancelCommandMode();
+    if (game) selectEntity(null);
+  });
+  $('#cancel-action').addEventListener('click', () => {
+    cancelCommandMode();
+    runtime.commandMode = 'default';
+    if (game) updateUI(true);
+  });
+  for (const [buttonId, panel] of [['map-toggle', $('#minimap-panel')], ['goals-toggle', DOM.objectivePanel]]) {
+    $(`#${buttonId}`).addEventListener('click', () => {
+      panel.hidden = !panel.hidden;
+      $(`#${buttonId}`).setAttribute('aria-expanded', String(!panel.hidden));
+      if (panel === $('#minimap-panel') && game) renderMinimap();
+    });
+  }
+  for (const [buttonId, delta] of [['zoom-in', -1], ['zoom-out', 1]]) {
+    $(`#${buttonId}`).addEventListener('click', () => {
+      if (!game) return;
+      onWheel({ preventDefault() {}, clientX: viewport.width / 2, clientY: (viewport.playTop + viewport.playBottom) / 2, deltaY: delta });
+    });
+  }
   DOM.backCommand.addEventListener('click', () => { runtime.commandMode = 'default'; updateUI(true); });
   DOM.commandGrid.addEventListener('click', (event) => {
     const button = event.target.closest('[data-action]');

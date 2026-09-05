@@ -1,464 +1,1492 @@
-// Authored fictional transfer cases. Validity is judged only from the visible facts.
-// Keep these rubric fields out of the choices shown before a learner commits.
+// Fictional practice cases. Judge choices using only the facts shown.
+// Keep scoring fields hidden until the learner has chosen.
 export const TRANSFER_CASES = [
   {
-    id: 'prototype-local', family: 'revised-prototype', title: 'One returned page',
-    scene: 'Mina receives a booklet draft with one page returned. A note asks for a larger diagram. Mina puts the whole booklet aside, thinking every page must be unusable.',
-    facts: ['Only page 4 is marked.', 'The note requests a larger diagram on page 4.', 'The other pages have not been evaluated.'],
-    claim: 'Every page in this booklet is unusable.',
-    options: [
-      { id: 'a', label: 'Rewrite every page before asking for another review', effect: 'Mina starts replacing pages for which no problem has been identified.', valid: false, reasonIds: [] },
-      { id: 'b', label: 'Limit the conclusion to the marked diagram', effect: 'Mina keeps the specific correction and leaves the other pages unevaluated.', valid: true, reasonIds: ['r2'] },
-      { id: 'c', label: 'Enlarge the marked diagram and request the next review', effect: 'Page 4 gets the requested change; the next review can assess what remains.', valid: true, reasonIds: ['r3'] },
-      { id: 'd', label: 'Record the unmarked pages as approved', effect: 'The booklet receives an approval claim that the reviewer has not supplied.', valid: false, reasonIds: [] }
+    "id": "prototype-local",
+    "family": "revised-prototype",
+    "title": "One small picture",
+    "scene": "Mina makes a little book. A teacher marks one page: “Make this picture bigger.” Mina puts the whole book away. She thinks every page must be wrong.",
+    "facts": [
+      "Only page 4 has a mark.",
+      "The note asks for a bigger picture on page 4.",
+      "The teacher has not checked the other pages."
     ],
-    reasons: [
-      { id: 'r1', text: 'A problem on one page predicts the condition of all pages.' },
-      { id: 'r2', text: 'The evidence identifies one diagram and leaves the other pages unevaluated.' },
-      { id: 'r3', text: 'A specific correction is available without deciding the whole booklet’s quality.' },
-      { id: 'r4', text: 'An unmarked page has already passed review.' }
+    "claim": "Every page in this book is wrong.",
+    "options": [
+      {
+        "id": "a",
+        "label": "Make every page again before showing the book",
+        "effect": "Mina starts changing pages the teacher has not checked.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "b",
+        "label": "Keep the known problem on page 4",
+        "effect": "Mina knows one picture needs work. Other pages still need checking.",
+        "valid": true,
+        "reasonIds": [
+          "r2"
+        ]
+      },
+      {
+        "id": "c",
+        "label": "Make that picture bigger, then ask for another check",
+        "effect": "Mina fixes the marked picture. The next check can find other problems.",
+        "valid": true,
+        "reasonIds": [
+          "r3"
+        ]
+      },
+      {
+        "id": "d",
+        "label": "Mark the other pages as checked and right",
+        "effect": "Mina calls pages right before anyone has checked them.",
+        "valid": false,
+        "reasonIds": []
+      }
     ],
-    explanation: 'Narrowing the claim and making the known correction are both useful starting points. Neither requires treating the remaining pages as rejected or approved.',
-    skill: 'scope', principle: 'Keep the finding within the evidence’s reach.'
+    "reasons": [
+      {
+        "id": "r1",
+        "text": "One wrong picture means every page is wrong."
+      },
+      {
+        "id": "r2",
+        "text": "The note is about one picture. Other pages are not checked."
+      },
+      {
+        "id": "r3",
+        "text": "Mina can fix this picture without judging every page."
+      },
+      {
+        "id": "r4",
+        "text": "No mark on a page means it has passed."
+      }
+    ],
+    "explanation": "Mina can keep the thought small or fix the picture first. Both help. The other pages might need work, or they might not. They have not been checked yet.",
+    "skill": "scope",
+    "principle": "Let one fact speak for what it shows."
   },
   {
-    id: 'prototype-pattern', family: 'revised-prototype', title: 'The same scale error',
-    scene: 'Jon’s new diagram uses the wrong scale. The review log shows the same error in two previous diagrams. Jon suggests treating the latest note as an isolated preference.',
-    facts: ['Three dated reviews identify the same scale error.', 'All three diagrams use the same published scale rule.', 'A worked example and checking guide are available.'],
-    claim: 'This is only a one-off reviewer preference.',
-    options: [
-      { id: 'a', label: 'Use the worked example, then check the current scale', effect: 'Jon practises the identified operation and checks the diagram against the rule.', valid: true, reasonIds: ['r1'] },
-      { id: 'b', label: 'Discard the earlier reviews as irrelevant', effect: 'Two relevant instances disappear from Jon’s account without a reason.', valid: false, reasonIds: [] },
-      { id: 'c', label: 'Replace the claim with a recurring scale difficulty', effect: 'The account now includes the documented pattern without extending it to every skill.', valid: true, reasonIds: ['r3'] },
-      { id: 'd', label: 'Conclude that no future diagram can meet the rule', effect: 'A recurring correctable error becomes a prediction that has not been tested.', valid: false, reasonIds: [] }
+    "id": "prototype-pattern",
+    "family": "revised-prototype",
+    "title": "Three rows with the same mistake",
+    "scene": "Jon makes a bead row with three beads. The rule says four. Two older rows have the same mistake. Jon thinks the helper just wants a change this once.",
+    "facts": [
+      "Three checks on different days show three beads, not four.",
+      "Each task used the same rule: four beads per row.",
+      "A correct row and a counting guide are ready."
     ],
-    reasons: [
-      { id: 'r1', text: 'The recurring operation has an available practice and checking method.' },
-      { id: 'r2', text: 'Repeated errors show that further practice cannot help.' },
-      { id: 'r3', text: 'The same stated error appears across three dated tasks.' },
-      { id: 'r4', text: 'Only the latest review can count as evidence.' }
+    "claim": "This is just one helper asking for a change this once.",
+    "options": [
+      {
+        "id": "a",
+        "label": "Copy the four-bead example, then check this row",
+        "effect": "Jon practises the count he missed and checks his new row.",
+        "valid": true,
+        "reasonIds": [
+          "r1"
+        ]
+      },
+      {
+        "id": "b",
+        "label": "Leave the two older checks out",
+        "effect": "Jon ignores two checks that show the same mistake.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "c",
+        "label": "Say this counting mistake has happened three times",
+        "effect": "Jon keeps the repeated mistake in view without judging every skill.",
+        "valid": true,
+        "reasonIds": [
+          "r3"
+        ]
+      },
+      {
+        "id": "d",
+        "label": "Say Jon will never make a correct bead row",
+        "effect": "Jon turns three mistakes into a guess about every future try.",
+        "valid": false,
+        "reasonIds": []
+      }
     ],
-    explanation: 'Broader evidence warrants a broader, still specific conclusion. Acknowledging the pattern or starting targeted practice is defensible; shrinking every concern would miss the actual problem.',
-    skill: 'update', principle: 'Let a supported pattern remain visible.'
+    "reasons": [
+      {
+        "id": "r1",
+        "text": "Jon can practise the missed step with a clear example."
+      },
+      {
+        "id": "r2",
+        "text": "Making the same mistake means practice cannot help."
+      },
+      {
+        "id": "r3",
+        "text": "Three checks on different days found the same mistake."
+      },
+      {
+        "id": "r4",
+        "text": "Only the newest check tells us anything."
+      }
+    ],
+    "explanation": "This mistake has happened more than once. Jon can name it or start practising that step. Neither means he is bad at everything or cannot learn.",
+    "skill": "update",
+    "principle": "Keep a real repeated problem in view."
   },
   {
-    id: 'reply-unknown', family: 'delayed-reply', title: 'The unanswered draft',
-    scene: 'Lian sends a non-urgent draft at ten. At eleven there is no reply. The review agreement allows until tomorrow afternoon. Lian thinks the silence means the draft has been rejected.',
-    facts: ['The agreed response window ends tomorrow at 3.', 'No reply or rejection has arrived.', 'There is no decision to make before that window ends.'],
-    claim: 'The unanswered message means the draft was rejected.',
-    options: [
-      { id: 'a', label: 'Send the same question every ten minutes', effect: 'More messages accumulate without new information about the draft.', valid: false, reasonIds: [] },
-      { id: 'b', label: 'Mark the draft approved because nobody objected', effect: 'Silence is converted into an approval that has not been given.', valid: false, reasonIds: [] },
-      { id: 'c', label: 'Treat the rejection as final and delete the draft', effect: 'Lian removes work before receiving a decision.', valid: false, reasonIds: [] },
-      { id: 'd', label: 'Leave the decision open and review at the agreed time', effect: 'Lian keeps the draft and sets tomorrow at 3 as the next checking point.', valid: true, reasonIds: ['r2'] }
+    "id": "reply-unknown",
+    "family": "delayed-reply",
+    "title": "No answer yet",
+    "scene": "Lian sends a drawing at ten. At eleven, the teacher has not replied. The teacher promised an answer by three tomorrow. Lian thinks the drawing has been turned down.",
+    "facts": [
+      "The teacher has until three tomorrow to answer.",
+      "There is no answer yet: no yes and no no.",
+      "Lian does not need to decide anything before then."
     ],
-    reasons: [
-      { id: 'r1', text: 'A delayed response reliably identifies a negative decision.' },
-      { id: 'r2', text: 'The response window is still open and nothing requires an earlier decision.' },
-      { id: 'r3', text: 'Waiting guarantees that the eventual response will be positive.' }
+    "claim": "No answer yet means the teacher said no to the drawing.",
+    "options": [
+      {
+        "id": "a",
+        "label": "Send the same question every ten minutes",
+        "effect": "Lian sends more messages but learns nothing new about the drawing.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "b",
+        "label": "Mark the drawing as chosen for the show",
+        "effect": "Lian writes down a yes that the teacher has not given.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "c",
+        "label": "Throw the drawing away because the teacher said no",
+        "effect": "Lian loses the drawing before an answer arrives.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "d",
+        "label": "Keep the drawing and check at three tomorrow",
+        "effect": "Lian leaves the answer open and picks a clear time to return.",
+        "valid": true,
+        "reasonIds": [
+          "r2"
+        ]
+      }
     ],
-    explanation: 'No response yet leaves the outcome unresolved. The agreed window supplies a stopping point and a reason to return, without treating waiting as proof of either acceptance or rejection.',
-    skill: 'uncertainty', principle: 'Leave unknowns open; define when to return.'
+    "reasons": [
+      {
+        "id": "r1",
+        "text": "A slow answer tells us the answer will be no."
+      },
+      {
+        "id": "r2",
+        "text": "There is still time for an answer. Nothing needs deciding sooner."
+      },
+      {
+        "id": "r3",
+        "text": "Waiting means the teacher will say yes."
+      }
+    ],
+    "explanation": "Lian does not know the answer yet. Keep the drawing and come back at the promised time. Waiting tells us neither yes nor no.",
+    "skill": "uncertainty",
+    "principle": "Leave room for “I do not know yet.”"
   },
   {
-    id: 'reply-boundary', family: 'delayed-reply', title: 'A clear availability note',
-    scene: 'Omar asks a volunteer to review a poster tonight. The volunteer replies that they cannot take on this review and will not be checking messages tonight. The poster can wait until Friday.',
-    facts: ['The volunteer explicitly declined this review.', 'They are unavailable tonight.', 'A different reviewer is available tomorrow, before the deadline.'],
-    claim: 'If Omar asks more gently tonight, this volunteer will probably review it.',
-    options: [
-      { id: 'a', label: 'Send a softer request to the same volunteer tonight', effect: 'The new request asks the volunteer to reverse an already stated limit.', valid: false, reasonIds: [] },
-      { id: 'b', label: 'Arrange tomorrow’s available review', effect: 'Omar moves the review to someone available within the deadline.', valid: true, reasonIds: ['r3'] },
-      { id: 'c', label: 'Assume the volunteer has rejected every future request', effect: 'A limit on this review expands into an unsupported permanent conclusion.', valid: false, reasonIds: [] },
-      { id: 'd', label: 'Treat the decline as an ambiguous delayed response', effect: 'Omar overlooks information the volunteer has already communicated.', valid: false, reasonIds: [] }
+    "id": "reply-boundary",
+    "family": "delayed-reply",
+    "title": "A clear no for tonight",
+    "scene": "Omar asks a helper to check his picture tonight. She says, “I cannot check this picture. I am away tonight.” Another helper can check tomorrow. The picture is due Friday.",
+    "facts": [
+      "The first helper said she cannot check this picture.",
+      "She is away tonight.",
+      "Another helper can check tomorrow, before Friday."
     ],
-    reasons: [
-      { id: 'r1', text: 'Every refusal is negotiable if the wording becomes more reassuring.' },
-      { id: 'r2', text: 'Declining one review establishes permanent unavailability.' },
-      { id: 'r3', text: 'The stated limit is clear and another workable route is available.' }
+    "claim": "If Omar asks more nicely tonight, this helper will check it.",
+    "options": [
+      {
+        "id": "a",
+        "label": "Ask the same helper again more nicely tonight",
+        "effect": "Omar asks her to change a clear answer she has already given.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "b",
+        "label": "Ask the other helper to check tomorrow",
+        "effect": "Omar finds a check that can happen before the picture is due.",
+        "valid": true,
+        "reasonIds": [
+          "r3"
+        ]
+      },
+      {
+        "id": "c",
+        "label": "Decide this helper will never help Omar again",
+        "effect": "Omar turns one no into a guess about every future request.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "d",
+        "label": "Treat her answer as if she has not replied yet",
+        "effect": "Omar misses the clear answer already in her message.",
+        "valid": false,
+        "reasonIds": []
+      }
     ],
-    explanation: 'The cause is not simply unknown here: an availability limit was communicated. Accept that information and choose a practical alternative without extending the refusal beyond its stated scope.',
-    skill: 'action', principle: 'Respect clear limits and redirect the action.'
+    "reasons": [
+      {
+        "id": "r1",
+        "text": "A nicer request can always turn a no into a yes."
+      },
+      {
+        "id": "r2",
+        "text": "Saying no this time means saying no every time."
+      },
+      {
+        "id": "r3",
+        "text": "She gave a clear no. Another helper has time."
+      }
+    ],
+    "explanation": "Here, Omar has an answer. He can respect it and ask the other helper. A no for this picture does not mean a no forever.",
+    "skill": "action",
+    "principle": "Hear a clear answer and choose another way."
   },
   {
-    id: 'attachment-practical', family: 'missing-attachment', title: 'The missing file',
-    scene: 'Pia’s workshop registration is returned with a notice: “Please attach your signed permission form.” Pia has the completed file ready and wants the registration processed.',
-    facts: ['The notice identifies one missing attachment.', 'Pia has the correct completed file.', 'The registration window is open.'],
-    claim: 'No belief claim is needed here.',
-    options: [
-      { id: 'a', label: 'Attach the completed form and resubmit', effect: 'The submission now contains the identified missing item and returns to processing.', valid: true, reasonIds: ['r1'] },
-      { id: 'b', label: 'Ask whether the office is disappointed in Pia', effect: 'The attachment remains missing while the question shifts away from processing.', valid: false, reasonIds: [] },
-      { id: 'c', label: 'List alternative reasons the form might be missing', effect: 'Pia creates explanations without supplying the available required file.', valid: false, reasonIds: [] },
-      { id: 'd', label: 'Wait for approval without changing the submission', effect: 'The identified processing requirement remains unmet.', valid: false, reasonIds: [] }
+    "id": "attachment-practical",
+    "family": "missing-attachment",
+    "title": "The missing name card",
+    "scene": "Pia sends a picture to art club. A note comes back: “Please add your name card.” Her name card is ready. There is still time to send the picture.",
+    "facts": [
+      "The picture needs a name card.",
+      "Pia has the right name card ready.",
+      "Art club is still taking pictures."
     ],
-    reasons: [
-      { id: 'r1', text: 'The requirement and the available action are already clear.' },
-      { id: 'r2', text: 'Every returned form requires examination of the sender’s beliefs.' },
-      { id: 'r3', text: 'A missing attachment normally resolves without any change.' }
+    "claim": "No belief claim is needed here.",
+    "options": [
+      {
+        "id": "a",
+        "label": "Add the name card and send the picture again",
+        "effect": "Art club now has the missing card and can check the picture.",
+        "valid": true,
+        "reasonIds": [
+          "r1"
+        ]
+      },
+      {
+        "id": "b",
+        "label": "Ask if the helper is upset with Pia",
+        "effect": "The name card is still missing. The question does not add it.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "c",
+        "label": "Think of more reasons why the card is missing",
+        "effect": "Pia makes more guesses but does not add the ready card.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "d",
+        "label": "Wait for the picture to pass without adding the card",
+        "effect": "The picture still lacks the name card it needs.",
+        "valid": false,
+        "reasonIds": []
+      }
     ],
-    explanation: 'This scene calls for completing a practical requirement. No unsupported personal interpretation has been supplied, so adding a belief exercise would create work that the situation does not require.',
-    skill: 'action', principle: 'Fix a known requirement when that is enough.'
+    "reasons": [
+      {
+        "id": "r1",
+        "text": "We know what is missing and have it ready."
+      },
+      {
+        "id": "r2",
+        "text": "Every returned picture needs a check of someone’s thoughts."
+      },
+      {
+        "id": "r3",
+        "text": "The missing card will appear without anyone adding it."
+      }
+    ],
+    "explanation": "Pia has a small job to do: add the card. There is no extra thought to test here. Doing the ready step is enough to move on.",
+    "skill": "action",
+    "principle": "Do the clear next step when that is enough."
   },
   {
-    id: 'attachment-added-claim', family: 'missing-attachment', title: 'A separate conclusion',
-    scene: 'Theo attaches the missing page and the portal confirms the application is complete. The review has not started. Theo still concludes that the earlier omission means the application will be rejected.',
-    facts: ['The missing page is now attached.', 'The portal confirms completeness only.', 'The application has not yet been reviewed.'],
-    claim: 'The earlier omission means this application will be rejected.',
-    options: [
-      { id: 'a', label: 'Treat the completeness receipt as final acceptance', effect: 'Theo adds a positive decision that the receipt does not report.', valid: false, reasonIds: [] },
-      { id: 'b', label: 'Upload the same page repeatedly to reverse the omission', effect: 'Duplicate uploads do not provide evidence about the pending review.', valid: false, reasonIds: [] },
-      { id: 'c', label: 'Separate the repaired omission from the pending decision', effect: 'The account records a complete application and leaves the outcome unresolved.', valid: true, reasonIds: ['r2'] },
-      { id: 'd', label: 'Withdraw before the presumed rejection arrives', effect: 'Theo ends the application based on a decision that has not been made.', valid: false, reasonIds: [] }
+    "id": "attachment-added-claim",
+    "family": "missing-attachment",
+    "title": "The name is there now",
+    "scene": "Theo adds the missing name card to his drawing. Art club says, “We have all the parts now.” No one has judged it yet. Theo thinks forgetting the card means he will lose.",
+    "facts": [
+      "Theo has added the name card.",
+      "The note only says all the parts are there.",
+      "No one has judged the drawing yet."
     ],
-    reasons: [
-      { id: 'r1', text: 'Completeness and acceptance are the same decision.' },
-      { id: 'r2', text: 'The receipt resolves the missing-page problem, not the review outcome.' },
-      { id: 'r3', text: 'An initial omission fixes the outcome even after correction.' }
+    "claim": "Forgetting the name card means this drawing will lose.",
+    "options": [
+      {
+        "id": "a",
+        "label": "Treat “all parts are here” as “you have won”",
+        "effect": "Theo adds a win that the note does not promise.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "b",
+        "label": "Keep sending the same name card again",
+        "effect": "Extra copies do not tell Theo how the drawing will do.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "c",
+        "label": "Keep two facts: the card is added; judging comes later",
+        "effect": "Theo keeps the fixed problem apart from the unknown result.",
+        "valid": true,
+        "reasonIds": [
+          "r2"
+        ]
+      },
+      {
+        "id": "d",
+        "label": "Take the drawing out before the expected loss",
+        "effect": "Theo leaves the contest before anyone has judged his drawing.",
+        "valid": false,
+        "reasonIds": []
+      }
     ],
-    explanation: 'The practical problem has been repaired, but an added prediction remains unsupported. Update each question separately: the application is complete; its eventual decision is still unknown.',
-    skill: 'update', principle: 'A repair settles only what it actually changes.'
+    "reasons": [
+      {
+        "id": "r1",
+        "text": "Having every part is the same as winning."
+      },
+      {
+        "id": "r2",
+        "text": "The note settles the missing card, not who will win."
+      },
+      {
+        "id": "r3",
+        "text": "One forgotten card decides the result even after it is added."
+      }
+    ],
+    "explanation": "The card problem is fixed. The contest result is still unknown. Fixing one thing does not tell Theo the answer to a different question.",
+    "skill": "update",
+    "principle": "A fix only settles the thing it fixes."
   },
   {
-    id: 'rumour-one-origin', family: 'repeated-rumour', title: 'Three copies of one note',
-    scene: 'Nia sees three group posts saying the community studio will close early. Each post includes the same cropped screenshot. The original notice has not been opened.',
-    facts: ['All three posts copy one screenshot.', 'The cropped image hides the notice’s date.', 'The full studio notice is available to open.'],
-    claim: 'Three separate sources confirm that the studio closes early today.',
-    options: [
-      { id: 'a', label: 'Count the posts as three independent confirmations', effect: 'One unverified source is counted three times.', valid: false, reasonIds: [] },
-      { id: 'b', label: 'Dismiss the closure because repeated posts never matter', effect: 'A possibly relevant original notice is ignored without inspection.', valid: false, reasonIds: [] },
-      { id: 'c', label: 'Ask a fourth person to forward the same screenshot', effect: 'Another copy adds no independent observation or missing date.', valid: false, reasonIds: [] },
-      { id: 'd', label: 'Open the original notice and check its date', effect: 'Nia can inspect the source and the date hidden by the copied crop.', valid: true, reasonIds: ['r3'] }
+    "id": "rumour-one-origin",
+    "family": "repeated-rumour",
+    "title": "Three copies of one photo",
+    "scene": "Nia sees three friends share the same photo of a playroom sign. It says the room closes early. The date is cut off. Nia can open the full sign.",
+    "facts": [
+      "All three messages use the same photo.",
+      "The photo cuts off the date.",
+      "Nia can open the full sign to see the date."
     ],
-    reasons: [
-      { id: 'r1', text: 'A claim becomes independent evidence each time someone repeats it.' },
-      { id: 'r2', text: 'Copied information cannot contain anything accurate.' },
-      { id: 'r3', text: 'The posts share one origin and omit information needed to apply it.' }
+    "claim": "Three different checks show the playroom closes early today.",
+    "options": [
+      {
+        "id": "a",
+        "label": "Count the copies as three different checks",
+        "effect": "Nia counts one unchecked sign three times.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "b",
+        "label": "Ignore the sign because copied messages are never true",
+        "effect": "Nia ignores a sign that might matter before looking at it.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "c",
+        "label": "Ask another friend to send the same photo",
+        "effect": "Another copy still leaves the date cut off.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "d",
+        "label": "Open the full sign and check the date",
+        "effect": "Nia sees the missing date and can check whether it means today.",
+        "valid": true,
+        "reasonIds": [
+          "r3"
+        ]
+      }
     ],
-    explanation: 'Repeated copies are not independent observations. The original might still be accurate and relevant; checking its missing context is more useful than either multiplying or dismissing the copies.',
-    skill: 'sources', principle: 'Trace the origin before counting the evidence.'
+    "reasons": [
+      {
+        "id": "r1",
+        "text": "Each person sharing a photo makes it a new check."
+      },
+      {
+        "id": "r2",
+        "text": "A copied message can never be right."
+      },
+      {
+        "id": "r3",
+        "text": "These copies share one sign and all hide its date."
+      }
+    ],
+    "explanation": "Three copies are still one sign. The sign may be right, but Nia needs its date. Open the full sign before deciding what it tells her.",
+    "skill": "sources",
+    "principle": "Check where a message first came from."
   },
   {
-    id: 'rumour-independent', family: 'repeated-rumour', title: 'Two separate test runs',
-    scene: 'A community printer smudges blue ink. Bea’s test at nine and Dev’s separate test at ten both show the issue. Their samples and run logs are available. No repair occurred between runs.',
-    facts: ['The samples come from two separately logged print runs.', 'Both runs used the current blue cartridge and specified settings.', 'The job needs clean blue printing; another printer is available.'],
-    claim: 'There is evidence that this printer’s current blue output has a problem.',
-    options: [
-      { id: 'a', label: 'Keep the concern and use the available printer for this job', effect: 'The job moves off the documented problem while the faulty printer awaits attention.', valid: true, reasonIds: ['r1'] },
-      { id: 'b', label: 'Dismiss one result because it resembles the other', effect: 'A genuinely separate observation is discarded for having the same outcome.', valid: false, reasonIds: [] },
-      { id: 'c', label: 'Conclude that every printer in the studio is faulty', effect: 'The conclusion expands beyond the machine and setting that were tested.', valid: false, reasonIds: [] },
-      { id: 'd', label: 'Assume the next run will be clean without any change', effect: 'The needed job is assigned to output with an unresolved documented defect.', valid: false, reasonIds: [] }
+    "id": "rumour-independent",
+    "family": "repeated-rumour",
+    "title": "Two tries with blue ink",
+    "scene": "Bea prints a blue picture at nine. Dev prints another at ten. Both come out smudged. Each keeps a note and the picture. The printer has not been fixed between tries.",
+    "facts": [
+      "The pictures and notes come from two separate print tries.",
+      "Both tries used the same blue ink and print settings.",
+      "Clean blue pictures are needed. Another printer is ready."
     ],
-    reasons: [
-      { id: 'r1', text: 'Two independent runs support a current, specific output concern.' },
-      { id: 'r2', text: 'Similar results must always come from the same source.' },
-      { id: 'r3', text: 'Two tests establish the condition of every printer.' }
+    "claim": "There is a real problem with this printer’s blue ink now.",
+    "options": [
+      {
+        "id": "a",
+        "label": "Keep the concern and use the other printer today",
+        "effect": "The picture gets a different printer while this one needs checking.",
+        "valid": true,
+        "reasonIds": [
+          "r1"
+        ]
+      },
+      {
+        "id": "b",
+        "label": "Ignore one try because the pictures look alike",
+        "effect": "One real, separate check is lost just because its result matches.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "c",
+        "label": "Decide every printer in the room is broken",
+        "effect": "Two tries on one printer become a claim about untested printers.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "d",
+        "label": "Use the same printer and expect clean ink this time",
+        "effect": "The job uses a printer with a problem no one has fixed.",
+        "valid": false,
+        "reasonIds": []
+      }
     ],
-    explanation: 'Similarity does not imply dependence. Here the distinct runs support retaining a bounded concern and choosing a practical alternative; they do not establish a fault in unrelated printers.',
-    skill: 'sources', principle: 'Check independence; do not infer it from similarity.'
+    "reasons": [
+      {
+        "id": "r1",
+        "text": "Two separate tries found the same blue-ink problem."
+      },
+      {
+        "id": "r2",
+        "text": "Matching results must be copies of the same try."
+      },
+      {
+        "id": "r3",
+        "text": "Trying one printer tells us whether every printer works."
+      }
+    ],
+    "explanation": "These are two tries, not two copies of one try. They support a concern about this printer now. They say nothing about every other printer.",
+    "skill": "sources",
+    "principle": "Matching results can come from separate checks."
   },
   {
-    id: 'feedback-question', family: 'short-feedback', title: '“Needs another pass”',
-    scene: 'Ren’s tutor writes, “Needs another pass,” on a presentation outline. No section or criterion is marked. Ren wants to know whether the difficulty is structure, missing evidence, or both.',
-    facts: ['The note does not identify the issue.', 'The tutor is available for one short question.', 'The outline has named sections that can be referenced.'],
-    claim: 'The note probably means the outline’s structure is the problem.',
-    options: [
-      { id: 'a', label: 'Ask whether the tutor still thinks Ren can improve', effect: 'The question seeks general encouragement without distinguishing the possible issues.', valid: false, reasonIds: [] },
-      { id: 'b', label: 'Ask which section misses which criterion', effect: 'The question gives the tutor a way to identify the issue and its location.', valid: true, reasonIds: ['r2'] },
-      { id: 'c', label: 'Replace the whole structure before identifying the issue', effect: 'Ren changes one possible cause while the actual feedback remains unspecified.', valid: false, reasonIds: [] },
-      { id: 'd', label: 'Count the short wording as proof of a structure problem', effect: 'The note’s length is used to answer a question its content leaves open.', valid: false, reasonIds: [] }
+    "id": "feedback-question",
+    "family": "short-feedback",
+    "title": "“Please work on this”",
+    "scene": "Ren makes a poster with three parts. The teacher writes, “Please work on this.” Ren wonders whether the parts are in the wrong order, facts are missing, or both.",
+    "facts": [
+      "The note does not say what needs work.",
+      "The teacher has time for one short question.",
+      "Each poster part has a name Ren can point to."
     ],
-    reasons: [
-      { id: 'r1', text: 'Short feedback reveals which technical issue the writer intended.' },
-      { id: 'r2', text: 'A criterion tied to a section can distinguish the possible problems.' },
-      { id: 'r3', text: 'Encouragement is enough to identify which part needs revision.' }
+    "claim": "The note probably means the poster parts are in the wrong order.",
+    "options": [
+      {
+        "id": "a",
+        "label": "Ask, “Do you think I can make a good poster?”",
+        "effect": "Ren may get kind words but still not learn which part needs work.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "b",
+        "label": "Ask, “Which part needs work, and what needs changing?”",
+        "effect": "The teacher can point to the part and explain the needed change.",
+        "valid": true,
+        "reasonIds": [
+          "r2"
+        ]
+      },
+      {
+        "id": "c",
+        "label": "Move all the parts before finding out what needs work",
+        "effect": "Ren changes the order before learning whether that is the problem.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "d",
+        "label": "Take the short note as proof the order is wrong",
+        "effect": "Ren uses the note’s length to guess what the teacher meant.",
+        "valid": false,
+        "reasonIds": []
+      }
     ],
-    explanation: 'Choose a question whose possible answers would change the next revision. The length or warmth of a reply cannot substitute for information about the actual criterion.',
-    skill: 'prediction', principle: 'Ask for information that separates possibilities.'
+    "reasons": [
+      {
+        "id": "r1",
+        "text": "A short note tells us which part is wrong."
+      },
+      {
+        "id": "r2",
+        "text": "Naming a part and its needed change helps tell problems apart."
+      },
+      {
+        "id": "r3",
+        "text": "Kind words tell Ren exactly which part needs fixing."
+      }
+    ],
+    "explanation": "A useful question can guide Ren’s next change. The note’s length does not tell Ren whether order, missing facts, or both need work.",
+    "skill": "prediction",
+    "principle": "Ask a question that helps choose the next step."
   },
   {
-    id: 'feedback-kind-vague', family: 'short-feedback', title: 'A friendly reply',
-    scene: 'Sasha asks whether a display meets the gallery’s mounting rules. The organiser replies, “Thanks for all the care you’ve put in!” The mounting sheet is available, but no measurements have been checked.',
-    facts: ['The reply expresses appreciation.', 'It does not say whether the mounting rules are met.', 'The mounting sheet gives measurements Sasha can check.'],
-    claim: 'The friendly reply confirms that the display meets the mounting rules.',
-    options: [
-      { id: 'a', label: 'Mark every mounting requirement as passed', effect: 'Unchecked measurements are recorded as if they had been inspected.', valid: false, reasonIds: [] },
-      { id: 'b', label: 'Treat the friendly wording as concealed criticism', effect: 'Sasha replaces one unsupported interpretation of the tone with another.', valid: false, reasonIds: [] },
-      { id: 'c', label: 'Check the display against the mounting sheet', effect: 'Sasha can compare the actual measurements with the published requirements.', valid: true, reasonIds: ['r1'] },
-      { id: 'd', label: 'Ask explicitly whether any mounting requirements remain unmet', effect: 'The follow-up requests the compliance information that the first reply omitted.', valid: true, reasonIds: ['r3'] }
+    "id": "feedback-kind-vague",
+    "family": "short-feedback",
+    "title": "Kind words about a picture",
+    "scene": "Sasha asks whether a picture fits the art show’s size rules. The helper replies, “Thanks for working so hard!” The size guide is ready. No one has measured the picture.",
+    "facts": [
+      "The helper thanks Sasha for working hard.",
+      "The reply does not say the picture is the right size.",
+      "The guide gives sizes Sasha can measure."
     ],
-    reasons: [
-      { id: 'r1', text: 'The available measurements directly address the unresolved requirement.' },
-      { id: 'r2', text: 'Warm language is reliable technical approval.' },
-      { id: 'r3', text: 'Appreciation and a compliance decision answer different questions.' },
-      { id: 'r4', text: 'A reply that omits approval must mean disapproval.' }
+    "claim": "The kind reply means the picture fits the size rules.",
+    "options": [
+      {
+        "id": "a",
+        "label": "Mark every size rule as checked and passed",
+        "effect": "Sasha calls measurements right before anyone has taken them.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "b",
+        "label": "Decide the kind words really mean the picture is wrong",
+        "effect": "Sasha swaps one guess about the reply for another.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "c",
+        "label": "Measure the picture and check the size guide",
+        "effect": "Sasha compares the real picture with the sizes it needs to meet.",
+        "valid": true,
+        "reasonIds": [
+          "r1"
+        ]
+      },
+      {
+        "id": "d",
+        "label": "Ask, “Does any part still need a size change?”",
+        "effect": "Sasha asks for the size answer missing from the kind reply.",
+        "valid": true,
+        "reasonIds": [
+          "r3"
+        ]
+      }
     ],
-    explanation: 'Appreciation can be sincere and still leave the technical question open. Either checking the stated criteria or requesting specific clarification can supply relevant information.',
-    skill: 'sources', principle: 'Use what a message says, not what its tone promises.'
+    "reasons": [
+      {
+        "id": "r1",
+        "text": "Measuring the picture can answer the size question."
+      },
+      {
+        "id": "r2",
+        "text": "Kind words always mean every rule has been met."
+      },
+      {
+        "id": "r3",
+        "text": "A thank-you and an answer about size are different things."
+      },
+      {
+        "id": "r4",
+        "text": "No clear yes must mean no."
+      }
+    ],
+    "explanation": "The thanks can be real while the size is still unchecked. Sasha can measure the picture or ask directly about its size. Either can help answer the question.",
+    "skill": "sources",
+    "principle": "Use the answer given. Do not add another one."
   },
   {
-    id: 'first-step-available', family: 'difficult-first-step', title: 'The unopened slide file',
-    scene: 'Ellis delays a short presentation because the final wording is uncertain. The topic and three required sections are already supplied. Opening a blank file brings some discomfort, but no further resources are needed.',
-    facts: ['The topic and three section headings are known.', 'Headings can be added and changed without cost.', 'The complete wording is not needed to create the outline.'],
-    claim: 'Ellis cannot begin until all the wording is settled.',
-    options: [
-      { id: 'a', label: 'Create three heading slides and inspect what remains', effect: 'The outline exists; missing wording becomes a smaller, visible next task.', valid: true, reasonIds: ['r2'] },
-      { id: 'b', label: 'Wait until opening the file feels entirely comfortable', effect: 'No outline is created and the same unfinished task remains.', valid: false, reasonIds: [] },
-      { id: 'c', label: 'Plan the complete speech repeatedly without opening a file', effect: 'Ellis keeps rehearsing the unresolved whole rather than testing the available first step.', valid: false, reasonIds: [] },
-      { id: 'd', label: 'Promise that starting will remove all discomfort', effect: 'The plan gains an emotional guarantee that the available facts cannot support.', valid: false, reasonIds: [] }
+    "id": "first-step-available",
+    "family": "difficult-first-step",
+    "title": "The empty story book",
+    "scene": "Ellis wants to make a story book. The three page titles are ready, but the whole story is not. Starting feels hard. Ellis thinks every word must be ready first.",
+    "facts": [
+      "The three page titles are ready.",
+      "Ellis can write the titles and change them later.",
+      "The whole story is not needed to add the titles."
     ],
-    reasons: [
-      { id: 'r1', text: 'A useful first step must make discomfort disappear immediately.' },
-      { id: 'r2', text: 'A reversible step is available without solving the complete task.' },
-      { id: 'r3', text: 'Uncertain wording makes every preparatory action impossible.' }
+    "claim": "Ellis cannot start until every word of the story is ready.",
+    "options": [
+      {
+        "id": "a",
+        "label": "Write the three titles and look at what comes next",
+        "effect": "The book has a start. Ellis can see which words are still missing.",
+        "valid": true,
+        "reasonIds": [
+          "r2"
+        ]
+      },
+      {
+        "id": "b",
+        "label": "Wait until starting feels completely easy",
+        "effect": "The book stays empty and the same job remains.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "c",
+        "label": "Keep planning every word without opening the book",
+        "effect": "Ellis repeats the big plan without trying the ready first step.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "d",
+        "label": "Promise that starting will make all hard feelings go away",
+        "effect": "The plan adds a promise about feelings that no one has tested.",
+        "valid": false,
+        "reasonIds": []
+      }
     ],
-    explanation: 'A small action can reveal the next requirement while discomfort remains. The claim being tested is whether this outline can begin, not whether every later step will be easy.',
-    skill: 'action', principle: 'Try the smallest available step and inspect its result.'
+    "reasons": [
+      {
+        "id": "r1",
+        "text": "A good first step must make every hard feeling vanish."
+      },
+      {
+        "id": "r2",
+        "text": "One small step is ready and can be changed later."
+      },
+      {
+        "id": "r3",
+        "text": "Missing story words make every first step impossible."
+      }
+    ],
+    "explanation": "Ellis can try the titles even while starting feels hard. That tests whether a start is possible. It does not promise the rest will be easy.",
+    "skill": "action",
+    "principle": "Try one ready step and see what it changes."
   },
   {
-    id: 'first-step-blocked', family: 'difficult-first-step', title: 'The locked template',
-    scene: 'Asha needs to add headings to a shared template. The file is locked, editing access is required, and the owner must approve it. The instructions forbid substituting a different file.',
-    facts: ['Asha has viewing access only.', 'Only the owner can enable editing.', 'The task must be completed in this template.'],
-    claim: 'The missing editing permission currently prevents this task from starting.',
-    options: [
-      { id: 'a', label: 'Keep attempting to type into the locked file', effect: 'The interface rejects the same action because the permission has not changed.', valid: false, reasonIds: [] },
-      { id: 'b', label: 'Replace the access problem with a claim about motivation', effect: 'The account loses the concrete dependency that is blocking the task.', valid: false, reasonIds: [] },
-      { id: 'c', label: 'Request editing access and resume when it is granted', effect: 'The owner receives the permission request and the task has a defined restart condition.', valid: true, reasonIds: ['r3'] },
-      { id: 'd', label: 'Submit a different file as if it met the requirement', effect: 'A substitute is produced despite the stated requirement to use the shared template.', valid: false, reasonIds: [] }
+    "id": "first-step-blocked",
+    "family": "difficult-first-step",
+    "title": "The locked art box",
+    "scene": "Asha needs to paint with the club’s special paint. It is in a locked box. Only the helper has the key. The task says to use this paint, not another kind.",
+    "facts": [
+      "The needed paint is inside a locked box.",
+      "Only the helper has the key.",
+      "The task needs this paint, not a different kind."
     ],
-    reasons: [
-      { id: 'r1', text: 'Any barrier can be removed by making the physical action smaller.' },
-      { id: 'r2', text: 'A required tool can always be replaced without checking the instructions.' },
-      { id: 'r3', text: 'The task depends on a permission that Asha cannot supply alone.' }
+    "claim": "The locked box stops Asha from starting the painting right now.",
+    "options": [
+      {
+        "id": "a",
+        "label": "Keep pulling the locked lid",
+        "effect": "The lid stays locked because Asha still has no key.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "b",
+        "label": "Say the problem is that Asha does not want to paint",
+        "effect": "The thought misses the real locked box that blocks the painting.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "c",
+        "label": "Ask the helper to unlock it, then start",
+        "effect": "Asha asks for the missing help and knows when painting can begin.",
+        "valid": true,
+        "reasonIds": [
+          "r3"
+        ]
+      },
+      {
+        "id": "d",
+        "label": "Use different paint and call the task finished",
+        "effect": "Asha uses paint that does not meet this task’s clear rule.",
+        "valid": false,
+        "reasonIds": []
+      }
     ],
-    explanation: 'The obstacle is a real dependency. An appropriate first action obtains the missing resource; asking Asha to overcome a belief would not unlock the file.',
-    skill: 'action', principle: 'Check whether the next step has its required resources.'
+    "reasons": [
+      {
+        "id": "r1",
+        "text": "Making a move smaller can open any locked box."
+      },
+      {
+        "id": "r2",
+        "text": "Any paint can be swapped in without checking the task."
+      },
+      {
+        "id": "r3",
+        "text": "Asha needs a key that only the helper can use."
+      }
+    ],
+    "explanation": "This is a real block. Wanting to paint more will not open the box. The next step is to ask for the key holder’s help.",
+    "skill": "action",
+    "principle": "Find out what a step needs before trying it."
   },
   {
-    id: 'variable-noise', family: 'variable-task-result', title: 'One slower run',
-    scene: 'Kai’s packing drill usually takes between four and six minutes with identical materials. Today it takes six. Kai concludes that the new packing method has stopped working.',
-    facts: ['The last ten identical runs ranged from four to six minutes.', 'Today’s run took six minutes.', 'No change in materials or instructions is reported.'],
-    claim: 'The method has stopped working.',
-    options: [
-      { id: 'a', label: 'Abandon the method because the latest run was slowest', effect: 'Kai discards the method on a result already inside its observed range.', valid: false, reasonIds: [] },
-      { id: 'b', label: 'Keep the method provisionally and compare the next scheduled runs', effect: 'Kai records today’s result and uses later comparable runs to assess a pattern.', valid: true, reasonIds: ['r1'] },
-      { id: 'c', label: 'Delete today’s result so the method looks more reliable', effect: 'The record loses a valid observation that belongs in future comparisons.', valid: false, reasonIds: [] },
-      { id: 'd', label: 'Declare that the method can never become less effective', effect: 'A limited observation history becomes an unsupported permanent guarantee.', valid: false, reasonIds: [] }
+    "id": "variable-noise",
+    "family": "variable-task-result",
+    "title": "One slower tidy-up",
+    "scene": "Kai sorts the same toy set with the same plan each day. It takes four to six minutes. Today it takes six. Kai thinks the plan no longer works.",
+    "facts": [
+      "The last ten tries took four to six minutes each.",
+      "Today’s try took six minutes.",
+      "The toys and sorting rules have not changed."
     ],
-    reasons: [
-      { id: 'r1', text: 'Today’s result fits the existing range and does not by itself establish a change.' },
-      { id: 'r2', text: 'The most recent result always outweighs all earlier comparable runs.' },
-      { id: 'r3', text: 'Variation should be removed from the record before drawing conclusions.' }
+    "claim": "This sorting plan no longer works.",
+    "options": [
+      {
+        "id": "a",
+        "label": "Drop the plan because today was one of the slowest",
+        "effect": "Kai drops the plan after a time seen in earlier tries.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "b",
+        "label": "Keep today’s time and compare the next planned tries",
+        "effect": "Kai saves the result and checks whether later similar tries keep changing.",
+        "valid": true,
+        "reasonIds": [
+          "r1"
+        ]
+      },
+      {
+        "id": "c",
+        "label": "Erase today’s time so the plan looks better",
+        "effect": "A real result goes missing from the record.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "d",
+        "label": "Say the plan will always work just as well",
+        "effect": "Kai turns a few past tries into a promise about every future try.",
+        "valid": false,
+        "reasonIds": []
+      }
     ],
-    explanation: 'Retain the observation without overreading it. A result within the previous range warrants neither immediate abandonment nor a guarantee of permanent reliability.',
-    skill: 'update', principle: 'Compare a result with the variation already observed.'
+    "reasons": [
+      {
+        "id": "r1",
+        "text": "Six minutes fits earlier tries. One time does not show a change."
+      },
+      {
+        "id": "r2",
+        "text": "The newest try matters more than every other try put together."
+      },
+      {
+        "id": "r3",
+        "text": "We should erase odd-looking results before deciding."
+      }
+    ],
+    "explanation": "Keep today’s time. It fits the earlier times. That alone is no reason to drop the plan or promise it will work forever. Compare the next planned tries.",
+    "skill": "update",
+    "principle": "Compare this try with how past tries varied."
   },
   {
-    id: 'variable-condition-change', family: 'variable-task-result', title: 'A different-sized box',
-    scene: 'Kai’s next packing job uses boxes twice as large. The old instructions leave gaps, and the supplier’s new sheet specifies an extra insert. Kai suggests ignoring this as ordinary variation.',
-    facts: ['The box size has changed.', 'The new supplier sheet requires an extra insert.', 'The old method does not include that insert.'],
-    claim: 'The old method applies unchanged because slow runs happened before.',
-    options: [
-      { id: 'a', label: 'Collect many more old-method runs before reading the new sheet', effect: 'Packing continues under instructions already missing a stated new requirement.', valid: false, reasonIds: [] },
-      { id: 'b', label: 'Discard every lesson from the earlier method', effect: 'Kai removes potentially useful steps along with the part that needs revision.', valid: false, reasonIds: [] },
-      { id: 'c', label: 'Call the missing insert a confidence problem', effect: 'The concrete packing requirement remains unaddressed.', valid: false, reasonIds: [] },
-      { id: 'd', label: 'Add the required insert and check one new-size box', effect: 'Kai updates the changed requirement and inspects the result under the new conditions.', valid: true, reasonIds: ['r2'] }
+    "id": "variable-condition-change",
+    "family": "variable-task-result",
+    "title": "A bigger toy box",
+    "scene": "Kai now packs toys in boxes twice as big. The old plan leaves gaps. The new picture guide shows one extra pad to fill them. Kai calls this another slow day.",
+    "facts": [
+      "The boxes are now twice as big.",
+      "The new guide calls for one extra pad.",
+      "The old plan has no extra pad."
     ],
-    reasons: [
-      { id: 'r1', text: 'Past variation means later differences cannot reflect changed conditions.' },
-      { id: 'r2', text: 'The relevant materials and published requirement have actually changed.' },
-      { id: 'r3', text: 'Any change makes all prior task knowledge unusable.' }
+    "claim": "The old plan needs no change. Some days just take longer.",
+    "options": [
+      {
+        "id": "a",
+        "label": "Try the old plan many more times before reading the guide",
+        "effect": "Kai keeps packing without the extra pad the new boxes need.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "b",
+        "label": "Throw away every step from the old plan",
+        "effect": "Kai loses steps that might still help along with the changed step.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "c",
+        "label": "Say Kai only needs to feel more sure",
+        "effect": "The bigger box still lacks the needed pad.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "d",
+        "label": "Add the extra pad and check one bigger box",
+        "effect": "Kai makes the stated change and checks how the new box fits.",
+        "valid": true,
+        "reasonIds": [
+          "r2"
+        ]
+      }
     ],
-    explanation: 'Known changes in conditions can justify prompt revision. Waiting for a long run of failures would ignore information already available about why the old method is incomplete.',
-    skill: 'update', principle: 'Revise promptly when a relevant condition changes.'
+    "reasons": [
+      {
+        "id": "r1",
+        "text": "Past slow days mean new boxes cannot need a new step."
+      },
+      {
+        "id": "r2",
+        "text": "Both the box size and its packing rule have changed."
+      },
+      {
+        "id": "r3",
+        "text": "If one thing changes, every old step becomes useless."
+      }
+    ],
+    "explanation": "This time, a needed part has changed. Kai can use the new guide now. Many more tries with a missing pad would not fix the gap.",
+    "skill": "update",
+    "principle": "Change the plan when a needed part changes."
   },
   {
-    id: 'requirement-new', family: 'changed-requirement', title: 'A new upload limit',
-    scene: 'A community exhibit now requires images under five megabytes. Yesterday’s written instructions allowed ten. Ivo’s eight-megabyte file followed yesterday’s rule and is rejected by today’s upload check.',
-    facts: ['Yesterday’s saved instructions allow ten megabytes.', 'Today’s dated update reduces the limit to five.', 'Ivo’s file is eight megabytes and can be compressed.'],
-    claim: 'This rejection proves Ivo ignored the instructions when preparing the file.',
-    options: [
-      { id: 'a', label: 'Record the changed limit and compress a copy for today’s upload', effect: 'The account preserves the rule change and the new copy targets the current limit.', valid: true, reasonIds: ['r3'] },
-      { id: 'b', label: 'Insist yesterday’s limit must still govern today’s upload', effect: 'The unchanged file continues to miss the stated current requirement.', valid: false, reasonIds: [] },
-      { id: 'c', label: 'Treat the rejection as evidence that the dated update is false', effect: 'Ivo dismisses a relevant record without conflicting evidence.', valid: false, reasonIds: [] },
-      { id: 'd', label: 'Conclude that Ivo never follows any instructions', effect: 'A changed requirement becomes an unsupported general claim about past work.', valid: false, reasonIds: [] }
+    "id": "requirement-new",
+    "family": "changed-requirement",
+    "title": "The book rule changed",
+    "scene": "Art club allowed books up to ten pages yesterday. Today its new dated note says five. Ivo made eight pages using yesterday’s note. Today the club asks for a shorter book.",
+    "facts": [
+      "Yesterday’s saved note allows books up to ten pages.",
+      "Today’s new note allows books up to five pages.",
+      "Ivo’s book has eight pages. He can make a shorter copy."
     ],
-    reasons: [
-      { id: 'r1', text: 'The result of today’s check reveals which rule existed yesterday.' },
-      { id: 'r2', text: 'Following an earlier rule means a current requirement can be ignored.' },
-      { id: 'r3', text: 'The file met the earlier size rule; the current rule requires a change.' }
+    "claim": "This proves Ivo ignored the rule when he made the book.",
+    "options": [
+      {
+        "id": "a",
+        "label": "Note the changed rule and make a shorter copy",
+        "effect": "Ivo keeps the rule change clear and makes a book for today’s limit.",
+        "valid": true,
+        "reasonIds": [
+          "r3"
+        ]
+      },
+      {
+        "id": "b",
+        "label": "Insist yesterday’s rule must still count today",
+        "effect": "The eight-page book still exceeds today’s five-page limit.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "c",
+        "label": "Say the new dated note must be wrong",
+        "effect": "Ivo rejects a clear new note without anything showing it is wrong.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "d",
+        "label": "Decide Ivo never follows any rules",
+        "effect": "A changed rule becomes a guess about everything Ivo has ever done.",
+        "valid": false,
+        "reasonIds": []
+      }
     ],
-    explanation: 'Separate the conditions at preparation from the conditions now. The earlier action matched its stated limit, while the file still needs adjustment to meet today’s requirement.',
-    skill: 'scope', principle: 'Evaluate an action against the conditions at the time.'
+    "reasons": [
+      {
+        "id": "r1",
+        "text": "Today’s answer tells us which rule existed yesterday."
+      },
+      {
+        "id": "r2",
+        "text": "Following yesterday’s rule means today’s rule does not matter."
+      },
+      {
+        "id": "r3",
+        "text": "Eight pages fit yesterday’s rule. Today’s rule asks for fewer."
+      }
+    ],
+    "explanation": "Ivo followed the rule he had then. The book still needs to fit the rule now. Both can be true: he followed the old rule, and a change is needed.",
+    "skill": "scope",
+    "principle": "Use the rule from then to judge a past choice."
   },
   {
-    id: 'requirement-unchanged', family: 'changed-requirement', title: 'The same upload limit',
-    scene: 'Sol’s eight-megabyte image is rejected. Sol thinks the exhibit must have changed its five-megabyte limit. Both the saved instructions from last week and today’s page specify five megabytes.',
-    facts: ['Last week’s saved page states a five-megabyte limit.', 'Today’s page states the same limit.', 'Sol’s file is eight megabytes and can be compressed.'],
-    claim: 'The organisers changed the size rule after Sol prepared the image.',
-    options: [
-      { id: 'a', label: 'Add an undocumented rule change to explain the rejection', effect: 'The explanation gains an exception unsupported by either dated record.', valid: false, reasonIds: [] },
-      { id: 'b', label: 'Correct the rule-change claim and compress a copy', effect: 'Sol keeps the documented rule and changes the file that currently exceeds it.', valid: true, reasonIds: ['r1'] },
-      { id: 'c', label: 'Remove the saved instructions from the comparison', effect: 'Evidence relevant to the proposed rule change is discarded.', valid: false, reasonIds: [] },
-      { id: 'd', label: 'Conclude that all future uploads will be rejected', effect: 'One correctable size error becomes a prediction about every future file.', valid: false, reasonIds: [] }
+    "id": "requirement-unchanged",
+    "family": "changed-requirement",
+    "title": "The book rule stayed the same",
+    "scene": "Sol makes an eight-page book. Art club asks for five pages or fewer. Sol thinks the rule changed. But last week’s saved note and today’s note both say five pages.",
+    "facts": [
+      "Last week’s saved note allows books up to five pages.",
+      "Today’s note still allows books up to five pages.",
+      "Sol’s book has eight pages. A shorter copy is possible."
     ],
-    reasons: [
-      { id: 'r1', text: 'Both dated sources agree; the current file exceeds their stated limit.' },
-      { id: 'r2', text: 'An explanation should be protected even when its predicted evidence is absent.' },
-      { id: 'r3', text: 'One size error predicts every later upload’s outcome.' }
+    "claim": "Art club changed the page rule after Sol made the book.",
+    "options": [
+      {
+        "id": "a",
+        "label": "Say the rule changed even though both notes match",
+        "effect": "Sol adds a rule change that neither note shows.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "b",
+        "label": "Keep the rule as five and make a shorter copy",
+        "effect": "Sol uses the matching notes and fixes the book’s extra pages.",
+        "valid": true,
+        "reasonIds": [
+          "r1"
+        ]
+      },
+      {
+        "id": "c",
+        "label": "Leave last week’s note out of the check",
+        "effect": "Sol loses a note that can test the claimed rule change.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "d",
+        "label": "Decide every book Sol makes will be turned down",
+        "effect": "One fixable page count becomes a guess about every future book.",
+        "valid": false,
+        "reasonIds": []
+      }
     ],
-    explanation: 'A rule change is possible in some scenes, but these records do not support it. Revise the explanation and fix the specific mismatch rather than inventing a protecting exception.',
-    skill: 'update', principle: 'Do not add an exception just to preserve a claim.'
+    "reasons": [
+      {
+        "id": "r1",
+        "text": "Both notes say five. Sol’s eight-page book has more than five."
+      },
+      {
+        "id": "r2",
+        "text": "Keep a guess even when the facts it needs are missing."
+      },
+      {
+        "id": "r3",
+        "text": "One wrong page count tells us what happens to every later book."
+      }
+    ],
+    "explanation": "Rules can change, but these two notes match. Sol can change the guess and fix the page count. There is no need to invent a change in the rule.",
+    "skill": "update",
+    "principle": "Let the facts change your guess."
   },
   {
-    id: 'invitation-known-limit', family: 'missed-invitation', title: 'This workshop is full',
-    scene: 'Mae does not receive a workshop place. The organiser confirms that places were allocated by booking time, the workshop is full, and Mae is on its waiting list. A second session opens next month.',
-    facts: ['The organiser confirms no place is currently available for Mae.', 'The stated allocation rule is booking order.', 'The waiting list and next month’s session are available options.'],
-    claim: 'Mae does not currently have a place in this workshop.',
-    options: [
-      { id: 'a', label: 'Replace the concern with certainty that a place is already reserved', effect: 'Mae’s plan relies on a reservation the organiser has explicitly not provided.', valid: false, reasonIds: [] },
-      { id: 'b', label: 'Treat this full session as exclusion from every future workshop', effect: 'The conclusion extends beyond this booking outcome.', valid: false, reasonIds: [] },
-      { id: 'c', label: 'Keep the current limit and choose a waiting-list or later-session plan', effect: 'Mae plans around the confirmed capacity limit while preserving the stated alternatives.', valid: true, reasonIds: ['r2'] },
-      { id: 'd', label: 'Ask repeatedly whether the organiser truly means the session is full', effect: 'The same capacity question is repeated without a new fact or changed condition.', valid: false, reasonIds: [] }
+    "id": "invitation-known-limit",
+    "family": "missed-invitation",
+    "title": "The art table is full",
+    "scene": "Mae wants a place at art club’s table. The helper says all places went to people who asked first. Mae is on the wait list. Another art day opens next month.",
+    "facts": [
+      "The helper says there is no place for Mae right now.",
+      "Places went to people in the order they asked.",
+      "Mae can wait for a space or try next month."
     ],
-    reasons: [
-      { id: 'r1', text: 'An inconvenient fact should be replaced with a more encouraging belief.' },
-      { id: 'r2', text: 'The current limit is confirmed, and the alternatives do not erase it.' },
-      { id: 'r3', text: 'One booking outcome establishes access to every future session.' }
+    "claim": "Mae does not have a place at this art table right now.",
+    "options": [
+      {
+        "id": "a",
+        "label": "Decide a place is already saved for Mae",
+        "effect": "Mae plans around a place the helper said is not there.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "b",
+        "label": "Decide Mae can never join another art day",
+        "effect": "One full table becomes a guess about every future art day.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "c",
+        "label": "Keep that fact; wait for a space or try next month",
+        "effect": "Mae plans with the real limit and the two paths still open.",
+        "valid": true,
+        "reasonIds": [
+          "r2"
+        ]
+      },
+      {
+        "id": "d",
+        "label": "Keep asking whether the helper really means “full”",
+        "effect": "Mae repeats an answered question without any sign that a place has opened.",
+        "valid": false,
+        "reasonIds": []
+      }
     ],
-    explanation: 'Retain the accurate disappointment-relevant fact. A constructive next step can coexist with a real limitation; optimism is not evidence that the place already exists.',
-    skill: 'action', principle: 'Keep the real limit and act within available options.'
+    "reasons": [
+      {
+        "id": "r1",
+        "text": "We should swap an upsetting fact for a happier thought."
+      },
+      {
+        "id": "r2",
+        "text": "There is no place now. The other choices do not change that."
+      },
+      {
+        "id": "r3",
+        "text": "One full table tells us about every future art day."
+      }
+    ],
+    "explanation": "Mae has no place right now. That can feel sad and still be true. A wait-list plan or a later art day helps without pretending she already has a place.",
+    "skill": "action",
+    "principle": "Keep the real problem and choose an open path."
   },
   {
-    id: 'invitation-unresolved', family: 'missed-invitation', title: 'No email yet',
-    scene: 'Jules has not received a craft-workshop email. One other applicant has. Messages are being sent in batches through Friday; it is Thursday. The booking page still lists Jules’s application as pending.',
-    facts: ['The announced email window ends Friday.', 'Jules’s status is pending.', 'One other person has received a message.'],
-    claim: 'Not receiving an email yet establishes that Jules was left out.',
-    options: [
-      { id: 'a', label: 'Cancel the application because the omission is confirmed', effect: 'Jules leaves the process while its recorded decision is still pending.', valid: false, reasonIds: [] },
-      { id: 'b', label: 'Record a guaranteed place because the status is pending', effect: 'An unresolved application becomes an unsupported acceptance.', valid: false, reasonIds: [] },
-      { id: 'c', label: 'Compare inboxes repeatedly until every applicant matches', effect: 'The comparisons do not resolve Jules’s pending decision during the announced window.', valid: false, reasonIds: [] },
-      { id: 'd', label: 'Leave the decision open and check after Friday’s window', effect: 'Jules preserves the application and sets a relevant time for a follow-up.', valid: true, reasonIds: ['r3'] }
+    "id": "invitation-unresolved",
+    "family": "missed-invitation",
+    "title": "Still waiting for the art message",
+    "scene": "Jules has no art-club message yet. A friend has one. The club sends messages through Friday, and today is Thursday. Jules’s page says, “Still deciding.”",
+    "facts": [
+      "The club can send messages until Friday.",
+      "Jules’s page says, “Still deciding.”",
+      "One other person has a message."
     ],
-    reasons: [
-      { id: 'r1', text: 'A message to one applicant establishes the decision for every applicant.' },
-      { id: 'r2', text: 'Pending status guarantees a positive outcome.' },
-      { id: 'r3', text: 'The stated process is still running and Jules’s outcome is unresolved.' }
+    "claim": "No message yet means Jules has been left out.",
+    "options": [
+      {
+        "id": "a",
+        "label": "Leave the list because the club has said no",
+        "effect": "Jules leaves while the club is still deciding.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "b",
+        "label": "Write down that Jules is sure to get a place",
+        "effect": "Jules turns an unfinished choice into a promised yes.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "c",
+        "label": "Keep comparing messages until everyone has the same answer",
+        "effect": "Other people’s messages do not settle Jules’s unfinished answer.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "d",
+        "label": "Leave the answer open and check after Friday",
+        "effect": "Jules stays on the list and chooses a useful time to ask again.",
+        "valid": true,
+        "reasonIds": [
+          "r3"
+        ]
+      }
     ],
-    explanation: 'This scene does not establish the exclusion confirmed in the full-workshop case. Keep both acceptance and rejection unresolved and use the published window to guide the next check.',
-    skill: 'uncertainty', principle: 'An incomplete process is not a completed decision.'
+    "reasons": [
+      {
+        "id": "r1",
+        "text": "One person’s message gives the answer for everyone."
+      },
+      {
+        "id": "r2",
+        "text": "“Still deciding” means the answer will be yes."
+      },
+      {
+        "id": "r3",
+        "text": "The club is still deciding. Jules’s answer is not known yet."
+      }
+    ],
+    "explanation": "This is not a clear no or a clear yes. The club has more time to answer. Jules can keep the place on the list and check after Friday.",
+    "skill": "uncertainty",
+    "principle": "A choice still being made is not a finished answer."
   },
   {
-    id: 'checking-complete', family: 'repeated-checking', title: 'The unchanged booking',
-    scene: 'Em checks a room booking confirmation against the event plan: date, time and room all match. Nothing has changed. Em considers reopening the same confirmation again before beginning the display plan.',
-    facts: ['The confirmation has just been checked against all three requirements.', 'No new message or change has arrived.', 'The display plan can begin from the confirmed booking.'],
-    claim: 'Another reading of this unchanged confirmation is needed before planning can begin.',
-    options: [
-      { id: 'a', label: 'Start the display plan; recheck if a booking change arrives', effect: 'Em uses the completed check and defines what new information would reopen it.', valid: true, reasonIds: ['r1'] },
-      { id: 'b', label: 'Repeat the same check until no doubt remains', effect: 'The same evidence is revisited without a defined new question or stopping rule.', valid: false, reasonIds: [] },
-      { id: 'c', label: 'Ignore all future booking messages because this check passed', effect: 'A useful current stopping point becomes a refusal to respond to possible changes.', valid: false, reasonIds: [] },
-      { id: 'd', label: 'Ask someone to repeat the same three details immediately', effect: 'The repeated information does not address any identified gap in the completed check.', valid: false, reasonIds: [] }
+    "id": "checking-complete",
+    "family": "repeated-checking",
+    "title": "The party note is checked",
+    "scene": "Em checks a party note: the day, time and room match the plan. No new message has come. Em wants to read the same note again before drawing the decorations.",
+    "facts": [
+      "Em just checked the day, time and room. All match.",
+      "No new message or change has arrived.",
+      "Em has the details needed to draw the decorations."
     ],
-    reasons: [
-      { id: 'r1', text: 'The defined check is complete; a new booking fact would justify reopening it.' },
-      { id: 'r2', text: 'Planning requires the complete absence of uncertainty.' },
-      { id: 'r3', text: 'Once a check passes, relevant later changes can be ignored.' }
+    "claim": "Em must read this same note again before starting the decorations.",
+    "options": [
+      {
+        "id": "a",
+        "label": "Start drawing; check again if a party detail changes",
+        "effect": "Em uses the finished check and knows what would call for another.",
+        "valid": true,
+        "reasonIds": [
+          "r1"
+        ]
+      },
+      {
+        "id": "b",
+        "label": "Keep reading until there is no doubt at all",
+        "effect": "Em repeats the same check with no new question or clear finish.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "c",
+        "label": "Ignore every later party message because the note passed",
+        "effect": "Em might miss a real change that matters to the plan.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "d",
+        "label": "Ask someone to repeat the same three details now",
+        "effect": "Em hears the same facts again without filling any known gap.",
+        "valid": false,
+        "reasonIds": []
+      }
     ],
-    explanation: 'Stop because the relevant check is complete, not because certainty is perfect. A clear re-entry condition keeps stopping responsive to new evidence.',
-    skill: 'stopping', principle: 'Complete the check; name what would reopen it.'
+    "reasons": [
+      {
+        "id": "r1",
+        "text": "The needed check is done. A changed detail would call for another."
+      },
+      {
+        "id": "r2",
+        "text": "No planning can start while any doubt remains."
+      },
+      {
+        "id": "r3",
+        "text": "Once a note passes, later changes no longer matter."
+      }
+    ],
+    "explanation": "The needed check is done even if a little doubt stays. Em can start. A new party detail would be a good reason to check again.",
+    "skill": "stopping",
+    "principle": "Finish the check. Know what would make you return."
   },
   {
-    id: 'checking-new-information', family: 'repeated-checking', title: 'A revised confirmation',
-    scene: 'Em has already checked the room booking. A new email now arrives with the subject “Revised room allocation.” The event plan still shows the old room, and setup has not begun.',
-    facts: ['A new allocation notice arrived after the earlier check.', 'The plan still uses the earlier room details.', 'Setup can still be adjusted before it begins.'],
-    claim: 'Reopening the booking would be unnecessary because it has already been checked.',
-    options: [
-      { id: 'a', label: 'Keep the old plan without reading the new allocation', effect: 'The plan may rely on information superseded by the new notice.', valid: false, reasonIds: [] },
-      { id: 'b', label: 'Read the revised allocation and update only affected details', effect: 'Em compares the new notice with the plan before setup begins.', valid: true, reasonIds: ['r2'] },
-      { id: 'c', label: 'Restart every event decision from the beginning', effect: 'Unrelated settled details are reopened without evidence that they changed.', valid: false, reasonIds: [] },
-      { id: 'd', label: 'Read only the earlier confirmation several more times', effect: 'Em reviews old evidence while the potentially changed allocation remains unread.', valid: false, reasonIds: [] }
+    "id": "checking-new-information",
+    "family": "repeated-checking",
+    "title": "A new room note",
+    "scene": "Em has checked the party room. A new message says, “Room change.” The plan still names the old room. No one has put up the decorations yet.",
+    "facts": [
+      "The new room message came after Em’s last check.",
+      "The plan still shows the old room.",
+      "There is time to change the plan before decorating."
     ],
-    reasons: [
-      { id: 'r1', text: 'A completed check makes all later checking unnecessary.' },
-      { id: 'r2', text: 'New relevant information has met a reasonable condition for checking again.' },
-      { id: 'r3', text: 'One changed detail means every earlier decision must be discarded.' }
+    "claim": "Em does not need to look again because the room was checked.",
+    "options": [
+      {
+        "id": "a",
+        "label": "Keep the old room in the plan without reading",
+        "effect": "Em may plan for a room that is no longer the party room.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "b",
+        "label": "Read the new note and change the details it affects",
+        "effect": "Em checks the new room against the plan before decorating.",
+        "valid": true,
+        "reasonIds": [
+          "r2"
+        ]
+      },
+      {
+        "id": "c",
+        "label": "Start every part of the party plan all over again",
+        "effect": "Em reopens choices that the new room note may not change.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "d",
+        "label": "Read the old note a few more times",
+        "effect": "Em rereads old facts while leaving the new room note unopened.",
+        "valid": false,
+        "reasonIds": []
+      }
     ],
-    explanation: 'A new relevant notice changes the evidence state. Checking again is appropriate, while selectively updating prevents one change from reopening every unrelated decision.',
-    skill: 'stopping', principle: 'Return when relevant evidence changes.'
+    "reasons": [
+      {
+        "id": "r1",
+        "text": "After one check, no later check can help."
+      },
+      {
+        "id": "r2",
+        "text": "A new room message gives a real reason to look again."
+      },
+      {
+        "id": "r3",
+        "text": "One changed detail means every part of the plan is wrong."
+      }
+    ],
+    "explanation": "Something new has arrived. This is a good time to check again. Change the parts the new room affects; other parts can stay if they still fit.",
+    "skill": "stopping",
+    "principle": "Look again when a useful new fact arrives."
   },
   {
-    id: 'plan-false-comfort', family: 'overconfident-plan', title: 'An untested arrangement',
-    scene: 'Alex plans a ten-minute equipment setup. It has never been timed, two necessary cables are missing, and the room opens only ten minutes before the session. Alex says enthusiasm will make it work.',
-    facts: ['No full setup trial has been completed.', 'Two required cables are not yet available.', 'The current plan leaves no extra setup time.'],
-    claim: 'The setup will certainly finish on time because Alex feels confident.',
-    options: [
-      { id: 'a', label: 'Increase the confidence estimate without changing the plan', effect: 'The untested timing and missing equipment remain unchanged.', valid: false, reasonIds: [] },
-      { id: 'b', label: 'Cancel all future use of the equipment', effect: 'A present planning gap becomes a permanent restriction without further assessment.', valid: false, reasonIds: [] },
-      { id: 'c', label: 'Obtain the cables, time a full setup, and revise the time plan', effect: 'Alex addresses the dependency and gathers timing evidence before committing to the schedule.', valid: true, reasonIds: ['r3'] },
-      { id: 'd', label: 'Count a quick unpacking trial as proof that the complete setup fits', effect: 'A partial task is used to certify untested steps in the whole setup.', valid: false, reasonIds: [] }
+    "id": "plan-false-comfort",
+    "family": "overconfident-plan",
+    "title": "A game that is not ready",
+    "scene": "Alex has ten minutes to set up a game. Two needed game pieces are missing. Alex has never timed the whole setup but says feeling sure means it will fit.",
+    "facts": [
+      "Alex has never timed the full setup.",
+      "Two needed game pieces are missing.",
+      "There are only ten minutes to set up."
     ],
-    reasons: [
-      { id: 'r1', text: 'Feeling confident supplies the missing equipment and timing evidence.' },
-      { id: 'r2', text: 'Completing one part establishes the duration of the entire setup.' },
-      { id: 'r3', text: 'The plan depends on resources and a duration that have not been verified.' }
+    "claim": "The game will be ready on time because Alex feels sure.",
+    "options": [
+      {
+        "id": "a",
+        "label": "Feel even more sure but keep the same plan",
+        "effect": "The missing pieces and unknown setup time stay the same.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "b",
+        "label": "Decide never to use this game again",
+        "effect": "A problem with today’s plan becomes a ban on every later try.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "c",
+        "label": "Get the pieces, time the whole setup, then adjust",
+        "effect": "Alex gets what is missing and uses a full try to plan the time.",
+        "valid": true,
+        "reasonIds": [
+          "r3"
+        ]
+      },
+      {
+        "id": "d",
+        "label": "Time opening the box and call the whole setup checked",
+        "effect": "Alex counts one small part as a check of all the steps.",
+        "valid": false,
+        "reasonIds": []
+      }
     ],
-    explanation: 'Encouragement does not resolve missing dependencies. Test the actual task under relevant conditions, then let that evidence determine what timing or contingency changes are needed.',
-    skill: 'prediction', principle: 'Check the conditions behind a confident forecast.'
+    "reasons": [
+      {
+        "id": "r1",
+        "text": "Feeling sure supplies the missing pieces and tells us the time."
+      },
+      {
+        "id": "r2",
+        "text": "Timing the first part tells us how long every part takes."
+      },
+      {
+        "id": "r3",
+        "text": "The plan still needs the pieces and a full timed try."
+      }
+    ],
+    "explanation": "Feeling sure does not find missing pieces or measure time. Try the whole setup with what it needs. Then make a time plan that fits what happened.",
+    "skill": "prediction",
+    "principle": "Check what a confident guess depends on."
   },
   {
-    id: 'plan-supported-confidence', family: 'overconfident-plan', title: 'A rehearsed arrangement',
-    scene: 'Alex has all the equipment and has completed five full setups in the same room, each within eight minutes. Twenty minutes are available, and a tested spare cable is packed. Nothing relevant has changed.',
-    facts: ['Five complete comparable setups each took eight minutes or less.', 'The available window is twenty minutes.', 'Required equipment and a tested spare cable are present.'],
-    claim: 'The setup is likely to fit within the available time, although it is not guaranteed.',
-    options: [
-      { id: 'a', label: 'Treat a successful setup as logically certain', effect: 'A well-supported forecast becomes a guarantee beyond the available evidence.', valid: false, reasonIds: [] },
-      { id: 'b', label: 'Restart the entire plan because confidence itself is suspect', effect: 'A supported plan is discarded without new conflicting information.', valid: false, reasonIds: [] },
-      { id: 'c', label: 'Repeat trials indefinitely before using the room', effect: 'Additional rehearsals replace action despite the existing evidence and time buffer.', valid: false, reasonIds: [] },
-      { id: 'd', label: 'Proceed with the tested plan and keep the spare available', effect: 'Alex acts on the relevant practice evidence while retaining a proportionate contingency.', valid: true, reasonIds: ['r1'] }
+    "id": "plan-supported-confidence",
+    "family": "overconfident-plan",
+    "title": "A game setup tried five times",
+    "scene": "Alex has all the game pieces. Five full setups in this room each took eight minutes or less. There are twenty minutes now. A checked spare piece is ready. Nothing has changed.",
+    "facts": [
+      "Five full tries here each took eight minutes or less.",
+      "Alex has twenty minutes this time.",
+      "All needed pieces and a checked spare are ready."
     ],
-    reasons: [
-      { id: 'r1', text: 'Comparable full trials and a time buffer support proceeding without a guarantee.' },
-      { id: 'r2', text: 'Any confident forecast is evidence of a reasoning error.' },
-      { id: 'r3', text: 'Repeated success removes every possibility of a later problem.' }
+    "claim": "The game will probably be ready on time, but it is not certain.",
+    "options": [
+      {
+        "id": "a",
+        "label": "Say there is no chance of anything going wrong",
+        "effect": "Alex turns strong reasons to expect success into a promise of no problems.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "b",
+        "label": "Throw out the plan because feeling sure must be wrong",
+        "effect": "Alex drops a tested plan without any new fact against it.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "c",
+        "label": "Keep practising without ever starting the game",
+        "effect": "More tries replace using the plan despite its tests and extra time.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "d",
+        "label": "Use the tested plan and keep the spare nearby",
+        "effect": "Alex uses the full practice tries and keeps help ready for a small problem.",
+        "valid": true,
+        "reasonIds": [
+          "r1"
+        ]
+      }
     ],
-    explanation: 'Appropriate confidence can be earned. The facts support proceeding with a contingency; automatic doubt would be as unresponsive to the evidence as automatic optimism.',
-    skill: 'prediction', principle: 'Allow confidence to reflect relevant evidence.'
+    "reasons": [
+      {
+        "id": "r1",
+        "text": "Full tries and extra time support starting, without promising success."
+      },
+      {
+        "id": "r2",
+        "text": "Every sure feeling must mean someone has made a mistake."
+      },
+      {
+        "id": "r3",
+        "text": "Repeated success means a later problem is impossible."
+      }
+    ],
+    "explanation": "Alex has good reasons to expect this plan to work. It is okay to act on those reasons and keep the spare. A good plan does not need a perfect promise.",
+    "skill": "prediction",
+    "principle": "Let good checks support feeling more sure."
   },
   {
-    id: 'setback-repairable', family: 'repairable-setback', title: 'A returned entry',
-    scene: 'A drawing-contest entry is returned because its caption is missing. The organisers explicitly allow resubmission until six. It is four, and the caption is ready. Dara predicts that nothing useful can happen after a returned entry.',
-    facts: ['The entry was returned for a missing caption.', 'Resubmission is allowed until six.', 'The caption is ready and there are two hours remaining.'],
-    claim: 'Once this entry has been returned, no useful next action remains.',
-    options: [
-      { id: 'a', label: 'Add the caption and resubmit within the allowed window', effect: 'Dara completes the identified repair and returns the entry for consideration.', valid: true, reasonIds: ['r2'] },
-      { id: 'b', label: 'Record a guaranteed prize because resubmission is possible', effect: 'An available repair is converted into a prediction about an undecided competition result.', valid: false, reasonIds: [] },
-      { id: 'c', label: 'Separate the actual return from the available repair', effect: 'Dara keeps the setback in the account and recognises that a permitted action remains.', valid: true, reasonIds: ['r3'] },
-      { id: 'd', label: 'Wait until the resubmission window has closed', effect: 'The currently available repair route expires without being used.', valid: false, reasonIds: [] }
+    "id": "setback-repairable",
+    "family": "repairable-setback",
+    "title": "Time to add the missing title",
+    "scene": "Dara’s contest drawing comes back with its title missing. The helper says Dara can add it and send it again by six. It is four. The title is ready.",
+    "facts": [
+      "The drawing came back because its title was missing.",
+      "The helper allows another try before six.",
+      "The title is ready. Dara has two hours left."
     ],
-    reasons: [
-      { id: 'r1', text: 'Being able to repair an entry predicts that it will win.' },
-      { id: 'r2', text: 'The specific repair is ready and explicitly permitted before the deadline.' },
-      { id: 'r3', text: 'A setback occurred, but the facts still identify a useful response.' },
-      { id: 'r4', text: 'A returned submission permanently removes all later options.' }
+    "claim": "The drawing came back, so nothing Dara does next can help.",
+    "options": [
+      {
+        "id": "a",
+        "label": "Add the title and send it back before six",
+        "effect": "Dara fixes the missing part and returns the drawing to be judged.",
+        "valid": true,
+        "reasonIds": [
+          "r2"
+        ]
+      },
+      {
+        "id": "b",
+        "label": "Write down that a second try means Dara will win",
+        "effect": "Dara turns a chance to fix the drawing into a promised prize.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "c",
+        "label": "Keep both facts: it came back, and a fix is allowed",
+        "effect": "Dara keeps the setback in view and sees a useful step still open.",
+        "valid": true,
+        "reasonIds": [
+          "r3"
+        ]
+      },
+      {
+        "id": "d",
+        "label": "Wait until the time for another try is over",
+        "effect": "The chance to add the ready title runs out without being used.",
+        "valid": false,
+        "reasonIds": []
+      }
     ],
-    explanation: 'The return happened; it need not be denied. Both recognising the remaining option and taking it are justified. Completing the repair does not guarantee acceptance or a prize.',
-    skill: 'action', principle: 'Separate what happened from what can happen next.'
+    "reasons": [
+      {
+        "id": "r1",
+        "text": "Being allowed to fix a drawing means it will win."
+      },
+      {
+        "id": "r2",
+        "text": "The needed title is ready, and there is time to add it."
+      },
+      {
+        "id": "r3",
+        "text": "The drawing came back, but Dara can still do something useful."
+      },
+      {
+        "id": "r4",
+        "text": "Once a drawing comes back, every next step is closed."
+      }
+    ],
+    "explanation": "The drawing really came back. Dara can still name the open next step or take it. Adding the title gives the drawing another chance; it does not promise a prize.",
+    "skill": "action",
+    "principle": "Keep what happened apart from what can happen next."
   },
   {
-    id: 'setback-outside-control', family: 'repairable-setback', title: 'The closed entry window',
-    scene: 'Dara discovers the missing caption after the contest deadline. The published rule and organiser both confirm no late entries. Dara can save the completed drawing for a different open exhibition next week.',
-    facts: ['This contest’s deadline has passed.', 'The rule and organiser confirm that late entries cannot be accepted.', 'Another exhibition is open and accepts this type of drawing.'],
-    claim: 'A useful response can still restore Dara’s place in this contest.',
-    options: [
-      { id: 'a', label: 'Keep resubmitting until this contest accepts the file', effect: 'Repeated submissions do not change the confirmed closed-entry rule.', valid: false, reasonIds: [] },
-      { id: 'b', label: 'Accept this closed window and prepare the other exhibition’s requirements', effect: 'Dara acknowledges that this contest is closed and begins preparing for the available exhibition.', valid: true, reasonIds: ['r1'] },
-      { id: 'c', label: 'Call the missed contest an imaginary problem', effect: 'A real consequence is removed from the account instead of acknowledged.', valid: false, reasonIds: [] },
-      { id: 'd', label: 'Conclude that the drawing cannot enter any exhibition', effect: 'One closed deadline is extended to an explicitly available alternative.', valid: false, reasonIds: [] }
+    "id": "setback-outside-control",
+    "family": "repairable-setback",
+    "title": "This contest has closed",
+    "scene": "Dara finds the missing title after the contest closes. The rules and helper both say no late drawings. Another art show next week is still open and takes this kind of drawing.",
+    "facts": [
+      "This contest has closed.",
+      "Both the rules and helper say no late drawings.",
+      "Another open art show can take this kind of drawing."
     ],
-    reasons: [
-      { id: 'r1', text: 'This outcome cannot be reversed by the stated options, but a different opportunity remains.' },
-      { id: 'r2', text: 'Having a coping plan means the original loss must be reversible.' },
-      { id: 'r3', text: 'One missed deadline establishes that every other opportunity is closed.' }
+    "claim": "A helpful next step can still get Dara into this closed contest.",
+    "options": [
+      {
+        "id": "a",
+        "label": "Keep sending the drawing until this contest takes it",
+        "effect": "More copies do not change the clear rule against late drawings.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "b",
+        "label": "Accept this contest is closed; get the other show’s rules",
+        "effect": "Dara keeps the missed contest clear and prepares for the art show still open.",
+        "valid": true,
+        "reasonIds": [
+          "r1"
+        ]
+      },
+      {
+        "id": "c",
+        "label": "Say missing this contest is only an imagined problem",
+        "effect": "Dara denies a real missed chance instead of making a plan.",
+        "valid": false,
+        "reasonIds": []
+      },
+      {
+        "id": "d",
+        "label": "Decide this drawing cannot go into any art show",
+        "effect": "One closed contest becomes a claim that ignores the other open show.",
+        "valid": false,
+        "reasonIds": []
+      }
     ],
-    explanation: 'Useful coping does not undo every consequence. Preserve the real loss of this entry window while distinguishing it from the separate opportunity that remains available.',
-    skill: 'scope', principle: 'A useful next move need not reverse the original outcome.'
+    "reasons": [
+      {
+        "id": "r1",
+        "text": "This contest is closed, but the other show is still open."
+      },
+      {
+        "id": "r2",
+        "text": "Having a useful next step means the old loss can be undone."
+      },
+      {
+        "id": "r3",
+        "text": "One closed contest means every other show is closed too."
+      }
+    ],
+    "explanation": "Dara cannot undo this missed contest with the choices here. That loss is real. A different art show is still possible. A useful next step does not have to undo the past.",
+    "skill": "scope",
+    "principle": "A next step can help without undoing the past."
   }
 ];

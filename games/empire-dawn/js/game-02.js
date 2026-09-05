@@ -140,7 +140,7 @@ function createNewGame(civilisation = 'river', difficulty = 'standard') {
     camera: { x: 0, y: 0, targetX: null, targetY: null, zoom: 1.14 },
     players: [
       createPlayer(CIVILISATIONS[civilisation].name, '#4d8bc4', { food: 390, wood: 530, stone: 180, gold: 140 }, 0),
-      createPlayer('Ashen Horde', '#bd4c3e', { food: 680, wood: 720, stone: 200, gold: 250 }, difficulty === 'hard' ? 1 : 0),
+      createPlayer('Other team', '#bd4c3e', { food: 680, wood: 720, stone: 200, gold: 250 }, difficulty === 'hard' ? 1 : 0),
     ],
     terrain: generated.terrain,
     variants: generated.variants,
@@ -152,11 +152,11 @@ function createNewGame(civilisation = 'river', difficulty = 'standard') {
     particles: [],
     decals: [],
     objectives: [
-      { id: 'gather', text: 'Gather 250 additional resources', complete: false, startGathered: 0 },
-      { id: 'barracks', text: 'Construct a Barracks', complete: false },
-      { id: 'army', text: 'Command at least 5 military units', complete: false },
-      { id: 'age', text: 'Advance to the Tool Age', complete: false },
-      { id: 'destroy', text: 'Destroy the enemy Town Centre', complete: false },
+      { id: 'gather', text: 'Bring back 250 food, wood, stone or gold', complete: false, startGathered: 0 },
+      { id: 'barracks', text: 'Build a Guard camp', complete: false },
+      { id: 'army', text: 'Make 5 guards', complete: false },
+      { id: 'age', text: 'Learn to make tools', complete: false },
+      { id: 'destroy', text: 'Break the other team’s Main house', complete: false },
     ],
     ai: {
       thinkTimer: 1,
@@ -223,7 +223,7 @@ function createNewGame(civilisation = 'river', difficulty = 'standard') {
   DOM.pauseScreen.classList.remove('visible');
   DOM.endScreen.classList.remove('visible');
   updateUI(true);
-  notify(`The ${CIVILISATIONS[civilisation].name} have founded a new settlement.`, 'good');
+  notify(`The ${CIVILISATIONS[civilisation].name} are ready. Choose a worker to start.`, 'good');
   sound('age');
 }
 

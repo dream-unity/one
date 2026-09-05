@@ -1,8 +1,8 @@
 /* Empire Dawn runtime · part 4 */
 function canPlaceBuilding(type, x, y, owner = PLAYER) {
   const spec = BUILDING_TYPES[type];
-  if (!spec) return { ok: false, reason: 'Unknown building' };
-  if ((spec.requiredAge || 0) > getPlayer(owner).age) return { ok: false, reason: `Requires ${getAgeName(spec.requiredAge)}` };
+  if (!spec) return { ok: false, reason: 'Choose a building first' };
+  if ((spec.requiredAge || 0) > getPlayer(owner).age) return { ok: false, reason: `First reach ${getAgeName(spec.requiredAge)}` };
   const minX = Math.floor(x - spec.width / 2);
   const maxX = Math.ceil(x + spec.width / 2) - 1;
   const minY = Math.floor(y - spec.height / 2);
@@ -12,7 +12,7 @@ function canPlaceBuilding(type, x, y, owner = PLAYER) {
       if (tx < 3 || ty < 3 || tx >= MAP_SIZE - 3 || ty >= MAP_SIZE - 3) return { ok: false, reason: 'Too close to the map edge' };
       if (!isTerrainWalkable(tx + 0.5, ty + 0.5)) return { ok: false, reason: 'Cannot build on water' };
       if (game.buildings.some((building) => isAlive(building) && buildingContainsTile(building, tx, ty, 0.35))) return { ok: false, reason: 'Another building is in the way' };
-      if (game.resourcesNodes.some((resource) => !resource.dead && Math.floor(resource.x) === tx && Math.floor(resource.y) === ty)) return { ok: false, reason: 'Clear the resources first' };
+      if (game.resourcesNodes.some((resource) => !resource.dead && Math.floor(resource.x) === tx && Math.floor(resource.y) === ty)) return { ok: false, reason: 'Choose an empty spot or gather what is here first' };
     }
   }
   return { ok: true };
@@ -22,10 +22,10 @@ function beginPlacement(type) {
   const spec = BUILDING_TYPES[type];
   if (!spec) return;
   const player = getPlayer(PLAYER);
-  if ((spec.requiredAge || 0) > player.age) { notify(`Requires ${getAgeName(spec.requiredAge)}.`, 'bad'); return; }
+  if ((spec.requiredAge || 0) > player.age) { notify(`First reach ${getAgeName(spec.requiredAge)}.`, 'bad'); return; }
   runtime.placement = { type };
   runtime.targeting = null;
-  DOM.placementHint.textContent = `Place ${spec.name} · Left-click to confirm · Right-click or Esc to cancel`;
+  DOM.placementHint.textContent = `Tap an empty place for your ${spec.name}. Choose Cancel to stop.`;
   DOM.placementHint.classList.remove('hidden');
   canvas.style.cursor = 'crosshair';
 }
@@ -44,16 +44,16 @@ function placeBuilding(type, x, y) {
   const snappedY = Math.floor(y) + (spec.height % 2 ? 0.5 : 0);
   const placement = canPlaceBuilding(type, snappedX, snappedY, PLAYER);
   if (!placement.ok) { notify(placement.reason, 'bad'); sound('warning', 0.45); return false; }
-  if (!hasCost(player, spec.cost)) { notify('Insufficient resources.', 'bad'); sound('warning', 0.5); return false; }
+  if (!hasCost(player, spec.cost)) { notify('You need more food, wood, stone or gold.', 'bad'); sound('warning', 0.5); return false; }
   const builders = selectedUnits().filter((unit) => unit.type === 'villager');
-  if (!builders.length) { notify('Select at least one Villager.', 'bad'); return false; }
+  if (!builders.length) { notify('Choose a worker first.', 'bad'); return false; }
   spendCost(player, spec.cost);
   const building = createBuilding(PLAYER, type, snappedX, snappedY, { complete: false });
   builders.forEach((unit) => orderBuild(unit, building));
   runtime.selected = [building.id];
   runtime.commandMode = 'default';
   cancelCommandMode();
-  notify(`${spec.name} foundation placed.`, 'good');
+  notify(`${spec.name} is ready for your workers to build.`, 'good');
   sound('build');
   updateUI(true);
   return true;
@@ -345,7 +345,7 @@ function updateBuilding(building, dt) {
       if (building.research.kind === 'age') {
         const player = getPlayer(building.owner);
         player.age = building.research.targetAge;
-        if (building.owner === PLAYER) notify(`You have advanced to the ${getAgeName(player.age)}!`, 'good');
+        if (building.owner === PLAYER) notify(`You have reached the ${getAgeName(player.age)}!`, 'good');
         sound('age');
       } else if (building.research.kind === 'tech') {
         applyTechnology(building.owner, building.research.id);

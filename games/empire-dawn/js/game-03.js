@@ -307,10 +307,10 @@ function populationCap(owner) {
 function canTrain(owner, unitType) {
   const player = getPlayer(owner);
   const spec = UNIT_TYPES[unitType];
-  if ((spec.requiredAge || 0) > player.age) return { ok: false, reason: `Requires ${getAgeName(spec.requiredAge)}` };
-  if (!hasCost(player, spec.cost)) return { ok: false, reason: 'Insufficient resources' };
+  if ((spec.requiredAge || 0) > player.age) return { ok: false, reason: `First reach ${getAgeName(spec.requiredAge)}` };
+  if (!hasCost(player, spec.cost)) return { ok: false, reason: 'You need more food, wood, stone or gold' };
   const used = populationUsed(owner) + populationQueued(owner);
-  if (used + (spec.pop || 1) > populationCap(owner)) return { ok: false, reason: 'Build more Houses' };
+  if (used + (spec.pop || 1) > populationCap(owner)) return { ok: false, reason: 'Build another House to make room' };
   return { ok: true };
 }
 
@@ -340,10 +340,10 @@ function queueResearch(building, technologyId) {
   const tech = TECHNOLOGIES[technologyId];
   if (!building || building.owner !== PLAYER || !tech || building.type !== tech.building) return;
   const player = getPlayer(PLAYER);
-  if (player.researched.includes(technologyId)) { notify('Technology already researched.', 'bad'); return; }
-  if (building.research) { notify('This building is already researching.', 'bad'); return; }
-  if (player.age < tech.requiredAge) { notify(`Requires ${getAgeName(tech.requiredAge)}.`, 'bad'); return; }
-  if (!hasCost(player, tech.cost)) { notify('Insufficient resources.', 'bad'); return; }
+  if (player.researched.includes(technologyId)) { notify('You already have this skill.', 'bad'); return; }
+  if (building.research) { notify('This building is learning a skill. Wait for it to finish.', 'bad'); return; }
+  if (player.age < tech.requiredAge) { notify(`First reach ${getAgeName(tech.requiredAge)}.`, 'bad'); return; }
+  if (!hasCost(player, tech.cost)) { notify('You need more food, wood, stone or gold.', 'bad'); return; }
   spendCost(player, tech.cost);
   building.research = { kind: 'tech', id: technologyId, progress: 0, duration: tech.duration };
   sound('train');
@@ -356,12 +356,12 @@ function queueAgeUp(building, targetAge) {
   const duration = targetAge === 1 ? 34 : 48;
   if (!building || building.type !== 'townCenter' || building.owner !== PLAYER) return;
   if (player.age >= targetAge) { notify(`You have already reached the ${getAgeName(targetAge)}.`, 'bad'); return; }
-  if (targetAge !== player.age + 1) { notify('Advance one age at a time.', 'bad'); return; }
-  if (building.research) { notify('The Town Centre is already researching.', 'bad'); return; }
-  if (!hasCost(player, costs)) { notify('Insufficient resources to advance.', 'bad'); sound('warning', 0.6); return; }
+  if (targetAge !== player.age + 1) { notify('Finish this age before you start the next one.', 'bad'); return; }
+  if (building.research) { notify('The Main house is learning a skill. Wait for it to finish.', 'bad'); return; }
+  if (!hasCost(player, costs)) { notify('Bring back more food or gold first.', 'bad'); sound('warning', 0.6); return; }
   spendCost(player, costs);
   building.research = { kind: 'age', targetAge, progress: 0, duration };
-  notify(`Advancing to the ${getAgeName(targetAge)}…`, 'good');
+  notify(`Learning about the ${getAgeName(targetAge)}…`, 'good');
   sound('age', 0.7);
   updateUI(true);
 }
@@ -381,6 +381,6 @@ function applyTechnology(owner, techId) {
       building.hp += building.maxHp - previousMax;
     });
   }
-  if (owner === PLAYER) notify(`${TECHNOLOGIES[techId].name} researched.`, 'good');
+  if (owner === PLAYER) notify(`${TECHNOLOGIES[techId].name} is ready.`, 'good');
   sound('age', 0.7);
 }

@@ -1,27 +1,27 @@
 // Pure training rules. Authored worlds are fixed before any learner response.
-export const VERSION = '3.0.0';
+export const VERSION = '3.1.0';
 export const PROGRESS_KEY = 'dreamunity:cbt:progress:v3';
 export const VARIANTS = ['local', 'broader', 'mixed', 'unresolved'];
 export const SKILLS = ['sources', 'scope', 'loop', 'model', 'prediction', 'probe', 'update', 'action', 'uncertainty', 'stopping'];
-export const ORIGINAL = Object.freeze({fact: 'Two panels need revision.', claim: 'They have realised I do not belong here.'});
+export const ORIGINAL = Object.freeze({fact: 'Two parts need a change.', claim: 'They think I should not be here.'});
 const card = (id, source, text, group, tags = []) => Object.freeze({id, source, text, group, tags: Object.freeze(tags)});
 export const EVIDENCE = Object.freeze({
- L1: card('L1', 'Current rubric · 10:00', 'Panel A must use millimetres. Its labels currently show centimetres.', 'review', ['units']),
- L2: card('L2', 'Specification history · 09:00', 'Yesterday’s specification used three columns. Today’s version requires four.', 'specification', ['layout']),
- L3: card('L3', 'Reviewer · 10:15', 'Those are the corrections I can explain now. I can review the changes at 3; I cannot give a broader evaluation today.', 'review', ['scope-open']),
- B1: card('B1', 'Current rubric · 10:00', 'Panel A must use millimetres. Its labels currently show centimetres.', 'review', ['units']),
- B2: card('B2', 'Review log · previous two tasks', 'The two previous tasks also used the wrong measurement units; both were returned with this criterion.', 'review-history', ['repeated']),
- B3: card('B3', 'Reviewer · 10:15', 'I am concerned about this recurring measurement skill. I suggest a worked example and a units check before the next review.', 'review-history', ['repeated']),
- M1: card('M1', 'Current rubric · 10:00', 'Panel A must use millimetres. Its labels currently show centimetres.', 'review', ['units']),
- M2: card('M2', 'Specification history · 09:00', 'Yesterday’s specification used three columns. Today’s version requires four.', 'specification', ['layout']),
- M3: card('M3', 'Review log · previous task', 'One previous task had the same units error.', 'review-history', ['repeated']),
- M4: card('M4', 'Reviewer · 10:15', 'The layout changed after your first draft, and the units problem has occurred before. We need to address both.', 'review-summary', ['summary']),
- U2: card('U2', 'Rubric access · 10:15', 'The rubric is unavailable until the review.', 'access', ['unavailable']),
- U3: card('U3', 'Reviewer · 10:15', 'I cannot clarify this before 3.', 'review', ['unavailable']),
- R1: card('R1', 'Reviewer · after general reassurance request', 'We can discuss the work at the review.', 'reassurance', ['non-diagnostic']),
- A1: card('A1', 'Reviewer · after accusatory question', 'Please ask about the specific feedback.', 'exchange', ['non-diagnostic']),
- C1: card('C1', 'Working copy · after colour edit', 'The colour has changed. The marked requirements have not been addressed.', 'action', ['non-diagnostic']),
- W1: card('W1', 'Ari’s review plan', 'The review is at 3. Its outcome has not happened in this scene.', 'schedule', ['pending'])
+ L1: card('L1', 'Picture rules', 'Part A has three blue dots. The rules ask for four blue dots.', 'review', ['units']),
+ L2: card('L2', 'Earlier rules', 'Part B has three boxes. Yesterday, that was right. Today, the rules ask for four boxes.', 'specification', ['layout']),
+ L3: card('L3', 'Reply', 'I can explain these two changes now. We can look at them at 3. I cannot answer about the rest of Ari’s work today.', 'review', ['scope-open']),
+ B1: card('B1', 'Picture rules', 'Part A has three blue dots. The rules ask for four blue dots.', 'review', ['units']),
+ B2: card('B2', 'Old picture checks', 'The last two pictures were each missing a blue dot. Both checks asked Ari to add that dot.', 'review-history', ['repeated']),
+ B3: card('B3', 'Reply', 'Ari has missed a dot before. Try a small example. Then count the dots before we look again.', 'review-history', ['repeated']),
+ M1: card('M1', 'Picture rules', 'Part A has three blue dots. The rules ask for four blue dots.', 'review', ['units']),
+ M2: card('M2', 'Earlier rules', 'Part B has three boxes. Yesterday, that was right. Today, the rules ask for four boxes.', 'specification', ['layout']),
+ M3: card('M3', 'Old picture check', 'One earlier picture was missing the same blue dot.', 'review-history', ['repeated']),
+ M4: card('M4', 'Reply', 'The box rule changed after Ari started. A dot was also missed before. Both things need care.', 'review-summary', ['summary']),
+ U2: card('U2', 'Picture rules', 'You cannot open the picture rules until 3.', 'access', ['unavailable']),
+ U3: card('U3', 'Reply', 'I cannot explain the two marks before 3.', 'review', ['unavailable']),
+ R1: card('R1', 'Reply', 'We can talk about the picture at 3.', 'reassurance', ['non-diagnostic']),
+ A1: card('A1', 'Reply', 'Please ask me which parts need a change.', 'exchange', ['non-diagnostic']),
+ C1: card('C1', 'Changed picture', 'The colour has changed. The two marked parts still need a change.', 'action', ['non-diagnostic']),
+ W1: card('W1', 'Plan for 3', 'We will look at Ari’s picture at 3. That has not happened yet.', 'schedule', ['pending'])
 });
 const world = (id, rubric, full) => Object.freeze({id, rubric: Object.freeze(rubric), full: Object.freeze(full)});
 export const WORLDS = Object.freeze({
@@ -31,53 +31,53 @@ export const WORLDS = Object.freeze({
  unresolved: world('unresolved', ['U2'], ['U2','U3'])
 });
 export const PROBES = Object.freeze([
- {id:'rubric', label:'Inspect the current rubric', detail:'Open the available criteria. The reviewer’s wider evaluation is a separate question.', source:'Rubric and specification records', effect:'You opened the available records.'},
- {id:'clarify', label:'Inspect the rubric and ask a specific question', detail:'“Which criteria do these panels miss, and are there concerns beyond them?”', source:'Records and reviewer', effect:'You inspected the criteria and requested specific scope clarification.'},
- {id:'reassure', label:'Ask for general reassurance', detail:'“Do you still think I belong on the team?”', source:'Reviewer', effect:'The reply leaves the requirements and scope unanswered.'},
- {id:'cosmetic', label:'Change the prototype’s colour', detail:'Try a fresh appearance before asking about the marks.', source:'Working copy', effect:'The colour changed. The review’s question was not tested.'},
- {id:'accuse', label:'Ask why the reviewer has rejected Ari', detail:'“Why have you decided I don’t belong?”', source:'Reviewer', effect:'The question changed the exchange. This reply cannot establish the reviewer’s prior opinion.'},
- {id:'wait', label:'Prepare for the announced review', detail:'Ask about the marked criteria and their scope at 3. No unseen review result will be invented.', source:'Review schedule', effect:'A bounded review plan is ready. The review’s outcome remains unknown.'}
+ {id:'rubric', label:'Read the picture rules', detail:'See what the picture needs. This may not tell you about the rest of Ari’s work.', source:'Picture rules', effect:'You tried to open the picture rules. See what was there.'},
+ {id:'clarify', label:'Read the rules and ask about the marks', detail:'“What needs a change? Is there a problem with other work too?”', source:'Picture rules and reply', effect:'You looked for the rules and asked what else needs care. Read what came back.'},
+ {id:'reassure', label:'Ask if Ari is still wanted', detail:'“Do you still want me here?”', source:'Reply', effect:'This reply does not tell you what the marks mean.'},
+ {id:'cosmetic', label:'Give the picture a new colour', detail:'Try a new colour before asking what needs a change.', source:'Changed picture', effect:'The colour changed. You still do not know what the marks mean.'},
+ {id:'accuse', label:'Ask why Ari is not wanted', detail:'“Why don’t you want me here?”', source:'Reply', effect:'The question said Ari was not wanted. The reply does not tell you what the person thought before you asked.'},
+ {id:'wait', label:'Get ready to talk at 3', detail:'Plan to ask what the two marks mean, and whether other work needs care too.', source:'Plan for 3', effect:'You have a time and a question ready. You do not have an answer yet.'}
 ]);
 export const CAUSES = [
- {id:'units', label:'A measurement requirement was missed', forecast:'A specific measurement criterion explains a mark.'},
- {id:'rule', label:'A requirement changed after the draft', forecast:'The specification history records a relevant change.'},
- {id:'skill', label:'A specific skill needs more practice', forecast:'The review log documents the same issue on earlier tasks.'}
+ {id:'units', label:'Ari missed a blue dot', forecast:'The rules ask for a dot that is missing.'},
+ {id:'rule', label:'A rule changed after Ari started', forecast:'The old rules and new rules are different.'},
+ {id:'skill', label:'Ari needs more practice counting dots', forecast:'Old picture checks show the same missing dot.'}
 ];
 export const SORT_CARDS = [
- {id:'panels', text:'Two panels are marked for revision.', source:'prototype'},
- {id:'time', text:'The review is at 3.', source:'message'},
- {id:'feeling', text:'Ari feels embarrassed.', source:'character'},
- {id:'judgment', text:'Everyone has lost confidence in Ari.', source:'unshown'}
+ {id:'panels', text:'Two parts have marks.', source:'prototype'},
+ {id:'time', text:'They will look at the picture at 3.', source:'message'},
+ {id:'feeling', text:'Ari feels upset.', source:'character'},
+ {id:'judgment', text:'No one thinks Ari can do this.', source:'unshown'}
 ];
 export const LOOP = [
- {id:'meaning', text:'“I do not belong here.”'},
- {id:'feeling', text:'Embarrassment and apprehension'},
- {id:'avoidance', text:'Withhold the next draft'},
- {id:'feedback', text:'Miss feedback that could test the interpretation'}
+ {id:'meaning', text:'“They don’t want me here.”'},
+ {id:'feeling', text:'Feels upset and worried'},
+ {id:'avoidance', text:'Stops showing new pictures'},
+ {id:'feedback', text:'Misses a chance to ask and learn'}
 ];
 export const CUES = [
- {id:'fact', text:'Keep the fact.'},
- {id:'test', text:'Test the added claim.'},
- {id:'update', text:'Change what the result warrants.'}
+ {id:'fact', text:'Keep what you know.'},
+ {id:'test', text:'Find out what you can.'},
+ {id:'update', text:'Let what you learn guide your next step.'}
 ];
 export const STAGES = {
- arrival: {title:'A small message. A much larger conclusion.', phase:'Notice', seconds:20},
- separate: {title:'Where did each claim come from?', phase:'Notice', seconds:35},
- scope: {title:'How far does the evidence reach?', phase:'Make sense', seconds:30},
- loop: {title:'Build the loop that keeps this going.', phase:'Make sense', seconds:40},
- model: {title:'Build another possible explanation.', phase:'Make sense', seconds:40},
- predict: {title:'Make your explanation testable.', phase:'Try a test', seconds:40},
- probe: {title:'Choose what to do—and what it can tell you.', phase:'Try a test', seconds:45},
- inspect: {title:'What did the action actually reveal?', phase:'Use the result', seconds:40},
- update: {title:'Edit the original conclusion.', phase:'Use the result', seconds:50},
+ arrival: {title:'Ari’s picture', phase:'Look', seconds:20},
+ separate: {title:'How do you know?', phase:'Look', seconds:35},
+ scope: {title:'What do the marks tell you?', phase:'Think', seconds:30},
+ loop: {title:'What happens next?', phase:'Think', seconds:40},
+ model: {title:'What else could explain this?', phase:'Think', seconds:40},
+ predict: {title:'What would you expect to find?', phase:'Try', seconds:40},
+ probe: {title:'How will you find out?', phase:'Try', seconds:45},
+ inspect: {title:'What did you learn?', phase:'Learn', seconds:40},
+ update: {title:'What do you think now?', phase:'Learn', seconds:50},
  act: {title:'Make one useful change.', phase:'Take a step', seconds:35},
- transfer: {title:'Choose your next move.', phase:'A new situation', seconds:75},
- close: {title:'Carry the process forward.', phase:'Close', seconds:30},
- sources: {title:'Three messages. How many sources?', phase:'Look closer', seconds:65},
- replay: {title:'Did the test change the exchange?', phase:'Look closer', seconds:65},
- transfer2: {title:'Choose your next move.', phase:'A different situation', seconds:80},
- delayed: {title:'What would make another check useful?', phase:'Return to the decision', seconds:30},
- recall: {title:'Choose your next move.', phase:'Return to an earlier skill', seconds:60}
+ transfer: {title:'What will you do?', phase:'A new story', seconds:75},
+ close: {title:'Keep these three steps.', phase:'Finish', seconds:30},
+ sources: {title:'Who saw it first?', phase:'Look closer', seconds:65},
+ replay: {title:'Did your question change the reply?', phase:'Look closer', seconds:65},
+ transfer2: {title:'What will you do?', phase:'Another story', seconds:80},
+ delayed: {title:'When would you check again?', phase:'Think again', seconds:30},
+ recall: {title:'What will you do?', phase:'Try again', seconds:60}
 };
 export function planFor(minutes=8) {
  if(minutes===4) return ['arrival','scope','predict','probe','inspect','update','act','close'];
@@ -118,14 +118,14 @@ export function createSession({minutes=8,pacing='clock',variant='local',progress
  return {version:VERSION,minutes:duration,pacing:pacing==='self'?'self':'clock',world:WORLDS[variant]||WORLDS.local,plan,cursor:0,evidence:[],probes:[],responses:{},attempts:[],help:{},repairs:{},model:['units'],prediction:null,original:{...ORIGINAL},revised:null,actionDone:false,completed:[],cases:picked,progress:p,startedAt:now,elapsed:0,ended:false};
 }
 export function probeResult(worldValue, probeId) {
- const w=WORLDS[worldValue?.id]; if(!w)throw new Error('Unknown authored world');
- const p=PROBES.find(p=>p.id===probeId); if(!p)throw new Error('Unknown action');
+ const w=WORLDS[worldValue?.id]; if(!w)throw new Error('This story could not be opened.');
+ const p=PROBES.find(p=>p.id===probeId); if(!p)throw new Error('This choice could not be found.');
  const ids=probeId==='rubric'?w.rubric:probeId==='clarify'?w.full:({reassure:['R1'],cosmetic:['C1'],accuse:['A1'],wait:['W1']})[probeId];
  return {probeId,ids:[...ids],effect:p.effect,source:p.source};
 }
 export function executeProbe(session, probeId) {
- if(!session.prediction)throw new Error('Commit a prediction before revealing results');
- if(session.probes.length>=2)throw new Error('One initial probe and one focused repair only');
+ if(!session.prediction)throw new Error('Choose what you expect to find before you look.');
+ if(session.probes.length>=2)throw new Error('You have tried twice. Use what you found to take a next step.');
  const result=probeResult(session.world,probeId);
  session.probes.push(result);session.evidence=[...new Set([...session.evidence,...result.ids])];
  return result;
@@ -139,47 +139,48 @@ export function knowledgeFrom(ids=[]) {
 export function warrantedStatement(ids) {
  const state=knowledgeFrom(ids).state;
  return {
- local:'The feedback identifies two corrections; a broader evaluation has not been clarified.',
- broader:'The evidence shows a recurring measurement problem. A specific skill needs practice; it does not establish that Ari cannot improve.',
- mixed:'A changed layout requirement and a recurring units problem both matter. Each needs its own response.',
- partial:'A measurement correction is supported. The other mark and any broader concern still need clarification.',
- unresolved:'Two panels were marked. The reason and scope are still unclear.'
+ local:'Two parts need a change. I still do not know what they think about Ari’s other work.',
+ broader:'Ari has missed a dot before. Counting dots needs practice. This does not mean Ari can never learn.',
+ mixed:'The box rule changed, and Ari has missed a dot before. Both things need care.',
+ partial:'Part A needs another blue dot. I still need to ask about Part B and Ari’s other work.',
+ unresolved:'Two parts were marked. I still do not know why, or whether other work needs care too.'
  }[state];
 }
 export function inspectTargets(ids) {
  const k=knowledgeFrom(ids);
  return [
-  {id:'units',text:'A measurement criterion was missed.',answer:k.units?'supported':'open'},
-  {id:'pattern',text:'The units issue has occurred on earlier tasks.',answer:k.repeated?'supported':'open'},
-  {id:'identity',text:'Ari cannot improve or belong here.',answer:'unsupported'}
+  {id:'units',text:'Part A needs four blue dots.',answer:k.units?'supported':'open'},
+  {id:'pattern',text:'The same dot was missed in earlier pictures.',answer:k.repeated?'supported':'open'},
+  {id:'identity',text:'Ari can never learn to do this.',answer:'unsupported'}
  ];
 }
 const result=(pass,skill,message,defects=[])=>({pass,skill,message,defects});
 export function evaluateSort(answer={}) {
  const defects=SORT_CARDS.filter(c=>answer[c.id]!==c.source).map(c=>c.id);
- return result(!defects.length,'sources',defects.length?'Attach only what a source actually says. Ari’s feeling is reported in the scene; everyone’s opinion is not.':'You kept observations, a reported feeling and an added interpretation distinct.',defects);
+ return result(!defects.length,'sources',defects.length?'Match each card to where it came from. The story tells us Ari feels upset. It does not tell us what everyone thinks.':'You kept what happened, how Ari feels, and what Ari thinks apart.',defects);
 }
-export function evaluateScope(answer) {return result(answer==='panels','scope',answer==='panels'?'These two panels need work. The message gives no verdict about all projects or Ari’s identity.':'The marks reach these two panels. A later review could establish a wider, specific pattern.');}
-export function evaluateLoop(order) {const correct=LOOP.map(x=>x.id);return result(Array.isArray(order)&&order.length===correct.length&&order.every((x,i)=>x===correct[i]),'loop','The interpretation is followed by embarrassment, withholding the draft and missing useful feedback. Interrupting the action can create a chance to learn even while embarrassment remains.');}
+export function evaluateScope(answer) {return result(answer==='panels','scope',answer==='panels'?'These two parts need work. The marks do not tell us about all Ari’s pictures or what Ari can learn.':'The marks point to these two parts. We would need more to know if this has happened before.');}
+export function evaluateLoop(order) {const correct=LOOP.map(x=>x.id);return result(Array.isArray(order)&&order.length===correct.length&&order.every((x,i)=>x===correct[i]),'loop','Ari thinks they are not wanted, feels upset, and stops showing pictures. Then Ari misses a chance to ask and learn. Ari could ask even while feeling upset.');}
 export function evaluatePrediction(model, forecast, counter) {
- const match=model.includes(forecast);return result(match&&counter==='history','prediction',!match?'Match the observation to the explanation you constructed. A changed rule predicts a version record; a measurement error predicts a criterion; a recurring skill problem predicts a history.':counter!=='history'?'A documented pattern across tasks would widen the concern. A short reply or a calmer feeling cannot establish that pattern.':'You specified observable evidence before seeing a reply. Several explanations could still contribute.');
+ const match=model.includes(forecast);return result(match&&counter==='history','prediction',!match?'Match what you expect to find to your idea. Would you look for a missing dot, a changed rule, or the same mistake in old pictures?':counter!=='history'?'Old pictures could show the same mistake happened before. A short reply or feeling calmer cannot show that.':'You chose what to look for before seeing the reply. More than one reason could still fit.');
 }
 export function evaluateInspect(ids, answer={}) {
  const defects=inspectTargets(ids).filter(t=>answer[t.id]!==t.answer).map(t=>t.id);
- return result(!defects.length,'sources',defects.length?'Use only the cards your action revealed. A question you did not answer stays open; an identity verdict exceeds these records.':'Your conclusions track the available evidence, including its limits.',defects);
+ return result(!defects.length,'sources',defects.length?'Use only the cards you opened. If they do not answer a question, you still do not know. None can show that Ari can never learn.':'You used what the cards show and kept room for what you still do not know.',defects);
 }
 export function evaluateUpdate(session, fact, replacement) {
  const expected=warrantedStatement(session.evidence);
- return result(fact==='keep'&&replacement===expected,'update',fact!=='keep'?'The request to revise two panels remains a fact. Retain it while changing the interpretation.':replacement!==expected?'The replacement must fit the evidence you actually obtained. Neither a global rejection nor universal approval is established.':'You preserved the fact and replaced the original identity claim with a bounded, evidence-based conclusion.');
+ return result(fact==='keep'&&replacement===expected,'update',fact!=='keep'?'The two parts still need a change. Keep that fact while you change the thought.':replacement!==expected?'Choose a new thought that fits the cards you opened. They do not show that Ari is never wanted, or that everyone loves all of Ari’s work.':'You kept what happened and changed Ari’s thought to fit what you learned.');
 }
 export function evaluateAction(ids, action={}) {
  const k=knowledgeFrom(ids);const defects=[];
- if(k.units&&(action.unit!=='mm'||Number(action.value)!==200))defects.push('units');
+ if(k.units&&(Number(action.dots)!==4||action.colour!=='blue'))defects.push('units');
  if(k.layout&&Number(action.columns)!==4)defects.push('layout');
- if(k.repeated&&Number(action.practice)!==30)defects.push('practice');
+ if(k.repeated&&Number(action.practice)!==3)defects.push('practice');
  if((!k.units||!k.layout)&&action.question!=='criteria')defects.push('question');
  if(action.returnWhen!=='new-or-review')defects.push('stopping');
- return result(!defects.length,'action',defects.length?'Keep the physical length unchanged: 20 cm = 200 mm, and 3 cm = 30 mm. Follow each available criterion; ask for the missing one. Revisit at 3 or when relevant information changes.':'The available criteria are addressed. Unanswered criteria remain open, with a specific review plan. This result concerns the work, not Ari’s worth.',defects);
+ const help={units:'Part A needs four blue dots.',layout:'Part B needs four boxes.',practice:'In the small example, two dots and one more make three.',question:'Ask what the marked parts need.',stopping:'Check again at 3, or if something new helps answer the question.'};
+ return result(!defects.length,'action',defects.length?defects.map(id=>help[id]).join(' '):'You used what you know. You have a plan for what you still need to find out.',defects);
 }
 export function evaluateTransfer(item, optionId, reasonId) {
  const option=item.options.find(o=>o.id===optionId);

@@ -21,7 +21,7 @@ const read = name => readFile(new URL(name, root), 'utf8');
 const make = (variant = 'local', extra = {}) => createSession({ variant, cases: TRANSFER_CASES, now: 1_800_000_000_000, ...extra });
 const commitPrediction = session => { session.prediction = { model: ['units'], forecast: 'units', counter: 'history' }; };
 const observed = (variant, probe = 'clarify') => { const session = make(variant); commitPrediction(session); executeProbe(session, probe); return session; };
-const action = { unit: 'mm', value: 200, columns: 4, practice: 30, question: 'criteria', returnWhen: 'new-or-review' };
+const action = { dots: 4, colour: 'blue', columns: 4, practice: 3, question: 'criteria', returnWhen: 'new-or-review' };
 const withRandom = (value, fn) => { const old = Math.random; Math.random = () => value; try { return fn(); } finally { Math.random = old; } };
 
 test('all 24 world/action combinations release only their authored source records', () => {
@@ -41,13 +41,13 @@ test('all 24 world/action combinations release only their authored source record
       assert.ok(response.ids.every(id => EVIDENCE[id]));
     }
   }
-  assert.throws(() => probeResult(WORLDS.local, 'invent-a-reply'), /Unknown action/);
-  assert.throws(() => probeResult({ id: 'invent-a-world' }, 'clarify'), /Unknown authored world/);
+  assert.throws(() => probeResult(WORLDS.local, 'invent-a-reply'), /choice could not be found/);
+  assert.throws(() => probeResult({ id: 'invent-a-world' }, 'clarify'), /story could not be opened/);
 });
 
 test('a forecast is required before a consequence appears; failure leaves state untouched', () => {
   const session = make('mixed');
-  assert.throws(() => executeProbe(session, 'clarify'), /prediction before/);
+  assert.throws(() => executeProbe(session, 'clarify'), /expect to find before you look/);
   assert.deepEqual(session.evidence, []);
   assert.deepEqual(session.probes, []);
   commitPrediction(session);
@@ -67,7 +67,7 @@ test('the initial world survives a contaminated probe and its single focused rep
     assert.deepEqual(session.world, before);
     assert.deepEqual(session.evidence, ['A1', ...before.full]);
     const evidenceBeforeThird = [...session.evidence];
-    assert.throws(() => executeProbe(session, 'clarify'), /One initial probe and one focused repair/);
+    assert.throws(() => executeProbe(session, 'clarify'), /You have tried twice/);
     assert.deepEqual(session.evidence, evidenceBeforeThird);
     assert.equal(session.probes.length, 2);
   }
@@ -111,11 +111,11 @@ test('reassurance, accusation, cosmetic changes and waiting do not settle the or
 
 test('updates preserve the original fact and distinguish all five visible evidence states', () => {
   const expectations = [
-    ['local', 'clarify', 'local', 'The feedback identifies two corrections; a broader evaluation has not been clarified.'],
-    ['broader', 'clarify', 'broader', 'The evidence shows a recurring measurement problem. A specific skill needs practice; it does not establish that Ari cannot improve.'],
-    ['mixed', 'clarify', 'mixed', 'A changed layout requirement and a recurring units problem both matter. Each needs its own response.'],
-    ['broader', 'rubric', 'partial', 'A measurement correction is supported. The other mark and any broader concern still need clarification.'],
-    ['unresolved', 'clarify', 'unresolved', 'Two panels were marked. The reason and scope are still unclear.']
+    ['local', 'clarify', 'local', 'Two parts need a change. I still do not know what they think about Ari’s other work.'],
+    ['broader', 'clarify', 'broader', 'Ari has missed a dot before. Counting dots needs practice. This does not mean Ari can never learn.'],
+    ['mixed', 'clarify', 'mixed', 'The box rule changed, and Ari has missed a dot before. Both things need care.'],
+    ['broader', 'rubric', 'partial', 'Part A needs another blue dot. I still need to ask about Part B and Ari’s other work.'],
+    ['unresolved', 'clarify', 'unresolved', 'Two parts were marked. I still do not know why, or whether other work needs care too.']
   ];
   for (const [variant, probe, state, text] of expectations) {
     const session = observed(variant, probe);
@@ -130,15 +130,15 @@ test('updates preserve the original fact and distinguish all five visible eviden
   }
 });
 
-test('the practical check validates quantities, requirements, practice and a bounded return condition', () => {
+test('the practical check validates dot count, colour, boxes, practice and a bounded return condition', () => {
   for (const variant of VARIANTS) assert.equal(evaluateAction(observed(variant).evidence, action).pass, true);
   const mixed = observed('mixed').evidence;
-  for (const [field, wrong, defect] of [['unit', 'cm', 'units'], ['value', 20, 'units'], ['columns', 3, 'layout'], ['practice', 300, 'practice'], ['returnWhen', 'certain', 'stopping']]) {
+  for (const [field, wrong, defect] of [['colour', 'red', 'units'], ['dots', 3, 'units'], ['columns', 3, 'layout'], ['practice', 4, 'practice'], ['returnWhen', 'certain', 'stopping']]) {
     const result = evaluateAction(mixed, { ...action, [field]: wrong });
     assert.equal(result.pass, false, `wrong ${field} passed`);
     assert.ok(result.defects.includes(defect));
   }
-  assert.equal(evaluateAction(mixed, { ...action, value: '200', columns: '4', practice: '30' }).pass, true, 'select control strings represent the same physical quantities');
+  assert.equal(evaluateAction(mixed, { ...action, dots: '4', columns: '4', practice: '3' }).pass, true, 'control strings represent the same counts');
 });
 
 test('missing criteria require a question, while unobserved criteria are never certified as corrected', () => {
@@ -312,7 +312,7 @@ test('the browser clock offers continuation or an honest partial finish rather t
   const app = await read('exercises/cbt/app.js');
   const tick = app.slice(app.indexOf('function tick()'), app.indexOf('setInterval(tick'));
   assert.match(tick, /document\.hidden/);
-  assert.match(tick, /Continue.*add 2 minutes/);
-  assert.match(tick, /Finish here/);
+  assert.match(tick, /Add 2 minutes/);
+  assert.match(tick, /Stop here/);
   assert.doesNotMatch(tick, /\b(?:submit|markAndNext|executeProbe|evaluateUpdate|recordAttempt)\s*\(/);
 });

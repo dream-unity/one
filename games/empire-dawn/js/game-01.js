@@ -50,29 +50,29 @@ const TERRAIN = {
   SHALLOW: 5,
 };
 
-const AGE_NAMES = ['STONE', 'TOOL', 'BRONZE'];
+const AGE_NAMES = ['Stone', 'Tool', 'Bronze'];
 const AGE_LONG_NAMES = ['Stone Age', 'Tool Age', 'Bronze Age'];
 
 const CIVILISATIONS = {
   river: {
-    name: 'River Kingdoms',
-    description: 'Patient farmers and engineers of the floodplain.',
+    name: 'River team',
+    description: 'Workers bring back food and wood faster.',
     gatherMultiplier: 1.12,
     militarySpeed: 1,
     buildingHealth: 1,
     colour: '#4b8bc4',
   },
   steppe: {
-    name: 'Steppe Confederacy',
-    description: 'Fast-moving clans who strike before rivals can prepare.',
+    name: 'Fast team',
+    description: 'Guards move faster.',
     gatherMultiplier: 1,
     militarySpeed: 1.12,
     buildingHealth: 1,
     colour: '#4b8bc4',
   },
   aegean: {
-    name: 'Aegean League',
-    description: 'Stonewrights whose compact cities are difficult to break.',
+    name: 'Strong team',
+    description: 'Buildings can take more hits.',
     gatherMultiplier: 1,
     militarySpeed: 1,
     buildingHealth: 1.18,
@@ -82,91 +82,91 @@ const CIVILISATIONS = {
 
 const UNIT_TYPES = {
   villager: {
-    name: 'Villager', icon: '♙', hp: 35, speed: 1.55, attack: 3, armour: 0, range: 0.72,
+    name: 'Worker', icon: '♙', hp: 35, speed: 1.55, attack: 3, armour: 0, range: 0.72,
     cooldown: 1.3, carry: 10, trainTime: 14, cost: { food: 50 }, pop: 1,
-    description: 'Gathers resources, constructs buildings, repairs structures, and can defend the settlement in an emergency.',
+    description: 'Brings back food, wood, stone and gold. Builds and fixes your buildings.',
   },
   clubman: {
-    name: 'Clubman', icon: '⚔', hp: 55, speed: 1.65, attack: 8, armour: 1, range: 0.86,
+    name: 'Club guard', icon: '⚔', hp: 55, speed: 1.65, attack: 8, armour: 1, range: 0.86,
     cooldown: 1.05, trainTime: 17, cost: { food: 50 }, pop: 1, requiredAge: 0,
-    description: 'Inexpensive close-combat infantry trained at the Barracks.',
+    description: 'Fights up close. Train one at the Guard camp.',
   },
   archer: {
-    name: 'Bowman', icon: '➶', hp: 42, speed: 1.6, attack: 7, armour: 0, range: 5.2,
+    name: 'Bow guard', icon: '➶', hp: 42, speed: 1.6, attack: 7, armour: 0, range: 5.2,
     cooldown: 1.55, trainTime: 21, cost: { food: 40, wood: 25 }, pop: 1, requiredAge: 1,
-    description: 'Ranged infantry that can punish slow melee troops from a safe distance.',
+    description: 'Shoots arrows from far away. Keep space between this guard and foes.',
   },
   scout: {
-    name: 'Mounted Scout', icon: '♞', hp: 85, speed: 2.5, attack: 10, armour: 1, range: 1.02,
+    name: 'Horse guard', icon: '♞', hp: 85, speed: 2.5, attack: 10, armour: 1, range: 1.02,
     cooldown: 1.15, trainTime: 26, cost: { food: 80 }, pop: 2, requiredAge: 1,
-    description: 'Fast cavalry suited to exploration, raiding, and chasing archers.',
+    description: 'Rides fast. Finds new places and catches bow guards.',
   },
 };
 
 const BUILDING_TYPES = {
   townCenter: {
-    name: 'Town Centre', icon: '⌂', width: 3, height: 3, hp: 1400, armour: 3, buildTime: 0,
-    cost: {}, popCap: 5, description: 'The heart of your settlement. Trains villagers, receives every resource, and advances your people through the ages.',
+    name: 'Main house', icon: '⌂', width: 3, height: 3, hp: 1400, armour: 3, buildTime: 0,
+    cost: {}, popCap: 5, description: 'Your main building. Make workers here. They bring back what they find. Learn new tools here too.',
   },
   house: {
     name: 'House', icon: '⌂', width: 2, height: 2, hp: 420, armour: 1, buildTime: 18,
-    cost: { wood: 80 }, popCap: 5, description: 'Supports five additional population.',
+    cost: { wood: 80 }, popCap: 5, description: 'Makes room for 5 more people.',
   },
   granary: {
-    name: 'Granary', icon: '◒', width: 2, height: 2, hp: 500, armour: 1, buildTime: 22,
-    cost: { wood: 120 }, description: 'Drop-off point for food and home of agricultural improvements.',
+    name: 'Food store', icon: '◒', width: 2, height: 2, hp: 500, armour: 1, buildTime: 22,
+    cost: { wood: 120 }, description: 'Workers leave food here. Add wheels to help them carry more.',
   },
   storagePit: {
-    name: 'Storage Pit', icon: '▦', width: 2, height: 2, hp: 520, armour: 1, buildTime: 22,
-    cost: { wood: 120 }, description: 'Drop-off point for wood, stone, and gold.',
+    name: 'Wood store', icon: '▦', width: 2, height: 2, hp: 520, armour: 1, buildTime: 22,
+    cost: { wood: 120 }, description: 'Workers leave wood, stone and gold here.',
   },
   barracks: {
-    name: 'Barracks', icon: '⚔', width: 3, height: 2, hp: 720, armour: 2, buildTime: 28,
-    cost: { wood: 150 }, description: 'Trains close-combat infantry and researches weapon improvements.',
+    name: 'Guard camp', icon: '⚔', width: 3, height: 2, hp: 720, armour: 2, buildTime: 28,
+    cost: { wood: 150 }, description: 'Make club guards here. Give your guards stronger weapons.',
   },
   archeryRange: {
-    name: 'Archery Range', icon: '➶', width: 3, height: 2, hp: 650, armour: 1, buildTime: 30,
-    cost: { wood: 175 }, requiredAge: 1, description: 'Trains bowmen. Available in the Tool Age.',
+    name: 'Bow camp', icon: '➶', width: 3, height: 2, hp: 650, armour: 1, buildTime: 30,
+    cost: { wood: 175 }, requiredAge: 1, description: 'Make bow guards here. First reach the Tool Age.',
   },
   stable: {
-    name: 'Stable', icon: '♞', width: 3, height: 2, hp: 780, armour: 2, buildTime: 34,
-    cost: { wood: 200 }, requiredAge: 1, description: 'Trains mounted scouts. Available in the Tool Age.',
+    name: 'Horse camp', icon: '♞', width: 3, height: 2, hp: 780, armour: 2, buildTime: 34,
+    cost: { wood: 200 }, requiredAge: 1, description: 'Make horse guards here. First reach the Tool Age.',
   },
   watchTower: {
-    name: 'Watch Tower', icon: '♜', width: 1, height: 1, hp: 600, armour: 4, buildTime: 30,
+    name: 'Guard tower', icon: '♜', width: 1, height: 1, hp: 600, armour: 4, buildTime: 30,
     cost: { wood: 100, stone: 75 }, requiredAge: 1, range: 6.4, attack: 9, cooldown: 1.65,
-    description: 'A defensive tower that automatically fires at nearby enemies.',
+    description: 'Shoots at foes who come close.',
   },
   farm: {
     name: 'Farm', icon: '▧', width: 2, height: 2, hp: 260, armour: 0, buildTime: 14,
-    cost: { wood: 75 }, food: 260, description: 'A renewable field that villagers can harvest for food until it is exhausted.',
+    cost: { wood: 75 }, food: 260, description: 'Workers get food here. Build a new farm when the food runs out.',
   },
 };
 
 const RESOURCE_TYPES = {
   tree: { name: 'Tree', resource: 'wood', amount: 110, rate: 1.15, icon: '▲', radius: 0.42, blocking: true },
   berries: { name: 'Berry Bush', resource: 'food', amount: 135, rate: 0.92, icon: '●', radius: 0.4, blocking: false },
-  gold: { name: 'Gold Deposit', resource: 'gold', amount: 380, rate: 0.68, icon: '●', radius: 0.52, blocking: true },
-  stone: { name: 'Stone Deposit', resource: 'stone', amount: 420, rate: 0.66, icon: '⬟', radius: 0.52, blocking: true },
-  gazelle: { name: 'Gazelle', resource: 'food', amount: 115, rate: 1.08, icon: '♧', radius: 0.32, blocking: false },
+  gold: { name: 'Gold rock', resource: 'gold', amount: 380, rate: 0.68, icon: '●', radius: 0.52, blocking: true },
+  stone: { name: 'Stone rock', resource: 'stone', amount: 420, rate: 0.66, icon: '⬟', radius: 0.52, blocking: true },
+  gazelle: { name: 'Deer', resource: 'food', amount: 115, rate: 1.08, icon: '♧', radius: 0.32, blocking: false },
 };
 
 const TECHNOLOGIES = {
   toolworking: {
-    name: 'Toolworking', icon: '⚒', building: 'barracks', requiredAge: 1, cost: { food: 120, gold: 50 }, duration: 22,
-    description: 'Military units gain +2 attack.',
+    name: 'Stronger hits', icon: '⚒', building: 'barracks', requiredAge: 1, cost: { food: 120, gold: 50 }, duration: 22,
+    description: 'Each guard does 2 more damage with each hit.',
   },
   leatherArmour: {
-    name: 'Leather Armour', icon: '⬙', building: 'townCenter', requiredAge: 1, cost: { food: 120, wood: 75 }, duration: 20,
-    description: 'Military units gain +1 armour.',
+    name: 'Better shields', icon: '⬙', building: 'townCenter', requiredAge: 1, cost: { food: 120, wood: 75 }, duration: 20,
+    description: 'Each hit does 1 less damage to your guards.',
   },
   wheel: {
     name: 'The Wheel', icon: '◉', building: 'granary', requiredAge: 1, cost: { food: 150, wood: 100 }, duration: 24,
-    description: 'Villagers gather and carry resources 18% more effectively.',
+    description: 'Workers gather 18% faster and carry 18% more.',
   },
   architecture: {
-    name: 'Masonry', icon: '▤', building: 'townCenter', requiredAge: 2, cost: { stone: 150, gold: 100 }, duration: 30,
-    description: 'Buildings gain 20% maximum health.',
+    name: 'Stronger walls', icon: '▤', building: 'townCenter', requiredAge: 2, cost: { stone: 150, gold: 100 }, duration: 30,
+    description: 'Your buildings can take 20% more damage.',
   },
 };
 
@@ -230,8 +230,8 @@ function randomChoice(items, random = Math.random) { return items[Math.floor(ran
 function hasCost(player, cost = {}) { return Object.entries(cost).every(([key, value]) => player.resources[key] >= value); }
 function spendCost(player, cost = {}) { Object.entries(cost).forEach(([key, value]) => { player.resources[key] -= value; }); }
 function costText(cost = {}) {
-  const symbols = { food: 'F', wood: 'W', stone: 'S', gold: 'G' };
-  return Object.entries(cost).map(([key, value]) => `${symbols[key]}${value}`).join(' ');
+  const symbols = { food: 'food', wood: 'wood', stone: 'stone', gold: 'gold' };
+  return Object.entries(cost).map(([key, value]) => `${value} ${symbols[key]}`).join(' ');
 }
 function getAgeName(index) { return AGE_LONG_NAMES[clamp(index, 0, AGE_LONG_NAMES.length - 1)]; }
 
@@ -293,6 +293,8 @@ function resize() {
   canvas.height = Math.round(viewport.height * viewport.dpr);
   canvas.style.width = `${viewport.width}px`;
   canvas.style.height = `${viewport.height}px`;
+  viewport.playTop = $('#world-tools').getBoundingClientRect().bottom + 8;
+  viewport.playBottom = $('#selection-panel').getBoundingClientRect().top;
   ctx.setTransform(viewport.dpr, 0, 0, viewport.dpr, 0, 0);
   minimap.width = 270 * viewport.dpr;
   minimap.height = 166 * viewport.dpr;
@@ -327,8 +329,8 @@ function screenToWorld(screenX, screenY) {
 function centreCameraOnWorld(x, y, immediate = false) {
   if (!game) return;
   const iso = worldToIso(x, y);
-  const playableHeight = Math.max(320, viewport.height - 72 - 168);
-  const desiredScreenY = 72 + playableHeight * 0.48;
+  const playableHeight = Math.max(80, viewport.playBottom - viewport.playTop);
+  const desiredScreenY = viewport.playTop + playableHeight * 0.6;
   const cameraY = iso.y - (desiredScreenY - 72) / (game.camera.zoom || 1);
   if (immediate) {
     game.camera.x = iso.x;

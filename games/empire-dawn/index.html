@@ -2,63 +2,72 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <meta name="theme-color" content="#17140f" />
-  <meta name="description" content="Empire Dawn: First Age — an original real-time strategy game inspired by the great 1990s civilisation-building classics." />
-  <title>Empire Dawn: First Age</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f5f5fb" />
+  <meta name="description" content="Build a village. Gather food, make homes and keep your people safe. A strategy game from Dream Unity." />
+  <title>Build a village · Dream Unity</title>
   <link rel="icon" href="data:," />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=clear-20260905-1" />
 </head>
 <body>
-  <main id="game-shell" aria-label="Empire Dawn real-time strategy game">
+  <main id="game-shell" aria-label="Build a village game">
     <canvas id="game" aria-label="Game world"></canvas>
 
     <header id="top-bar" class="hud-panel">
       <section class="brand-lockup" aria-label="Game title">
-        <span class="brand-mark">ED</span>
+        <span class="brand-mark" aria-hidden="true">◇</span>
         <div>
-          <strong>EMPIRE DAWN</strong>
-          <small>FIRST AGE</small>
+          <strong>Build a village</strong>
+          <small>Dream Unity</small>
         </div>
       </section>
 
-      <section id="resource-strip" aria-label="Resources">
-        <div class="resource" title="Food"><span class="resource-icon">◆</span><b id="food-value">0</b><small>FOOD</small></div>
-        <div class="resource" title="Wood"><span class="resource-icon">▲</span><b id="wood-value">0</b><small>WOOD</small></div>
-        <div class="resource" title="Stone"><span class="resource-icon">⬟</span><b id="stone-value">0</b><small>STONE</small></div>
-        <div class="resource" title="Gold"><span class="resource-icon">●</span><b id="gold-value">0</b><small>GOLD</small></div>
+      <section id="resource-strip" aria-label="What you have">
+        <div class="resource" title="Food"><span class="resource-icon">◆</span><b id="food-value">0</b><small>Food</small></div>
+        <div class="resource" title="Wood"><span class="resource-icon">▲</span><b id="wood-value">0</b><small>Wood</small></div>
+        <div class="resource" title="Stone"><span class="resource-icon">⬟</span><b id="stone-value">0</b><small>Stone</small></div>
+        <div class="resource" title="Gold"><span class="resource-icon">●</span><b id="gold-value">0</b><small>Gold</small></div>
       </section>
 
-      <section class="status-strip" aria-label="Civilisation status">
-        <div class="age-chip"><small>AGE</small><b id="age-value">STONE</b></div>
-        <div class="pop-chip"><small>POPULATION</small><b><span id="population-value">0</span>/<span id="population-cap">0</span></b></div>
-        <div class="time-chip"><small>TIME</small><b id="time-value">00:00</b></div>
+      <section class="status-strip" aria-label="Your village">
+        <div class="age-chip"><small>Age</small><b id="age-value">Stone</b></div>
+        <div class="pop-chip"><small>People / room</small><b><span id="population-value">0</span>/<span id="population-cap">0</span></b></div>
+        <div class="time-chip"><small>Time</small><b id="time-value">00:00</b></div>
       </section>
 
       <nav class="top-actions" aria-label="Game controls">
-        <button id="sound-button" class="icon-button" title="Toggle sound" aria-label="Toggle sound">♪</button>
-        <button id="save-button" class="icon-button" title="Save game" aria-label="Save game">▣</button>
-        <button id="menu-button" class="icon-button" title="Pause menu" aria-label="Pause menu">☰</button>
+        <button id="sound-button" class="icon-button" title="Sound on or off" aria-label="Sound on or off" aria-pressed="true">Sound</button>
+        <button id="save-button" class="icon-button" title="Save game" aria-label="Save game">Save</button>
+        <button id="menu-button" class="icon-button" title="Pause menu" aria-label="Pause menu">Menu</button>
       </nav>
     </header>
 
-    <aside id="objective-panel" class="hud-panel" aria-live="polite">
-      <div class="panel-kicker">CAMPAIGN</div>
-      <h2>The First Settlement</h2>
+    <aside id="objective-panel" class="hud-panel" hidden aria-live="polite">
+      <div class="panel-kicker">Your goals</div>
+      <h2>Build your village</h2>
       <ol id="objective-list"></ol>
-      <button id="collapse-objectives" class="text-button">Hide objectives</button>
+      <button id="collapse-objectives" class="text-button">Hide goals</button>
     </aside>
 
+    <nav id="world-tools" class="hud-panel" aria-label="Look and choose">
+      <button id="home-view">Home</button>
+      <button id="map-toggle" aria-controls="minimap-panel" aria-expanded="false">Map</button>
+      <button id="goals-toggle" aria-controls="objective-panel" aria-expanded="false">Goals</button>
+      <button id="clear-selection">Clear</button>
+      <button id="zoom-in" aria-label="See things bigger">+</button>
+      <button id="zoom-out" aria-label="See things smaller">−</button>
+      <button id="cancel-action">Cancel</button>
+    </nav>
     <div id="notification-stack" aria-live="polite"></div>
 
     <section id="selection-panel" class="hud-panel" aria-label="Selected object">
       <div id="selection-portrait" aria-hidden="true">⌂</div>
       <div id="selection-copy">
-        <div class="panel-kicker" id="selection-owner">NO SELECTION</div>
-        <h2 id="selection-title">Select a unit or building</h2>
-        <p id="selection-description">Drag to select several units. Right-click the world to move, gather, build, or attack.</p>
+        <div class="panel-kicker" id="selection-owner">Choose something</div>
+        <h2 id="selection-title">Choose a person or a building</h2>
+        <p id="selection-description">Tap a person, then tap where they should go. Drag around people to choose a group.</p>
         <div id="health-row" class="health-row hidden">
-          <span>HP</span>
+          <span>Health</span>
           <div class="health-track"><i id="health-fill"></i></div>
           <b id="health-value">0 / 0</b>
         </div>
@@ -66,11 +75,11 @@
       </div>
     </section>
 
-    <section id="command-panel" class="hud-panel" aria-label="Commands">
+    <section id="command-panel" class="hud-panel" aria-label="What to do">
       <div class="command-heading">
         <div>
-          <div class="panel-kicker">COMMANDS</div>
-          <strong id="command-context">GENERAL</strong>
+          <div class="panel-kicker">What to do</div>
+          <strong id="command-context">Choose first</strong>
         </div>
         <button id="back-command" class="text-button hidden">← Back</button>
       </div>
@@ -81,113 +90,121 @@
       </div>
     </section>
 
-    <section id="minimap-panel" class="hud-panel" aria-label="Minimap and game speed">
-      <canvas id="minimap" width="240" height="170" aria-label="Minimap"></canvas>
+    <section id="minimap-panel" class="hud-panel" hidden aria-label="Map and game speed">
+      <canvas id="minimap" width="240" height="170" aria-label="Tap the map to look there"></canvas>
       <div class="minimap-footer">
-        <span id="map-name">RIVERLANDS</span>
+        <span id="map-name">Speed</span>
         <div class="speed-control" aria-label="Game speed">
-          <button data-speed="0.75">½</button>
-          <button data-speed="1" class="active">1×</button>
-          <button data-speed="1.5">1½</button>
-          <button data-speed="2">2×</button>
+          <button data-speed="0.75" aria-label="Slower speed">¾×</button>
+          <button data-speed="1" class="active" aria-label="Normal speed">1×</button>
+          <button data-speed="1.5" aria-label="Faster speed">1½×</button>
+          <button data-speed="2" aria-label="Double speed">2×</button>
         </div>
       </div>
     </section>
 
-    <div id="placement-hint" class="hud-panel hidden">Place building · Left-click to confirm · Right-click or Esc to cancel</div>
+    <div id="placement-hint" class="hud-panel hidden">Tap an empty place to build. Choose Cancel to stop.</div>
     <div id="cursor-tooltip" class="hidden"></div>
 
     <section id="start-screen" class="modal-layer visible" aria-label="Start game">
       <div class="start-backdrop"></div>
       <article class="start-card">
         <div class="title-emblem" aria-hidden="true"><span>Ⅰ</span></div>
-        <p class="eyebrow">A CLASSIC REAL-TIME STRATEGY EXPERIENCE</p>
-        <h1>EMPIRE <em>DAWN</em></h1>
-        <p class="subtitle">FIRST AGE</p>
-        <p class="intro-copy">Raise a settlement from the Stone Age, command villagers and armies, master four resources, and break the rival kingdom before it breaks yours.</p>
+        <p class="eyebrow">Dream Unity</p>
+        <h1>Build a <em>village</em></h1>
+        <p class="subtitle">Think ahead. Help your people grow.</p>
+        <p class="intro-copy">Bring back food and wood. Build homes. Make guards to keep your village safe. Choose what to do next.</p>
 
+        <div class="start-actions">
+          <button id="continue-button" class="secondary-button hidden">Keep playing</button>
+          <button id="start-button" class="primary-button">Play</button>
+        </div>
+        <details class="game-settings"><summary>Choose your team and level</summary>
         <div class="setup-grid">
           <section>
-            <h2>Choose a people</h2>
+            <h2>Choose your team</h2>
             <div id="civilisation-options" class="civilisation-options">
               <button class="civilisation-card selected" data-civ="river">
                 <span class="civ-sigil">◈</span>
-                <strong>River Kingdoms</strong>
-                <small>Villagers gather 12% faster</small>
+                <strong>River team</strong>
+                <small>Workers gather 12% faster</small>
               </button>
               <button class="civilisation-card" data-civ="steppe">
                 <span class="civ-sigil">➤</span>
-                <strong>Steppe Confederacy</strong>
-                <small>Military units move 12% faster</small>
+                <strong>Fast team</strong>
+                <small>Guards move 12% faster</small>
               </button>
               <button class="civilisation-card" data-civ="aegean">
                 <span class="civ-sigil">⬢</span>
-                <strong>Aegean League</strong>
-                <small>Buildings gain 18% durability</small>
+                <strong>Strong team</strong>
+                <small>Buildings have 18% more health</small>
               </button>
             </div>
           </section>
 
           <section class="difficulty-section">
-            <h2>Rival strength</h2>
+            <h2>How hard?</h2>
             <div class="segmented" id="difficulty-options">
-              <button data-difficulty="standard" class="selected">Standard</button>
+              <button data-difficulty="standard" class="selected">Normal</button>
               <button data-difficulty="hard">Hard</button>
             </div>
             <div class="mission-brief">
-              <span>MISSION</span>
-              <strong>The First Settlement</strong>
-              <p>Establish an economy, advance through the ages, and destroy the enemy Town Centre.</p>
+              <span>Your goal</span>
+              <strong>Build your village</strong>
+              <p>Help your village grow. Win by breaking the other team’s Main house.</p>
             </div>
           </section>
         </div>
 
-        <div class="start-actions">
-          <button id="continue-button" class="secondary-button hidden">Continue autosave</button>
-          <button id="start-button" class="primary-button">BEGIN THE CONQUEST</button>
-        </div>
-        <p class="legal-note">Unofficial original-asset homage. No original game code, art, audio, maps, or trademarks are distributed.</p>
+
+        </details>
+        <p class="legal-note">Your game saves on this device.</p>
+        <a class="return-link" href="../../">Back to Dream Unity</a>
       </article>
     </section>
 
     <section id="pause-screen" class="modal-layer" aria-label="Pause menu">
       <article class="menu-card">
-        <p class="eyebrow">EMPIRE DAWN</p>
-        <h2>Game Paused</h2>
-        <button id="resume-button" class="primary-button">Resume</button>
-        <button id="manual-save-button" class="secondary-button">Save campaign</button>
-        <button id="load-button" class="secondary-button">Load autosave</button>
-        <button id="help-button" class="secondary-button">Controls</button>
-        <button id="restart-button" class="danger-button">Restart mission</button>
+        <p class="eyebrow">Build a village</p>
+        <h2>Take a break</h2>
+        <button id="resume-button" class="primary-button">Keep playing</button>
+        <button id="manual-save-button" class="secondary-button">Save game</button>
+        <button id="load-button" class="secondary-button">Open saved game</button>
+        <button id="help-button" class="secondary-button">How to play</button>
+        <button id="restart-button" class="danger-button">Start again</button>
+        <a class="return-link" href="../../">Back to Dream Unity</a>
       </article>
     </section>
 
-    <section id="help-screen" class="modal-layer" aria-label="Controls">
+    <section id="help-screen" class="modal-layer" aria-label="How to play">
       <article class="help-card">
-        <button id="close-help" class="close-button" aria-label="Close controls">×</button>
-        <p class="eyebrow">FIELD MANUAL</p>
-        <h2>Controls</h2>
+        <button id="close-help" class="close-button" aria-label="Close help">×</button>
+        <p class="eyebrow">One step at a time</p>
+        <h2>How to play</h2>
+        <ol class="first-steps">
+          <li>Choose a worker. Tap berries to get food, or a tree to get wood.</li>
+          <li>Choose a worker, then Build. Pick a building. Tap an empty place.</li>
+          <li>Choose your Main house to make more workers. Build a Guard camp to make guards.</li>
+        </ol>
         <div class="controls-grid">
-          <div><kbd>Left-click</kbd><span>Select</span></div>
-          <div><kbd>Drag</kbd><span>Box-select units</span></div>
-          <div><kbd>Right-click</kbd><span>Move, gather, attack</span></div>
-          <div><kbd>Shift</kbd><span>Add to selection</span></div>
-          <div><kbd>W A S D</kbd><span>Move camera</span></div>
-          <div><kbd>Mouse wheel</kbd><span>Zoom</span></div>
-          <div><kbd>Ctrl + 1–5</kbd><span>Create control group</span></div>
-          <div><kbd>1–5</kbd><span>Select control group</span></div>
-          <div><kbd>Space</kbd><span>Centre selection</span></div>
-          <div><kbd>H</kbd><span>Centre Town Centre</span></div>
-          <div><kbd>B</kbd><span>Villager build menu</span></div>
-          <div><kbd>P</kbd><span>Pause</span></div>
+          <div><kbd>Tap</kbd><span>Choose a person. Then tap a place to send them there.</span></div>
+          <div><kbd>Drag</kbd><span>Draw a box around people to choose a group.</span></div>
+          <div><kbd>Map</kbd><span>Open the small map. Tap a place to look there.</span></div>
+          <div><kbd>Clear</kbd><span>Put down your choice.</span></div>
+          <div><kbd>+ / −</kbd><span>See things bigger or smaller.</span></div>
+          <div><kbd>Mouse</kbd><span>Left-click to choose. Right-click to send.</span></div>
         </div>
+        <details class="more-controls"><summary>Keyboard shortcuts</summary>
+          <p>W A S D or arrow keys move the view. The mouse wheel zooms. H finds your Main house. B opens Build. P pauses. Escape cancels.</p>
+          <p>Hold Shift to add people to a group. Ctrl + 1–5 saves a group. Press its number to choose it again. Space finds your chosen people.</p>
+        </details>
       </article>
     </section>
 
-    <section id="end-screen" class="modal-layer" aria-label="Mission result">
+    <section id="end-screen" class="modal-layer" aria-label="Game result">
       <article class="end-card">
-        <p class="eyebrow" id="end-kicker">CAMPAIGN COMPLETE</p>
-        <h2 id="end-title">Victory</h2>
+        <p class="eyebrow" id="end-kicker">YOU WON</p>
+        <h2 id="end-title">You won</h2>
         <p id="end-copy"></p>
         <div id="end-stats"></div>
         <button id="play-again-button" class="primary-button">Play again</button>
@@ -195,13 +212,13 @@
     </section>
   </main>
 
-  <script src="js/game-01.js" defer></script>
-  <script src="js/game-02.js" defer></script>
-  <script src="js/game-03.js" defer></script>
-  <script src="js/game-04.js" defer></script>
-  <script src="js/game-05.js" defer></script>
-  <script src="js/game-06.js" defer></script>
-  <script src="js/game-07.js" defer></script>
-  <script src="js/game-08.js" defer></script>
+  <script src="js/game-01.js?v=clear-20260905-1" defer></script>
+  <script src="js/game-02.js?v=clear-20260905-1" defer></script>
+  <script src="js/game-03.js?v=clear-20260905-1" defer></script>
+  <script src="js/game-04.js?v=clear-20260905-1" defer></script>
+  <script src="js/game-05.js?v=clear-20260905-1" defer></script>
+  <script src="js/game-06.js?v=clear-20260905-1" defer></script>
+  <script src="js/game-07.js?v=clear-20260905-1" defer></script>
+  <script src="js/game-08.js?v=clear-20260905-1" defer></script>
 </body>
 </html>

@@ -82,7 +82,7 @@ function updateAI(dt) {
       ai.nextAttack = game.elapsed + (game.difficulty === 'hard' ? 54 : 70);
       if (game.elapsed - game.lastAttackWarning > 30) {
         game.lastAttackWarning = game.elapsed;
-        notify('Enemy war party advancing on your settlement!', 'bad');
+        notify('Watch out! The other team is coming.', 'bad');
         sound('warning');
       }
     }

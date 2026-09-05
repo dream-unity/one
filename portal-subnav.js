@@ -6,287 +6,197 @@
     maker: ["INTEND", "ACT", "BECOME"],
     world: ["MATTER", "STRUCTURE", "EMERGE"]
   };
-
   const MACHINE_MIND_DOMAINS = ["PERCEIVE", "MODEL", "PREDICT"];
-  const returnTarget = new URLSearchParams(window.location.search).get("return");
-
-  const WORLD_NAMES = {
-    machine: "Dream Machine",
-    maker: "Dream Maker",
-    world: "Dream World"
+  const DOMAIN_ACTIONS = {
+    HEART: "Feel", MIND: "Think", BODY: "Move",
+    PERCEIVE: "Look closely", MODEL: "Check a thought", PREDICT: "What comes next?",
+    INTEND: "Choose a goal", ACT: "Take a step", BECOME: "Grow",
+    MATTER: "Things", STRUCTURE: "How things fit", EMERGE: "What can grow"
   };
-
+  const WORLD_NAMES = {
+    machine: "Dream Machine", maker: "Dream Maker", world: "Dream World"
+  };
+  const WORLD_COPY = {
+    machine: {
+      kicker: "Feel. Think. Move.",
+      description: "Practise using your feelings, thoughts and body. Choose Think to try a thought exercise."
+    },
+    maker: {
+      kicker: "Turn a wish into a step.",
+      description: "Choose a goal. Take a step. Learn as you go. These practices are not ready yet."
+    },
+    world: {
+      kicker: "See how things work together.",
+      description: "See what happens when things work together. Choose How things fit to build a village."
+    }
+  };
+  const returnTarget = new URLSearchParams(window.location.search).get("return");
   const worldSteps = document.getElementById("world-steps");
   const worldPanel = document.getElementById("world-panel");
   const worldKicker = document.getElementById("world-kicker");
   const worldTitle = document.getElementById("world-title");
   const worldDescription = document.getElementById("world-description");
-  const portalButtons = [...document.querySelectorAll("[data-world]")];
+  const returnHome = document.getElementById("return-unity");
+  const portalButtons = [...document.querySelectorAll(".portal-card[data-world]")];
 
   if (!worldSteps) return;
-
-  const style = document.createElement("style");
-  style.id = "dream-unity-domain-button-styles";
-  style.textContent = `
-    .world-steps {
-      width: 100%;
-      gap: 7px;
-    }
-
-    .world-step-button {
-      position: relative;
-      flex: 1 1 0;
-      min-width: 0;
-      max-width: 112px;
-      height: 34px;
-      padding: 0 9px;
-      overflow: hidden;
-      color: #55566e;
-      border: 1px solid color-mix(in srgb, var(--unity) 28%, rgba(82, 88, 124, 0.2));
-      border-radius: 3px;
-      background:
-        linear-gradient(115deg, rgba(255,255,255,.62), rgba(255,255,255,.16)),
-        color-mix(in srgb, var(--unity) 5%, transparent);
-      box-shadow:
-        inset 0 1px 0 rgba(255,255,255,.82),
-        0 7px 20px rgba(69,75,113,.045);
-      cursor: pointer;
-      font-size: 7px;
-      font-weight: 650;
-      letter-spacing: .14em;
-      text-indent: .14em;
-      white-space: nowrap;
-      transition:
-        color 220ms ease,
-        border-color 220ms ease,
-        background 220ms ease,
-        box-shadow 220ms ease,
-        transform 220ms cubic-bezier(.22,1,.36,1);
-    }
-
-    .world-step-button::before {
-      position: absolute;
-      inset: 4px;
-      content: "";
-      border: 1px solid color-mix(in srgb, var(--unity) 13%, transparent);
-      border-radius: 1px;
-      pointer-events: none;
-    }
-
-    .world-step-button:hover,
-    .world-step-button:focus-visible,
-    .domain-back:hover,
-    .domain-back:focus-visible {
-      color: color-mix(in srgb, var(--unity) 72%, #323348);
-      border-color: color-mix(in srgb, var(--unity) 58%, rgba(82,88,124,.28));
-      outline: none;
-      transform: translateY(-1px);
-    }
-
-    .world-step-button[aria-pressed="true"] {
-      color: color-mix(in srgb, var(--unity) 84%, #25263a);
-      border-color: color-mix(in srgb, var(--unity) 70%, rgba(82,88,124,.28));
-      background:
-        radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--unity) 17%, white), transparent 72%),
-        rgba(255,255,255,.56);
-      box-shadow:
-        inset 0 0 14px color-mix(in srgb, var(--unity) 8%, transparent),
-        0 0 18px color-mix(in srgb, var(--unity) 13%, transparent);
-    }
-
-    .world-step-link {
-      width: 3px;
-      height: 3px;
-      flex: 0 0 3px;
-      transform: rotate(45deg);
-      background: var(--unity);
-      opacity: .4;
-      pointer-events: none;
-    }
-
-    .domain-back {
-      display: none;
-      margin: -5px auto 10px;
-      padding: 3px 8px 4px;
-      color: #717286;
-      border: 1px solid rgba(82, 88, 124, .13);
-      border-radius: 12px;
-      background: rgba(255,255,255,.28);
-      cursor: pointer;
-      font-size: 5px;
-      font-weight: 600;
-      letter-spacing: .16em;
-      transition: color 220ms ease, border-color 220ms ease, transform 220ms cubic-bezier(.22,1,.36,1);
-    }
-
-    .domain-back.is-visible { display: block; }
-
-    @media (max-width: 520px) {
-      .world-steps { gap: 5px; }
-      .world-step-button {
-        height: 32px;
-        padding-inline: 5px;
-        font-size: 6px;
-        letter-spacing: .1em;
-        text-indent: .1em;
-      }
-      .world-step-link {
-        width: 2px;
-        height: 2px;
-        flex-basis: 2px;
-      }
-    }
-  `;
-  document.head.append(style);
 
   const backButton = document.createElement("button");
   backButton.type = "button";
   backButton.className = "domain-back";
-  backButton.textContent = "← HEART · MIND · BODY";
-  backButton.setAttribute("aria-label", "Return to Heart, Mind and Body");
+  backButton.textContent = "Back to Dream Machine";
+  backButton.setAttribute("aria-label", "Back to Dream Machine: Feel, Think and Move");
   worldSteps.before(backButton);
+
+  const availability = document.createElement("div");
+  availability.className = "domain-availability";
+  availability.hidden = true;
+  const availabilityMessage = document.createElement("p");
+  availabilityMessage.setAttribute("role", "status");
+  const tryThought = document.createElement("a");
+  tryThought.className = "domain-try";
+  tryThought.href = new URL("./exercises/cbt/", document.baseURI).href;
+  tryThought.textContent = "Try a thought exercise";
+  availability.append(availabilityMessage, tryThought);
+  worldSteps.after(availability);
+
+  if (returnHome) {
+    returnHome.textContent = "Back to home";
+    returnHome.setAttribute("aria-label", "Back to the Dream Unity home screen");
+  }
+  if (worldTitle) worldTitle.tabIndex = -1;
 
   function updateVisibleArchitecture() {
     const machinePortal = document.querySelector('[data-world="machine"] .portal-copy small');
     if (machinePortal) machinePortal.textContent = "HEART · MIND · BODY";
-
     const machineMap = document.querySelector(".panel-map .machine-dot")?.closest("span")?.querySelector("small");
-    if (machineMap) machineMap.textContent = "HEART · MIND · BODY";
+    if (machineMap) machineMap.textContent = "Feel · Think · Move";
   }
 
   function setPortalExpansion(activeWorld) {
     portalButtons.forEach((button) => {
-      const expanded = button.dataset.world === activeWorld;
-      button.setAttribute("aria-expanded", String(expanded));
-      button.setAttribute("aria-controls", "world-steps");
+      button.setAttribute("aria-expanded", String(button.dataset.world === activeWorld));
+      button.setAttribute("aria-controls", "world-panel");
     });
   }
 
   function emitSelection(world, domain, extra = {}) {
     window.dispatchEvent(new CustomEvent("dreamunity:domainselect", {
-      detail: {
-        world,
-        domain: domain.toLowerCase(),
-        label: domain,
-        ...extra
-      }
+      detail: { world, domain: domain.toLowerCase(), label: domain, ...extra }
     }));
   }
 
-  function selectDomain(world, domain, button) {
+  function markSelected(button) {
     worldSteps.querySelectorAll(".world-step-button").forEach((candidate) => {
       candidate.setAttribute("aria-pressed", String(candidate === button));
     });
+  }
 
+  function showUnavailable(domain) {
+    tryThought.href = new URL("./exercises/cbt/", document.baseURI).href;
+    tryThought.textContent = "Try a thought exercise";
+    availabilityMessage.textContent = "This practice is not ready yet. You can try a thought exercise now.";
+    availability.hidden = false;
+    availability.scrollIntoView({ block: "nearest", behavior: "instant" });
+  }
+
+  function selectDomain(world, domain, button) {
+    markSelected(button);
     document.body.dataset.domainSelected = `${world}:${domain.toLowerCase()}`;
     emitSelection(world, domain);
-
     if (world === "machine" && domain === "MIND") {
-      window.setTimeout(renderMindDomains, 120);
+      renderMindDomains();
+      worldTitle?.focus({ preventScroll: true });
+    } else if (world === "world" && domain === "STRUCTURE") {
+      availabilityMessage.textContent = "Build a village. Gather food and wood. Choose what to build and help your village grow.";
+      tryThought.href = new URL("./games/empire-dawn/", document.baseURI).href;
+      tryThought.textContent = "Build a village";
+      availability.hidden = false;
+      availability.scrollIntoView({ block: "nearest", behavior: "instant" });
+    } else {
+      showUnavailable(domain);
     }
   }
 
   function selectMindDomain(domain, button) {
-    worldSteps.querySelectorAll(".world-step-button").forEach((candidate) => {
-      candidate.setAttribute("aria-pressed", String(candidate === button));
-    });
-
+    markSelected(button);
     document.body.dataset.domainSelected = `machine:mind:${domain.toLowerCase()}`;
     emitSelection("machine", domain, { parent: "mind", path: ["machine", "mind", domain.toLowerCase()] });
-
     if (domain === "MODEL") {
-      window.setTimeout(() => {
-        window.location.href = new URL("./exercises/cbt/", document.baseURI).href;
-      }, 110);
+      window.location.href = new URL("./exercises/cbt/", document.baseURI).href;
+    } else {
+      showUnavailable(domain);
     }
   }
 
   function buildButtons(domains, world, onSelect, ariaLabel) {
+    availability.hidden = true;
     worldSteps.replaceChildren();
     worldSteps.setAttribute("role", "group");
     worldSteps.setAttribute("aria-label", ariaLabel);
-
-    domains.forEach((domain, index) => {
+    worldSteps.setAttribute("aria-describedby", "world-description");
+    domains.forEach((domain) => {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "world-step-button";
       button.dataset.world = world;
       button.dataset.domain = domain.toLowerCase();
-      button.textContent = domain;
+      const action = document.createElement("span");
+      action.className = "world-step-action";
+      action.textContent = DOMAIN_ACTIONS[domain];
+      const name = document.createElement("span");
+      name.className = "world-step-name";
+      name.textContent = domain.charAt(0) + domain.slice(1).toLowerCase();
+      button.append(action, name);
       button.setAttribute("aria-pressed", "false");
-      button.setAttribute("aria-label", `Select ${domain.toLowerCase()} in ${WORLD_NAMES[world]}`);
+      button.setAttribute("aria-label", `${DOMAIN_ACTIONS[domain]}: ${name.textContent}, in ${WORLD_NAMES[world]}`);
       button.addEventListener("click", () => onSelect(domain, button));
       worldSteps.append(button);
-
-      if (index < domains.length - 1) {
-        const connector = document.createElement("span");
-        connector.className = "world-step-link";
-        connector.setAttribute("aria-hidden", "true");
-        worldSteps.append(connector);
-      }
     });
+    if (worldPanel) worldPanel.scrollTop = 0;
   }
 
   function renderMindDomains() {
     backButton.classList.add("is-visible");
-    if (worldKicker) worldKicker.textContent = "THE COGNITIVE MACHINE";
-    if (worldTitle) worldTitle.textContent = "DREAM MACHINE · MIND";
-    if (worldDescription) worldDescription.textContent = "Mind perceives the field, models what it finds, and predicts what may come next.";
-    buildButtons(
-      MACHINE_MIND_DOMAINS,
-      "machine",
-      selectMindDomain,
-      "Dream Machine mind domains"
-    );
+    if (worldKicker) worldKicker.textContent = "Dream Machine · Mind";
+    if (worldTitle) worldTitle.textContent = "Think";
+    if (worldDescription) worldDescription.textContent = "Look closely. Check a thought. Think about what could happen. Start with Check a thought.";
+    buildButtons(MACHINE_MIND_DOMAINS, "machine", selectMindDomain, "Choose a way to practise thinking");
   }
 
   function renderDomainButtons(world) {
     const domains = WORLD_DOMAINS[world];
     if (!domains) return;
-
     backButton.classList.remove("is-visible");
-
-    if (world === "machine") {
-      if (worldKicker) worldKicker.textContent = "THE HUMAN SYSTEM";
-      if (worldTitle) worldTitle.textContent = "DREAM MACHINE";
-      if (worldDescription) worldDescription.textContent = "Heart, mind and body form the Dream Machine. Mind contains the cognitive cycle: perceive, model, predict.";
-    }
-
-    buildButtons(
-      domains,
-      world,
-      (domain, button) => selectDomain(world, domain, button),
-      `${WORLD_NAMES[world]} domains`
-    );
-
+    if (worldKicker) worldKicker.textContent = WORLD_COPY[world].kicker;
+    if (worldTitle) worldTitle.textContent = WORLD_NAMES[world];
+    if (worldDescription) worldDescription.textContent = WORLD_COPY[world].description;
+    buildButtons(domains, world, (domain, button) => selectDomain(world, domain, button), `Choose a practice in ${WORLD_NAMES[world]}`);
     setPortalExpansion(world);
   }
 
   backButton.addEventListener("click", () => {
     delete document.body.dataset.domainSelected;
     renderDomainButtons("machine");
+    worldSteps.querySelector('[data-domain="mind"]')?.focus({ preventScroll: true });
   });
 
   window.addEventListener("dreamunity:worldfocus", (event) => {
+    delete document.body.dataset.domainSelected;
     renderDomainButtons(event.detail?.key);
   });
-
   window.addEventListener("dreamunity:unityfocus", () => {
     delete document.body.dataset.domainSelected;
     backButton.classList.remove("is-visible");
+    availability.hidden = true;
     setPortalExpansion(null);
   });
 
   updateVisibleArchitecture();
   setPortalExpansion(null);
-
   window.__DREAM_UNITY_DOMAIN_NAV__ = {
     worlds: WORLD_DOMAINS,
-    nested: {
-      machine: {
-        mind: MACHINE_MIND_DOMAINS
-      }
-    },
+    nested: { machine: { mind: MACHINE_MIND_DOMAINS } },
     render: renderDomainButtons,
     renderMind: renderMindDomains
   };
@@ -304,7 +214,6 @@
 
   function restoreModelContext() {
     if (returnTarget !== "machine-mind-model") return;
-
     window.__DREAM_UNITY__?.focus?.("machine");
     revealMachinePanel();
     renderMindDomains();
@@ -314,10 +223,7 @@
       document.body.dataset.domainSelected = "machine:mind:model";
       modelButton.focus({ preventScroll: true });
     }
-    if (worldDescription) {
-      worldDescription.textContent = "Model is ready. Cognitive Behavioural Therapy (CBT) practises how to trace interpretations, test explanations and update only what evidence changes.";
-    }
-
+    if (worldDescription) worldDescription.textContent = "Try Check a thought again. Practise noticing a thought, testing it and choosing what to do next.";
     const cleanUrl = new URL(window.location.href);
     cleanUrl.searchParams.delete("return");
     cleanUrl.searchParams.delete("focus");

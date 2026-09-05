@@ -1,6 +1,6 @@
 # Cognitive behavioural therapy (CBT)
 
-The Model exercise at **Dream Machine → Mind → Model** is a guided, fictional CBT skills laboratory. The canonical route is `/exercises/cbt/`; the former exercise URL remains only as a redirect. The current implementation replaces the previous fixed-outcome prototype.
+The Model exercise at **Dream Machine → Mind → Model** is a guided, fictional CBT skills laboratory. The canonical route is `/exercises/cbt/`; the former exercise URL remains only as a redirect. The familiar picture story uses visible dots and boxes so the reasoning does not depend on adult technical knowledge.
 
 ## Experience
 
@@ -11,7 +11,7 @@ The Model exercise at **Dream Machine → Mind → Model** is a guided, fictiona
 - Six actions with different observable consequences, limited to one optional follow-up.
 - Conclusions and updates evaluated against **released evidence**, never unseen world state.
 - Editing the original claim while preserving the original revision request.
-- A working-copy operation: preserve a length when converting its units, apply the available layout requirement, practise a second conversion when relevant, or prepare a question for a missing criterion.
+- A working-copy operation: add or remove visible dots, preserve the required colour, apply a box-count rule, practise a second count when relevant, or prepare a question for a missing rule.
 - Conditional stopping; relevant new information or an agreed review is a reason to return.
 - 24 authored strategy-selection cases, two per twelve families, with different actions producing different consequences. Several cases admit more than one defensible route.
 - Longer practice adds source-dependence and controlled-intervention comparisons.
@@ -31,7 +31,7 @@ The four-minute route is a focused prediction → action → result → update �
 | Accusatory question | An altered exchange that cannot establish the prior opinion |
 | Scheduled review | A review plan; no fabricated future outcome |
 
-A rubric-only action in the broader world establishes the units criterion, not the unseen history. In the mixed world it establishes the two current corrections, not the unseen recurrence. Unresolved worlds remain unresolved after a clear question. Asking clearly never guarantees access to a person's private opinion.
+A rubric-only action in the broader world establishes the dot-count criterion, not the unseen history. In the mixed world it establishes the two current corrections, not the unseen recurrence. Unresolved worlds remain unresolved after a clear question. Asking clearly never guarantees access to a person's private opinion.
 
 The extra controlled comparison is explicitly authored, happens after the first action/update, and does not retroactively change the evidence used to score that attempt.
 
@@ -40,6 +40,12 @@ The extra controlled comparison is explicitly authored, happens after the first 
 Attempts are append-only snapshots. First independent responses, repairs, demonstrations, cue retrieval and delayed application remain separate. Sequence reconstruction does not overwrite unfamiliar-case performance. Summary language distinguishes a completed cycle from an early finish and reports unassessed skills honestly.
 
 The local selector favours unused cases and recently difficult skills, using different families in a session. After at least a day, a fresh case can revisit a previously attempted skill. The recall case is reserved so it cannot reappear as an allegedly unfamiliar case later in that session. Two successful independent attempts across distinct cases can shorten guidance for that skill; optional hints and evidence access remain available. These adaptation thresholds are pilot rules, not validated mastery cut-offs.
+
+## Reading and interaction
+
+Guidance uses short, concrete sentences. Navigation pairs a large plain action with the established area name. Source sorting and evidence judgments show one card at a time; a card picker lets the learner review any answer. Predictions have two short steps. Counters change visible pictures, and feedback distinguishes practice from a supplied answer. Longer cases still require source independence, uncertainty, causal comparisons and context-sensitive choices.
+
+The silver, blue and violet palette follows the home screen. Exercise text is 18–20 px, supporting text at least 16 px, and primary touch controls at least 56 px. Reading ease and clinical suitability have not been established by testing with children.
 
 ## Timing and access
 

@@ -108,8 +108,17 @@ function handleTargetClick(screenX, screenY) {
   if (!targeting) return false;
   const world = screenToWorld(screenX, screenY);
   const target = getEntityAtScreen(screenX, screenY);
-  if (targeting.type === 'attack') {
-    if (!target || target.owner === PLAYER || target.owner === NEUTRAL) { notify('Choose an enemy target.', 'bad'); return true; }
+  if (targeting.type === 'context') {
+    issueContextOrder(screenX, screenY);
+  } else if (targeting.type === 'repair') {
+    if (!target || target.kind !== 'building' || target.owner !== PLAYER || (target.progress >= 1 && target.hp >= target.maxHp)) {
+      notify('Choose one of your buildings that needs fixing or building.', 'bad');
+      return true;
+    }
+    selectedUnits().filter((unit) => unit.type === 'villager').forEach((unit) => orderBuild(unit, target));
+    spawnOrderMarker(target.x, target.y, '#71c58a');
+  } else if (targeting.type === 'attack') {
+    if (!target || target.owner === PLAYER || target.owner === NEUTRAL) { notify('Choose someone from the other team.', 'bad'); return true; }
     selectedUnits().forEach((unit) => orderAttack(unit, target));
     spawnOrderMarker(target.x, target.y, '#df6350');
   } else if (targeting.type === 'attackMove') {
@@ -146,7 +155,7 @@ function onCanvasMouseMove(event) {
   }
   const margin = 10;
   runtime.mouse.edgeX = event.clientX < margin ? -1 : event.clientX > viewport.width - margin ? 1 : 0;
-  runtime.mouse.edgeY = event.clientY < 76 + margin ? -1 : event.clientY > viewport.height - 170 - margin ? 1 : 0;
+  runtime.mouse.edgeY = event.clientY < viewport.playTop + margin ? -1 : event.clientY > viewport.playBottom - margin ? 1 : 0;
 }
 
 function onCanvasMouseUp(event) {
@@ -154,7 +163,8 @@ function onCanvasMouseUp(event) {
   runtime.mouse.down = false;
   if (event.button === 0) {
     if (runtime.placement) {
-      placeBuilding(runtime.placement.type, runtime.hoverWorld.x, runtime.hoverWorld.y);
+      const place = screenToWorld(event.clientX, event.clientY);
+      placeBuilding(runtime.placement.type, place.x, place.y);
     } else if (runtime.targeting) {
       handleTargetClick(event.clientX, event.clientY);
     } else if (runtime.mouse.dragging && runtime.mouse.dragStart) {
@@ -210,7 +220,7 @@ function onKeyDown(event) {
     runtime.groups[key] = runtime.selected.filter((id) => {
       const entity = getEntity(id); return entity && entity.owner === PLAYER;
     });
-    notify(`Control group ${key} assigned.`, 'good');
+    notify(`Group ${key} is saved.`, 'good');
   } else if (/^[1-5]$/.test(key) && !event.ctrlKey) {
     runtime.selected = runtime.groups[key].filter((id) => isAlive(getEntity(id)));
     if (runtime.selected.length) centreOnSelection();
@@ -245,7 +255,9 @@ function notify(message, type = '') {
 }
 
 function updateObjectivesUI() {
-  DOM.objectiveList.innerHTML = game.objectives.map((objective) => `<li class="${objective.complete ? 'complete' : ''}">${objective.text}</li>`).join('');
+  const labels = { gather: 'Bring back 250 food, wood, stone or gold', barracks: 'Build a Guard camp', army: 'Make 5 guards', age: 'Learn to make tools', destroy: 'Break the other team’s Main house' };
+  const markup = game.objectives.map((objective) => `<li class="${objective.complete ? 'complete' : ''}">${labels[objective.id] || objective.text}</li>`).join('');
+  if (DOM.objectiveList.innerHTML !== markup) DOM.objectiveList.innerHTML = markup;
 }
 
 function iconForEntity(entity) {
@@ -258,11 +270,11 @@ function iconForEntity(entity) {
 function descriptionForEntity(entity) {
   if (entity.kind === 'unit') return UNIT_TYPES[entity.type].description;
   if (entity.kind === 'building') {
-    if (entity.type === 'farm' && entity.progress >= 1) return `${BUILDING_TYPES.farm.description} ${Math.ceil(entity.foodRemaining)} food remains.`;
-    if (entity.progress < 1) return `${BUILDING_TYPES[entity.type].name} under construction — ${Math.floor(entity.progress * 100)}% complete.`;
+    if (entity.type === 'farm' && entity.progress >= 1) return `${BUILDING_TYPES.farm.description} ${Math.ceil(entity.foodRemaining)} food is left.`;
+    if (entity.progress < 1) return `${BUILDING_TYPES[entity.type].name} is being built — ${Math.floor(entity.progress * 100)}% complete.`;
     return BUILDING_TYPES[entity.type].description;
   }
-  return `${RESOURCE_TYPES[entity.type].name}: ${Math.ceil(entity.amount)} ${RESOURCE_TYPES[entity.type].resource} remaining.`;
+  return `${RESOURCE_TYPES[entity.type].name}: ${Math.ceil(entity.amount)} ${RESOURCE_TYPES[entity.type].resource} left.`;
 }
 
 function updateSelectionUI() {
@@ -270,24 +282,24 @@ function updateSelectionUI() {
   const primary = entities[0];
   if (!primary) {
     DOM.portrait.textContent = '⌂';
-    DOM.selectionOwner.textContent = 'NO SELECTION';
-    DOM.selectionTitle.textContent = 'Select a unit or building';
-    DOM.selectionDescription.textContent = 'Drag to select several units. Right-click the world to move, gather, build, or attack.';
+    DOM.selectionOwner.textContent = 'Choose something';
+    DOM.selectionTitle.textContent = 'Choose a person or a building';
+    DOM.selectionDescription.textContent = 'Tap a person, then tap where they should go. Drag around people to choose a group.';
     DOM.healthRow.classList.add('hidden');
     DOM.selectionStats.innerHTML = '';
     return;
   }
 
   DOM.portrait.textContent = entities.length > 1 ? entities.length : iconForEntity(primary);
-  DOM.selectionOwner.textContent = primary.owner === PLAYER ? CIVILISATIONS[game.civilisation].name : primary.owner === ENEMY ? 'ASHEN HORDE' : 'WILDERNESS';
+  DOM.selectionOwner.textContent = primary.owner === PLAYER ? CIVILISATIONS[game.civilisation].name : primary.owner === ENEMY ? 'Other team' : 'Wild land';
   if (entities.length > 1) {
     const unitCount = entities.filter((entity) => entity.kind === 'unit').length;
-    DOM.selectionTitle.textContent = `${unitCount} units selected`;
-    DOM.selectionDescription.textContent = 'Issue a shared order or create a numbered control group with Ctrl + 1–5.';
+    DOM.selectionTitle.textContent = `${unitCount} people chosen`;
+    DOM.selectionDescription.textContent = 'Tap where the group should go. On a mouse, use the right button. Clear lets you choose again.';
     DOM.healthRow.classList.add('hidden');
     const military = entities.filter((entity) => entity.kind === 'unit' && entity.type !== 'villager').length;
     const villagers = entities.filter((entity) => entity.kind === 'unit' && entity.type === 'villager').length;
-    DOM.selectionStats.innerHTML = `<span><b>${villagers}</b> villagers</span><span><b>${military}</b> military</span>`;
+    DOM.selectionStats.innerHTML = `<span><b>${villagers}</b> workers</span><span><b>${military}</b> guards</span>`;
     return;
   }
 
@@ -305,11 +317,11 @@ function updateSelectionUI() {
     const attack = unitEffectiveAttack(primary);
     const armour = unitEffectiveArmour(primary);
     const carrying = primary.carryingAmount > 0 ? `<span><b>${Math.floor(primary.carryingAmount)}</b> ${primary.carryingType}</span>` : '';
-    DOM.selectionStats.innerHTML = `<span>Attack <b>${attack}</b></span><span>Armour <b>${armour}</b></span><span>Speed <b>${primary.speed.toFixed(1)}</b></span>${carrying}`;
+    DOM.selectionStats.innerHTML = `<span>Attack <b>${attack}</b></span><span>Shield <b>${armour}</b></span><span>Speed <b>${primary.speed.toFixed(1)}</b></span>${carrying}`;
   } else if (primary.kind === 'building') {
-    DOM.selectionStats.innerHTML = `<span>Armour <b>${primary.armour}</b></span><span>Complete <b>${Math.floor(primary.progress * 100)}%</b></span>`;
+    DOM.selectionStats.innerHTML = `<span>Shield <b>${primary.armour}</b></span><span>Built <b>${Math.floor(primary.progress * 100)}%</b></span>`;
   } else {
-    DOM.selectionStats.innerHTML = `<span>Remaining <b>${Math.ceil(primary.amount)}</b></span>`;
+    DOM.selectionStats.innerHTML = `<span>Left <b>${Math.ceil(primary.amount)}</b></span>`;
   }
 }
 
@@ -320,6 +332,7 @@ function commandButton({ action, icon, name, cost = {}, hotkey = '', disabled = 
   button.disabled = disabled;
   button.innerHTML = `${hotkey ? `<span class="hotkey">${hotkey}</span>` : ''}<span class="command-icon">${icon}</span><span class="command-name">${name}</span>${Object.keys(cost).length ? `<span class="command-cost">${costText(cost)}</span>` : ''}`;
   button.dataset.tooltip = title || name;
+  button.setAttribute('aria-label', `${name}. ${Object.keys(cost).length ? `Needs ${costText(cost)}. ` : ''}${title || ''}`);
   return button;
 }
 
@@ -328,19 +341,19 @@ function buildCommandButtons() {
   const player = getPlayer(PLAYER);
   const buttons = [];
   DOM.backCommand.classList.add('hidden');
-  DOM.commandContext.textContent = 'GENERAL';
+  DOM.commandContext.textContent = 'Choose first';
 
   if (!entities.length || entities.some((entity) => entity.owner !== PLAYER)) return buttons;
 
   if (runtime.commandMode === 'build') {
-    DOM.commandContext.textContent = 'CONSTRUCTION';
+    DOM.commandContext.textContent = 'What shall we build?';
     DOM.backCommand.classList.remove('hidden');
     for (const type of BUILD_MENU) {
       const spec = BUILDING_TYPES[type];
       const disabled = (spec.requiredAge || 0) > player.age || !hasCost(player, spec.cost);
       buttons.push(commandButton({
         action: `place:${type}`, icon: spec.icon, name: spec.name, cost: spec.cost, disabled,
-        title: `${spec.name} — ${spec.description}${spec.requiredAge ? ` Requires ${getAgeName(spec.requiredAge)}.` : ''}`,
+        title: `${spec.name} — ${spec.description}${spec.requiredAge ? ` First reach ${getAgeName(spec.requiredAge)}.` : ''}`,
       }));
     }
     return buttons;
@@ -348,19 +361,21 @@ function buildCommandButtons() {
 
   const units = entities.filter((entity) => entity.kind === 'unit');
   if (units.length) {
-    DOM.commandContext.textContent = units.every((unit) => unit.type === 'villager') ? 'VILLAGER' : 'FIELD ORDERS';
-    buttons.push(commandButton({ action: 'target:attackMove', icon: '⚔', name: 'Attack-move', hotkey: 'A', title: 'Move toward a point and automatically engage enemies encountered.' }));
-    buttons.push(commandButton({ action: 'stop', icon: '■', name: 'Stop', hotkey: 'S', title: 'Cancel current orders.' }));
+    DOM.commandContext.textContent = units.every((unit) => unit.type === 'villager') ? 'Worker' : 'Your group';
+    buttons.push(commandButton({ action: 'target:context', icon: '→', name: 'Send', title: 'Choose a place to go, a tree to cut, food to gather or a foe to fight.' }));
     if (units.some((unit) => unit.type === 'villager')) {
-      buttons.push(commandButton({ action: 'buildMenu', icon: '⚒', name: 'Build', hotkey: 'B', title: 'Open the construction menu.' }));
-      buttons.push(commandButton({ action: 'target:repair', icon: '⟲', name: 'Repair', title: 'Right-click a damaged friendly building to repair it.' }));
+      buttons.push(commandButton({ action: 'buildMenu', icon: '⚒', name: 'Build', hotkey: 'B', title: 'Choose a building to make.' }));
+      buttons.push(commandButton({ action: 'stop', icon: '■', name: 'Stop', hotkey: 'S', title: 'Stop what these people are doing.' }));
+      buttons.push(commandButton({ action: 'target:repair', icon: '⟲', name: 'Fix', title: 'Choose Fix, then tap one of your broken buildings.' }));
     }
+    if (!units.some((unit) => unit.type === 'villager')) buttons.push(commandButton({ action: 'stop', icon: '■', name: 'Stop', hotkey: 'S', title: 'Stop what these people are doing.' }));
+    buttons.push(commandButton({ action: 'target:attackMove', icon: '⚔', name: 'Go and fight', title: 'Walk to a place. Fight foes on the way.' }));
     return buttons;
   }
 
   const building = entities.length === 1 && entities[0].kind === 'building' ? entities[0] : null;
   if (!building || building.progress < 1) return buttons;
-  DOM.commandContext.textContent = BUILDING_TYPES[building.type].name.toUpperCase();
+  DOM.commandContext.textContent = BUILDING_TYPES[building.type].name;
 
   const addTrain = (type) => {
     const spec = UNIT_TYPES[type];
@@ -375,15 +390,15 @@ function buildCommandButtons() {
     const researched = player.researched.includes(id);
     const disabled = researched || player.age < tech.requiredAge || !hasCost(player, tech.cost) || Boolean(building.research);
     buttons.push(commandButton({
-      action: `research:${id}`, icon: tech.icon, name: researched ? 'Researched' : tech.name, cost: tech.cost, disabled,
+      action: `research:${id}`, icon: tech.icon, name: researched ? 'Ready' : tech.name, cost: tech.cost, disabled,
       title: `${tech.name} — ${tech.description}`,
     }));
   };
 
   if (building.type === 'townCenter') {
     addTrain('villager');
-    if (player.age === 0) buttons.push(commandButton({ action: 'age:1', icon: 'Ⅱ', name: 'Tool Age', cost: { food: 500 }, disabled: !hasCost(player, { food: 500 }) || Boolean(building.research), title: 'Advance to the Tool Age and unlock new military buildings.' }));
-    if (player.age === 1) buttons.push(commandButton({ action: 'age:2', icon: 'Ⅲ', name: 'Bronze Age', cost: { food: 800, gold: 200 }, disabled: !hasCost(player, { food: 800, gold: 200 }) || Boolean(building.research), title: 'Advance to the Bronze Age.' }));
+    if (player.age === 0) buttons.push(commandButton({ action: 'age:1', icon: 'Ⅱ', name: 'Tool Age', cost: { food: 500 }, disabled: !hasCost(player, { food: 500 }) || Boolean(building.research), title: 'Learn to make tools and make new kinds of guards.' }));
+    if (player.age === 1) buttons.push(commandButton({ action: 'age:2', icon: 'Ⅲ', name: 'Bronze Age', cost: { food: 800, gold: 200 }, disabled: !hasCost(player, { food: 800, gold: 200 }) || Boolean(building.research), title: 'Learn to make bronze.' }));
     if (player.age >= 1) addTech('leatherArmour');
     if (player.age >= 2) addTech('architecture');
   } else if (building.type === 'barracks') {
@@ -394,7 +409,51 @@ function buildCommandButtons() {
   else if (building.type === 'granary' && player.age >= 1) addTech('wheel');
 
   if (['townCenter', 'barracks', 'archeryRange', 'stable'].includes(building.type)) {
-    buttons.push(commandButton({ action: 'target:rally', icon: '⚑', name: 'Rally point', title: 'Choose where newly trained units should assemble.' }));
+    buttons.push(commandButton({ action: 'target:rally', icon: '⚑', name: 'Meet here', title: 'Choose where new people should go.' }));
   }
   return buttons;
+}
+
+
+let touchPointer = null;
+function onWorldPointerDown(event) {
+  if (event.pointerType === 'mouse') { onCanvasMouseDown(event); return; }
+  if (!runtime.started || runtime.paused || runtime.ended || touchPointer != null) return;
+  event.preventDefault();
+  touchPointer = event.pointerId;
+  canvas.setPointerCapture(event.pointerId);
+  onCanvasMouseDown(event);
+  runtime.hoverWorld = screenToWorld(event.clientX, event.clientY);
+}
+function onWorldPointerMove(event) {
+  if (event.pointerType === 'mouse') { onCanvasMouseMove(event); return; }
+  if (event.pointerId !== touchPointer) return;
+  event.preventDefault();
+  onCanvasMouseMove(event);
+  runtime.mouse.edgeX = 0;
+  runtime.mouse.edgeY = 0;
+}
+function resetWorldPointer() {
+  touchPointer = null;
+  runtime.mouse.down = false;
+  runtime.mouse.dragging = false;
+  runtime.mouse.dragStart = null;
+  runtime.mouse.edgeX = 0;
+  runtime.mouse.edgeY = 0;
+}
+function onWorldPointerUp(event) {
+  if (event.pointerType === 'mouse') { onCanvasMouseUp(event); return; }
+  if (event.pointerId !== touchPointer) return;
+  event.preventDefault();
+  if (runtime.started && !runtime.paused && !runtime.ended) {
+    if (runtime.placement || runtime.targeting || runtime.mouse.dragging) {
+      onCanvasMouseUp(event);
+    } else {
+      const entity = getEntityAtScreen(event.clientX, event.clientY);
+      const ownChoice = entity && entity.owner === PLAYER && !(entity.type === 'farm' && selectedUnits().length);
+      if (ownChoice || !selectedUnits().length) selectEntity(entity);
+      else issueContextOrder(event.clientX, event.clientY);
+    }
+  }
+  resetWorldPointer();
 }
