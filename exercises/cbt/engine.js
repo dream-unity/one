@@ -487,7 +487,7 @@ export function recordEvaluation(session, screenId, evaluation, supportUsed = fa
     repaired,
     screenId
   };
-  return { attempts, demonstrated, status, grade };
+  return { attempts, demonstrated, repaired, status, grade };
 }
 
 export function advanceSession(session, remainingSeconds = Infinity) {

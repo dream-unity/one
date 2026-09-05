@@ -36,7 +36,7 @@ import {
   safeProgress,
   selectNextFamily,
   sessionSummary
-} from "./engine.js";
+} from "./engine.js?v=cbt-v2-1";
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];

@@ -116,14 +116,15 @@ test("failure branches repair precisely and never masquerade as independent succ
   const session = createSession({ duration: 8 });
   const failed = evaluateScope(4);
   assert.deepEqual(recordEvaluation(session, "MF8-06", failed), {
-    attempts: 1, demonstrated: false, status: "repair", grade: 0
+    attempts: 1, demonstrated: false, repaired: false, status: "repair", grade: 0
   });
   assert.deepEqual(recordEvaluation(session, "MF8-06", failed), {
-    attempts: 2, demonstrated: true, status: "demonstrated", grade: 1
+    attempts: 2, demonstrated: true, repaired: false, status: "demonstrated", grade: 1
   });
   const repaired = recordEvaluation(session, "MF8-06", evaluateScope(0));
   assert.equal(repaired.status, "supported");
   assert.equal(repaired.grade, 1);
+  assert.equal(repaired.repaired, true);
 });
 
 test("adaptive selection is local, bounded and based on task evidence", () => {
