@@ -8,7 +8,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'">
 <title>Heart practice · Dream Unity</title>
 <meta name="description" content="Heart and feeling. Map the feeling. Full heart-and-feeling training, seven-part body mapping, and deeply explained science.">
-<link rel="stylesheet" href="./styles.css?v=heart-depth-20260907">
+<link rel="stylesheet" href="./styles.css?v=heart-depth-20260907-2">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='none' stroke='%236653a6' stroke-width='4' d='M32 4 55 32 32 60 9 32zM9 32h46M32 4v56'/%3E%3C/svg%3E">
 </head>
 <body class="heart-page">
@@ -253,10 +253,10 @@
 <section class="screen practice-screen" id="screen-session" hidden aria-labelledby="session-name">
 <div class="session-heading"><h1 id="session-name" tabindex="-1">Heart practice</h1><div><span class="sr-only">Practice time left</span><span id="session-timer" role="timer">05:00</span></div></div>
 <div class="session-toolbar" role="group" aria-label="Practice controls"><button type="button" id="pause-session">Pause</button><button type="button" id="look-around">Look around</button><button type="button" id="sound-toggle" aria-pressed="true">Sound on</button><button type="button" id="end-session">Finish now</button></div>
-<div class="practice-card live-card"><p class="eyebrow" id="session-step"></p><h2 id="step-title" tabindex="-1" aria-live="polite"></h2><p id="step-prompt" class="step-prompt"></p>
-<div id="breath-visual" class="breath-visual" hidden><div class="breath-stage"><div id="breath-ball" aria-hidden="true"></div><div class="breath-readout"><span id="breath-word">Breathe in</span><span id="breath-count"></span></div></div></div>
+<div class="practice-card live-card"><p class="eyebrow" id="session-step"></p><div id="breath-visual" class="breath-visual" hidden><div class="breath-stage"><div id="breath-ball" aria-hidden="true"></div><div class="breath-readout"><span id="breath-word">Breathe in</span><span id="breath-count"></span></div></div></div><h2 id="step-title" tabindex="-1" aria-live="polite"></h2><p id="phase-prompt" class="phase-prompt" hidden></p><p id="step-prompt" class="step-prompt"></p>
+
 <button type="button" class="secondary own-breath" id="own-breath" hidden>Use my own breath</button>
-<p id="phase-prompt" class="phase-prompt" hidden></p><div id="practice-cues" class="practice-cues" hidden><span data-cue>Breath rhythm</span><span data-cue>Heart attention</span><span data-cue>Felt emotion</span><p>Timed reminders — these do not measure your body.</p></div><div id="map-chips" class="map-chips" role="group" aria-label="Read a mapping question again" hidden></div><p id="peek-note" class="small-copy" role="status"></p><div id="step-choices" class="step-choices" role="group" aria-label="Your answer"></div><p id="step-feedback" class="answer-note" role="status"></p><button type="button" class="primary" id="continue-step" hidden>Next</button>
+<div id="practice-cues" class="practice-cues" hidden><span data-cue>Breath rhythm</span><span data-cue>Heart attention</span><span data-cue>Felt emotion</span><p>Timed reminders — these do not measure your body.</p></div><div id="map-chips" class="map-chips" role="group" aria-label="Read a mapping question again" hidden></div><p id="peek-note" class="small-copy" role="status"></p><div id="step-choices" class="step-choices" role="group" aria-label="Your answer"></div><p id="step-feedback" class="answer-note" role="status"></p><button type="button" class="primary" id="continue-step" hidden>Next</button>
 <details id="deeper-step" class="deeper-step"><summary>Go further</summary><p id="step-question"></p></details>
 <div class="practice-progress"><label for="session-progress" class="sr-only">Practice time passed</label><progress id="session-progress" max="100" value="0"></progress><p id="session-time-note" class="small-copy"></p></div></div><p class="session-footnote">The page guides the steps. It does not read your body.<br>Your answers stay on this page and are cleared when you leave.</p>
 </section>
@@ -266,8 +266,8 @@
 <dialog id="pause-dialog" aria-labelledby="pause-title" aria-describedby="pause-message"><h2 id="pause-title" tabindex="-1" autofocus>Take your time</h2><p id="pause-message">Your practice is paused.</p><div class="dialog-actions"><button type="button" class="primary" id="resume-session">Keep going</button><button type="button" class="secondary" id="finish-paused">Finish here</button></div></dialog>
 <noscript><p class="noscript-note">Turn on JavaScript to start a timed practice. You can still read the research below.</p><style>.setup-screen[hidden]{display:block!important}.setup-card,.compare-card,.back-button{display:none!important}</style></noscript>
 </div>
-<script src="./audio.js?v=heart-depth-20260907" defer></script>
-<script src="./practice.js?v=heart-depth-20260907" defer></script>
-<script src="./session.js?v=heart-depth-20260907" defer></script>
+<script src="./audio.js?v=heart-depth-20260907-2" defer></script>
+<script src="./practice.js?v=heart-depth-20260907-2" defer></script>
+<script src="./session.js?v=heart-depth-20260907-2" defer></script>
 </body>
 </html>

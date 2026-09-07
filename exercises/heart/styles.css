@@ -257,3 +257,8 @@ body.heart-page{margin:0;min-width:280px;min-height:100vh;background:radial-grad
  #heart-training .session-heading h1{font-size:25px}
  #heart-training .phase-prompt{font-size:21px}
 }
+
+#heart-training .live-card>.breath-visual{margin:4px auto 22px}
+#heart-training .live-card .step-prompt{font-size:21px;line-height:1.65}
+#heart-training .live-card:has(#breath-visual:not([hidden])) #step-prompt{margin-top:24px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted)}
+#heart-training:has(#screen-session:not([hidden])) .heart-topbar{min-height:80px;padding-top:12px;padding-bottom:12px}
