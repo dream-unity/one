@@ -13,7 +13,7 @@
 var _actx = null, _verb = null;
 // Each resource belongs to its own strike/session. A delayed cleanup must never
 // refer to the next session's graph, even after a rapid End -> Start sequence.
-var _heartAudioEpoch = 0, _heartResumePromise = null, _heartDronePending = null;
+var _heartAudioEpoch = 0, _heartBellRequest = 0, _heartResumePromise = null, _heartDronePending = null;
 var _heartCueTimers = new Set(), _heartStrikes = new Set(), _heartFadingDrones = new Set();
 var _heartReverbNodes = [];
 
@@ -123,16 +123,17 @@ function _reverbBus(ac){
   return _verb;
 }
 function bowl(fund, peak, decay){
+  var request = ++_heartBellRequest;
   var ac = _audio(); if(!ac) return false;
   if(ac.state !== 'running'){
     var epoch = _heartAudioEpoch;
     return _resumeHeartAudio(ac).then(function(ready){
-      if(ready && epoch === _heartAudioEpoch) return bowl(fund, peak, decay);
+      // A browser can leave resume pending across several cues. Only play the
+      // newest cue when it resumes, never a burst of old breathing bells.
+      if(ready && epoch === _heartAudioEpoch && request === _heartBellRequest) return bowl(fund, peak, decay);
       return false;
     });
   }
-  var dest = _reverbBus(ac);
-  var t = ac.currentTime;
   peak  = (peak  == null) ? 0.08 : peak;
   decay = decay || 3.5;
   // Per-option bell volume, set by the user via the volume bar (defaults keep the soft delta bell).
@@ -140,6 +141,8 @@ function bowl(fund, peak, decay){
   // An exponential AudioParam ramp cannot target zero. Zero on the source
   // volume control is silence, so it needs no strike graph at all.
   if(peak <= 0) return false;
+  var dest = _reverbBus(ac);
+  var t = ac.currentTime;
 
   // gentle lowpass that closes as it decays -> mellow throughout, guarantees nothing bright
   var lp = ac.createBiquadFilter();
@@ -195,16 +198,16 @@ function completeBell(){ bowl(392.00, 0.13, 8.5); _heartCue(function(){ bowl(293
 // open fifth + octave on D spread across the stereo field; A3 is a hard-panned
 // pair whose difference is a binaural beat (true binaural on headphones). Both
 // the binaural beat and an isochronic tremolo over the whole pad run at the
-// selected rate, easing in from the top of the chosen band over the first minute — 10 Hz is
-// the alpha frequency most linked to creativity (Lustenberger et al. 2015), and
-// 10-12 Hz is the upper-alpha ideation band. The rate is user-selectable: delta
-// (0.5-4 Hz) for deep restorative rest, or alpha (8-12 Hz) for relaxed focus.
+// selected rate, easing in from the top of the chosen band over the first minute.
+// The delta/alpha names describe the selected rate bands, not a measured or
+// guaranteed brain state. Electrical brain stimulation findings do not establish
+// an effect of these auditory beats on creativity.
 // Reads on a phone speaker too.
-// Nothing below ~145 Hz, high-passed: clean, no sub buzz.
+// Each mode keeps the supplied high-pass and low-pass settings.
 var _drone = null;
-var WAVE_HZ = 10;   // selected entrainment rate (Hz): delta 0.5-4 (rest) or alpha 8-12 (focus); 10 = creativity (Lustenberger 2015)
+var WAVE_HZ = 10;   // selected audio modulation rate (Hz); source default
 var WAVE_ON = true;   // false = no entrainment pad at all (bell only)
-// Per-option bell volume (0..1), one remembered value per selectable option ('0' = off).
+// Per-option bell volume (0..1.5), one remembered value per selectable option ('0' = off).
 // Defaults preserve current behaviour: soft bell under delta, full bell for alpha and off.
 var BELL_VOL = { '0': 1.0, '1': 0.48, '2': 0.48, '3': 0.48, '8': 1.0, '10': 1.0, '12': 1.0 };
 
@@ -331,7 +334,7 @@ function droneStart(){
   lfo.connect(lfoGain); lfoGain.connect(env.gain); lfo.start(t);
   osc.push(lfo); node.push(lfoGain);
 
-  _drone = { osc: osc, node: node, env: env, context:ac, cleanupTimer:null, disposed:false };
+  _drone = { osc: osc, node: node, env: env, driftGain:lfoGain, context:ac, cleanupTimer:null, disposed:false };
   _notifyHeartAudioState();
   return true;
 }
@@ -349,6 +352,13 @@ function droneStop(options){
     d.env.gain.cancelScheduledValues(t);
     d.env.gain.setValueAtTime(Math.max(d.env.gain.value, 0.0001), t);
     d.env.gain.exponentialRampToValueAtTime(0.0001, t + fade);   // slow fade-out
+    // The drift is added to env.gain by a connected AudioNode. Fading only the
+    // AudioParam's own value leaves that drift audible after the envelope ends.
+    // Fade its contribution too; all in-session synthesis settings stay intact.
+    d.driftGain.gain.cancelScheduledValues(t);
+    d.driftGain.gain.setValueAtTime(Math.max(d.driftGain.gain.value, 0.0001), t);
+    d.driftGain.gain.exponentialRampToValueAtTime(0.0001, t + fade);
+    d.driftGain.gain.setValueAtTime(0, t + fade);
   } catch(e){}
   _heartFadingDrones.add(d);
   d.cleanupTimer = setTimeout(function(){ _disposeHeartDrone(d); }, (fade + 0.3) * 1000);

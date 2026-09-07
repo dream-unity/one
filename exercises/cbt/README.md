@@ -43,9 +43,11 @@ The local selector favours unused cases and recently difficult skills, using dif
 
 ## Reading and interaction
 
-Guidance uses short, concrete sentences. Navigation pairs a large plain action with the established area name. Source sorting and evidence judgments show one card at a time; a card picker lets the learner review any answer. Predictions have two short steps. Counters change visible pictures, and feedback distinguishes practice from a supplied answer. Longer cases still require source independence, uncertainty, causal comparisons and context-sensitive choices.
+Guidance uses short, concrete sentences. The entry heading is “Check a thought”; the formal CBT name remains directly below it. Navigation pairs a large plain action with the established area name. Source sorting and evidence judgments show one card at a time; a card picker lets the learner review any answer. Predictions have two short steps. Counters change visible pictures, and feedback distinguishes practice from a supplied answer. Longer cases still require source independence, uncertainty, causal comparisons and context-sensitive choices.
 
-The silver, blue and violet palette follows the home screen. Exercise text is 18–20 px, supporting text at least 16 px, and primary touch controls at least 56 px. Reading ease and clinical suitability have not been established by testing with children.
+An optional “How this works, step by step” guide explains maintenance loops, working explanations, prospective predictions, behavioural experiments, source independence, selective updating, conditional stopping and transfer through concrete examples. It names the technical concept after explaining it. Research and privacy details are available to any reader, without age labels. The guide explains the limits of authored comparisons and the actual adaptation rules; it does not change scoring or reveal the answers to unfamiliar cases.
+
+The silver, blue and violet palette follows the home screen. Main exercise text is 20 px on phones and larger screens, supporting text is at least 17 px (18 px on phones), and primary touch controls are at least 56 px. Reading ease and clinical suitability have not been established by testing with children.
 
 ## Timing and access
 

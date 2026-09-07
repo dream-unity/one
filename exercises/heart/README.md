@@ -1,33 +1,47 @@
 # Heart practice
 
-Native practice at `Dream Machine → Heart`, with a plain action layer and optional source-linked explanations. This research-led revision replaces the earlier requirement to preserve the supplied Project Meaning wording verbatim, following the user's 5 September 2026 instruction to correct the science and improve the training.
+Native training at **Dream Machine → Heart**. The September 2026 update restores the full Project Meaning exercise structure while following the user's instruction to explain advanced material in clear language. It preserves physiological questions and experimental ambition while distinguishing measured results, subjective reports, and hypotheses.
 
-## Practices
+## Core exercises
 
-- **Breathe with ease:** 3, 5, 10 or 15 minutes. Easy breathing, optional kind attention, then ordinary breathing and outward attention. The guide offers four or five seconds each way, or an unpaced option. The child setting selects ordinary breathing and a short session; it is not a claim of validated preschool treatment.
-- **Try both ways:** a prediction, four one-minute blocks, and a private ease report after each block. Breath-only and breath-plus-kind-wish conditions run in randomly selected ABBA or BAAB order, with equal scheduled time. Untimed answer cards require an answer or explicit skip before continuing. All reports and interruptions are shown; there is no winner, average, physiological score or causal conclusion.
-- **Notice your body:** 4, 8 or 12 minutes. Each round contains eight 30-second steps: a gentle attention target, description, strength, certainty, outward attention, return/comparison, alternative explanations and a chosen response. Later rounds add questions about expectation, context and evidence rather than asking for stronger sensations.
+**Heart and feeling** keeps chest attention and deliberate felt emotion together. Love is the default; gratitude, appreciation, and compassion are distinct selectable practices. A cue or memory invites the emotion; the user attends to its bodily experience while sustaining heart-area attention, then explores deeper, finer, steadier and potentially stronger expression without forcing it. The exercise never substitutes a thought or a kind wish for the target feeling.
 
-The sequence and comparison are original educational adaptations, not clinical protocols established by the cited studies. The website has no physiological sensor. Subjective strength, confidence, ease and consistency are not objective accuracy or metacognitive calibration.
+- Original lengths: 15/30/60/120/180 minutes. Additional short practices: 3/5/10 minutes.
+- Original default breathing: 5 seconds in, 5 seconds out, continuously across the 33% and 66% teaching boundaries. Four seconds and natural breathing remain optional accommodations.
+- Original 210px pacer, 128px circle, 0.8→1.55 linear scale and phase countdown.
+- Three stages: heart-focused breathing; felt emotion plus heart attention; sustained deepening. Distinct inhale/exhale prompts remain.
+- Original timed reminders at 400ms/4s/9s are explicitly labelled cues, never achievements or sensor readings.
+- The child option selects a brief practice and natural breathing. Adult long-session availability is not a validated preschool dose.
 
-## Scientific changes
+**Map the feeling** restores all seven dimensions in their original order: location/edges; sensory quality; sensation intensity distinct from emotional intensity; movement; direction; agreement/conflict across sensation, image, action urge and emotional tone; pleasantness/approach/avoidance followed by tentative emotion naming.
 
-The visible explanations contain 20 expandable questions with nearby primary-study and review links. They distinguish acute breathing-related HRV changes from mood, cognition and resting HRV; HeartMath observational evidence from randomized comparisons; and cardiac anatomy from unsupported claims about love stored in tissue. The interoception material distinguishes attention, confidence, measured performance, context and response. It includes negative and qualified results, including 2026 evidence.
+- Original 15/30/60-minute lengths and 30-second rotation. Every dimension returns each round; the final round can be partial.
+- Native question buttons allow rereading without resetting the clock or sounding a bell. Current, visited and reread states are distinct; automatic transitions clear the reread.
+- Optional sensation-intensity and feeling-tone taps add reports without gating or shortening the rotation.
+- A heart-session completion offers mapping the just-practised feeling. No sensor-derived state is claimed.
 
-Unsupported claims about cellular regeneration, automatic emotion decoding, a sincerity-gated hormone pathway and guaranteed brainwave/creativity effects have been removed. Sound remains a preference. The original synthesis and its rates, envelopes, reverb and per-option bell levels are unchanged; the labels no longer promise rest, focus or creativity. Old timer-driven “coherence” indicators and instructions to provoke feared symptoms have been removed.
+The reference HTML's unused `S2_PHASES` did not run its advertised calibration or fear-testing phases. This release does not make those false promises. It preserves the complete operational mapping loop and offers a separate working confidence/attention exercise.
 
-The two exercises offer short instructions first. Optional questions expose causal uncertainty and measurement problems in plain language. Readability is a design goal; it has not been validated in user studies with five-year-olds or experts.
+## Additional experiments
 
-## Runtime
+**Compare two ways** preserves the working ABBA/BAAB design. Four 60-second rounds compare heart-focused breathing alone with the same breathing and chest focus plus the selected felt emotion. Initial prediction and subsequent ease reports are untimed. Both conditions receive equal time; the starting condition is randomized. Ratings, skips and interruptions remain visible, with no winner or causal claim. Breathing depth, carryover and expectations remain possible confounds.
 
-- `practice.js` is a pure, validated plan/state engine with monotonic foreground time, wait gates, optional answers, stale-step protection and truthful partial summaries.
-- `session.js` connects native controls to that engine with one 250 ms foreground clock. Pause, looking outward and hidden pages stop timing and audio; returning requires explicit resumption. Ending, restarting or leaving clears owned cues and page-memory answers. Waiting for an answer does not consume practice time.
-- `audio.js` retains the prior sound implementation and cancellation protections. Native audio failure does not prevent silent practice. Sound controls express a preference, not a claim of successful playback or brain measurement.
-- `styles.css` is scoped to the Heart route: large controls, pale surfaces, responsive stacking, keyboard focus, native dialogs, and a static circle for reduced motion. Pacing words and numbers remain available without animation.
-- All answers remain in page memory. No personal stories, sensors, analytics, network submissions or persistent answer storage are added. The CSP disallows connections.
+**Check a body clue** retains the previously implemented eight-step attention/confidence protocol as a separate 8-minute option: find, describe, rate strength, rate certainty, attend outward, return and compare, consider alternative causes, choose an action. It supplements rather than replaces the seven-part map.
+
+## Scientific teaching
+
+Thirty expandable questions explain the full physiology, heart-focused imagery, emotion activation, positive-emotion distinctions, local cardiac neurons and pacemakers, rat oxytocin research, HRV and baroreflex resonance, neural studies, sincerity, telomere evidence, audio mechanisms, interoceptive channels, predictive processing, confidence, body maps, temporal activation, transfer and experimental design. Scientific claims have nearby source links. Stronger or longer feelings are not promised as better outcomes.
+
+The exact exercises are experimental educational designs, not validated treatments. Subjective strength, clarity, certainty, consistency and emotion cannot be converted into objective accuracy or heart-rhythm coherence without appropriate measurement. Physiological findings remain distinct from personal experience and from claims about stored love in heart tissue.
+
+## Runtime and sound
+
+`practice.js` builds immutable owned plans and advances monotonic foreground time. `session.js` handles native controls, a 250ms clock, pausing, safe departure and truthful summaries. Hidden pages pause and require deliberate resumption. No answer consumes extra time in the core map; the comparison's explicit answer gates pause its clock.
+
+`audio.js` preserves the original bowl partials, frequencies, filters, reverb, independent ambient pad, 60-second rate settling, delta/alpha carrier sets, per-option bell volumes and nonlinear boost above 100%. Quiet listening, zero volume, rejected audio startup, pause, End and restart are handled. The 3-second fade also fades slow gain modulation so it cannot leave an audible tail. Sound labels state frequency, not promised brain state.
+
+All personal answers stay in page memory and are cleared on leaving the practice. There are no sensors, network submissions or persistent body records. CSP disallows connections.
 
 ## Verification
 
-Run `node --test tests/*.test.mjs` from the repository root. The Heart tests exercise actual controls against the HTML fixture, all offered durations, both comparison orders, zero/unclear/skipped answers, pause and hidden time, stale clicks, partial completion, audio failure and cancellation, child pace selection, and privacy cleanup. Original audio graph tests remain. Separate structural tests protect the existing scene and renderer.
-
-The new live page should also be checked for entry/setup/session/finish layouts, the paced and unpaced views, the complete four-round comparison, body attention transitions, source expansion, and return navigation. Unit DOM fixtures do not verify rendered layout or prove clinical effectiveness.
+Run `npm test`. Tests cover complete plan lengths, continuous breathing, seven-part rotation, rereading, optional reports, comparison gates, stale callbacks, pause/hidden time, partial completion, cleanup, audio parameters and failure modes. Existing structure tests protect the front scene and renderer. Readability and exercise efficacy have not been validated in studies with children or expert users.

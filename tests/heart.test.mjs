@@ -327,7 +327,7 @@ test('audio works without stereo panners and releases its fallback graph', () =>
 
 function closeBells(h) { return h.bells.filter(bell => bell.decay > 8); }
 function start(h, kind, seconds) {
-  h.click(`[data-open="${kind}"]`);
+  h.click(`[data-open="${kind === 'body-check' ? 'body' : kind}"]`);
   if (seconds) h.click(`[data-duration="${kind}"][data-seconds="${seconds}"]`);
   h.click(`#start-${kind}`);
   assert.equal(h.el('screen-session').hidden, false);
@@ -343,7 +343,7 @@ function compareStart(h) {
 test('both entry buttons open their own setup; every visible duration starts the selected time', () => {
   const h = harness({ session: true, silentBells: true });
   assert.equal(h.el('screen-heart').hidden, false);
-  for (const [kind, lengths] of [['breath', [180, 300, 600, 900]], ['body', [240, 480, 720]]]) {
+  for (const [kind, lengths] of [['breath', [180, 300, 600, 900, 1800, 3600, 7200, 10800]], ['body', [900, 1800, 3600]]]) {
     for (const seconds of lengths) {
       start(h, kind, seconds);
       assert.equal(h.el('session-timer').textContent, `${String(seconds / 60).padStart(2, '0')}:00`);
@@ -375,20 +375,129 @@ test('breathing guide follows the selected pace and live own-breath stops pacing
   assert.equal(closeBells(h).length, 0);
 });
 
-test('the kind-wish option changes the middle step and the final step releases the breath guide', () => {
+test('all four felt emotions remain paired with heart attention through every paced stage', () => {
+  for (const feeling of ['love', 'gratitude', 'appreciation', 'compassion']) {
+    const h = harness({ session: true, silentBells: true });
+    h.click('[data-open="breath"]'); h.click('[data-duration="breath"][data-seconds="180"]');
+    h.click(`[data-emotion="${feeling}"]`); h.click('[data-pace="4"]'); h.click('#start-breath');
+    assert.match(h.el('session-name').textContent, new RegExp(feeling));
+    assert.equal(h.el('breath-count').textContent, '4');
+    for (const target of [0, 59_000, 60_000, 118_000, 119_000, 179_000]) {
+      h.clock.advance(target - h.clock.now);
+      assert.match(h.el('step-title').textContent + ' ' + h.el('step-prompt').textContent, new RegExp(feeling));
+      assert.match(h.el('phase-prompt').textContent, new RegExp(feeling + '|the feeling'));
+      assert.match(h.el('phase-prompt').textContent, /heart|chest/i);
+      assert.equal(h.el('breath-ball').classList.contains('is-paced'), true);
+      assert.equal(h.el('own-breath').hidden, false);
+    }
+    assert.match(h.el('step-title').textContent, /^3/);
+    h.clock.advance(1000);
+    assert.equal(h.el('screen-finish').hidden, false);
+    assert.equal(h.el('map-this-feeling').hidden, false);
+    h.click('#map-this-feeling');
+    assert.equal(h.el('screen-body').hidden, false, 'the trained feeling can be explored in the full map');
+  }
+});
+
+test('five-second breathing and phase cues continue across the 33 and 66 percent stage boundaries', () => {
   const h = harness({ session: true, silentBells: true });
-  h.click('[data-open="breath"]'); h.click('[data-duration="breath"][data-seconds="180"]');
-  assert.equal(h.el('add-care').checked, true);
-  h.click('#add-care'); h.click('[data-pace="4"]'); h.click('#start-breath');
-  assert.equal(h.el('breath-count').textContent, '4');
-  h.clock.advance(60000);
-  assert.equal(h.el('step-title').textContent, 'Stay with your breath');
-  h.clock.advance(60000);
-  assert.equal(h.el('breath-word').textContent, 'Your own breath');
-  assert.equal(h.el('own-breath').hidden, true);
-  h.click('#end-session'); h.click('#try-again'); h.click('#add-care'); h.click('#start-breath');
-  h.clock.advance(60000);
-  assert.equal(h.el('step-title').textContent, 'Try a kind wish');
+  start(h, 'breath', 900);
+  h.clock.advance(295_000);
+  assert.equal(h.el('breath-word').textContent, 'Breathe out');
+  assert.equal(h.el('breath-count').textContent, '5');
+  h.clock.advance(2000);
+  assert.match(h.el('step-title').textContent, /^2/);
+  assert.equal(h.el('breath-word').textContent, 'Breathe out', '297-second stage boundary must not restart inhalation');
+  assert.equal(h.el('breath-count').textContent, '3');
+  assert.match(h.el('phase-prompt').textContent, /Breathe out/);
+  h.clock.advance(3000);
+  assert.equal(h.el('breath-word').textContent, 'Breathe in');
+  assert.equal(h.el('breath-count').textContent, '5');
+  h.clock.advance(294_000);
+  assert.match(h.el('step-title').textContent, /^3/);
+  assert.equal(h.el('breath-word').textContent, 'Breathe in');
+  assert.equal(h.el('breath-count').textContent, '1');
+  h.clock.advance(1000);
+  assert.equal(h.el('breath-word').textContent, 'Breathe out');
+  assert.equal(h.el('breath-count').textContent, '5');
+  h.clock.advance(305_000);
+  const timedBells = h.bells.filter(bell => bell.decay < 8);
+  assert.deepEqual(timedBells.map(bell => bell.at), Array.from({ length: 180 }, (_, index) => index * 5000));
+  assert.ok(timedBells.every((bell, index) => bell.fund === (index % 2 ? 293.66 : 392)));
+  assert.equal(closeBells(h).length, 1);
+  assert.equal(h.el('finish-summary').textContent, 'You practised for 15:00.');
+});
+
+test('all seven map questions can be reread without changing the current step or its 30-second clock', () => {
+  const h = harness({ session: true, silentBells: true });
+  start(h, 'body', 900);
+  const chips = h.el('map-chips').querySelectorAll('button');
+  assert.equal(chips.length, 7);
+  assert.equal(h.el('map-chips').hidden, false);
+  const initialTitle = h.el('step-title').textContent;
+  h.clock.advance(12_000);
+  chips[5].click();
+  assert.match(h.el('step-title').textContent, /Read again/);
+  assert.match(h.el('step-question').textContent, /four layers/);
+  assert.equal(chips[0].getAttribute('aria-current'), 'step');
+  assert.equal(chips[5].getAttribute('aria-pressed'), 'true');
+  assert.equal(h.el('session-timer').textContent, '14:48');
+  h.clock.advance(10_000);
+  assert.equal(h.el('session-timer').textContent, '14:38');
+  assert.match(h.el('step-title').textContent, /Read again/);
+  chips[5].click();
+  assert.equal(h.el('step-title').textContent, initialTitle);
+  assert.equal(chips[5].getAttribute('aria-pressed'), 'false');
+  assert.equal(h.el('peek-note').textContent, '');
+  h.clock.advance(3000); chips[4].click();
+  h.clock.advance(5000);
+  assert.equal(h.el('session-timer').textContent, '14:30');
+  assert.match(h.el('session-step').textContent, /Round 1 · 2 of 7 · 00:30 left/);
+  assert.equal(chips[1].getAttribute('aria-current'), 'step');
+  assert.equal(chips[4].getAttribute('aria-pressed'), 'false');
+  assert.doesNotMatch(h.el('step-title').textContent, /Read again/);
+  h.clock.advance(30_000);
+  choose(h, 7);
+  chips[0].click(); assert.equal(h.el('step-choices').hidden, true);
+  h.clock.advance(10_000);
+  chips[0].click(); assert.equal(h.el('step-choices').hidden, false);
+  assert.equal(h.document.querySelector('[data-choice="7"]').getAttribute('aria-pressed'), 'true');
+  assert.equal(h.el('session-timer').textContent, '13:50');
+  h.clock.advance(140_000);
+  assert.equal(h.el('step-title').textContent, initialTitle);
+  assert.match(h.el('session-step').textContent, /Round 2 · 1 of 7 · 00:30 left/);
+  assert.deepEqual(h.bells.map(bell => [bell.at, bell.fund]), [[0, 392], [30_000, 293.66], [60_000, 392], [90_000, 293.66], [120_000, 392], [150_000, 293.66], [180_000, 392], [210_000, 392]]);
+  h.clock.advance(690_000);
+  assert.equal(h.el('finish-summary').textContent, 'You practised for 15:00.');
+  assert.match(h.el('finish-results').textContent, /7/);
+  assert.deepEqual(h.externalCalls, []);
+});
+
+test('pausing while rereading keeps the displayed question internally consistent after resume', () => {
+  const h = harness({ session: true, silentBells: true });
+  start(h, 'body', 900); h.clock.advance(12_000);
+  const active = {
+    title: h.el('step-title').textContent,
+    prompt: h.el('step-prompt').textContent,
+    question: h.el('step-question').textContent
+  };
+  h.click('#map-chips [data-dimension="5"]');
+  const reread = {
+    title: h.el('step-title').textContent,
+    prompt: h.el('step-prompt').textContent,
+    question: h.el('step-question').textContent
+  };
+  h.click('#pause-session'); h.clock.advance(60_000); h.click('#resume-session');
+  const displayed = {
+    title: h.el('step-title').textContent,
+    prompt: h.el('step-prompt').textContent,
+    question: h.el('step-question').textContent
+  };
+  const showingReread = h.document.querySelector('#map-chips [data-dimension="5"]').getAttribute('aria-pressed') === 'true';
+  assert.deepEqual(displayed, showingReread ? reread : active, 'title, prompt and deeper question must all describe the same selected dimension');
+  assert.equal(h.el('session-timer').textContent, '14:48');
+  h.clock.advance(18_000);
+  assert.match(h.el('session-step').textContent, /Round 1 · 2 of 7 · 00:30 left/);
 });
 
 test('with a child selects a short unpaced breath and restores the earlier adult settings when unchecked', () => {
@@ -410,7 +519,7 @@ test('with a child selects a short unpaced breath and restores the earlier adult
 
 test('Pause and Look around stop time and sound, keep the same step, and need an explicit resume', () => {
   const h = harness({ session: true, silentBells: true });
-  start(h, 'body', 240); h.clock.advance(12000);
+  start(h, 'body', 900); h.clock.advance(12000);
   const title = h.el('step-title').textContent, timer = h.el('session-timer').textContent;
   h.click('#pause-session');
   assert.equal(h.el('pause-dialog').open, true); assert.equal(h.clock.tasks.size, 0);
@@ -421,7 +530,7 @@ test('Pause and Look around stop time and sound, keep the same step, and need an
   assert.equal(h.el('session-timer').textContent, timer); assert.equal(h.bells.length, bells);
   h.click('#resume-session');
   assert.equal(h.el('pause-dialog').open, false); assert.equal(h.el('step-title').textContent, title);
-  h.clock.advance(1000); assert.equal(h.el('session-timer').textContent, '03:47');
+  h.clock.advance(1000); assert.equal(h.el('session-timer').textContent, '14:47');
   h.click('#look-around');
   assert.equal(h.el('pause-title').textContent, 'Look around');
   assert.equal(h.el('pause-dialog').open, true); assert.equal(h.clock.tasks.size, 0);
@@ -489,7 +598,7 @@ test('waiting choices survive a pause without starting the next timed round', ()
 
 test('old choice clicks cannot answer a later step or reopen a finished session', () => {
   const h = harness({ session: true, silentBells: true });
-  start(h, 'body', 240); h.clock.advance(60000);
+  start(h, 'body-check'); h.clock.advance(60000);
   const stale = h.document.querySelector('[data-choice="0"]'); assert.ok(stale);
   h.clock.advance(30000); stale.click();
   assert.equal(h.el('step-title').textContent, 'How sure are you?');
@@ -502,10 +611,10 @@ test('old choice clicks cannot answer a later step or reopen a finished session'
 
 test('Go further reveals one question without restarting practice or recording private text', () => {
   const h = harness({ session: true, silentBells: true });
-  start(h, 'body', 240); h.clock.advance(1000);
+  start(h, 'body', 900); h.clock.advance(1000);
   const question = h.el('step-question').textContent;
   h.click('#deeper-step summary'); assert.equal(h.el('deeper-step').open, true);
-  assert.ok(question.length > 0); assert.equal(h.el('session-timer').textContent, '03:59');
+  assert.ok(question.length > 0); assert.equal(h.el('session-timer').textContent, '14:59');
   h.clock.advance(29000);
   assert.equal(h.el('deeper-step').open, false, 'the next step starts with its optional question collapsed');
   assert.notEqual(h.el('step-question').textContent, question);
@@ -516,10 +625,10 @@ test('Go further reveals one question without restarting practice or recording p
 test('natural completion plays one closing pair; early Finish plays none; leaving cancels a pending pair', () => {
   const h = harness({ session: true, silentBells: true });
   start(h, 'breath', 180); h.clock.advance(180000);
-  assert.equal(h.el('finish-title').textContent, 'Practice finished'); assert.equal(closeBells(h).length, 1);
+  assert.equal(h.el('finish-title').textContent, 'Session complete'); assert.equal(closeBells(h).length, 1);
   h.click('#forget-session'); h.clock.advance(4000);
   assert.equal(closeBells(h).length, 1, 'return cancels the second completion strike');
-  start(h, 'body', 240); h.clock.advance(1000); h.click('#end-session');
+  start(h, 'body', 900); h.clock.advance(1000); h.click('#end-session');
   assert.equal(h.el('finish-title').textContent, 'You finished here');
   h.clock.advance(30000); assert.equal(closeBells(h).length, 1); assert.equal(h.clock.tasks.size, 0);
 });
@@ -537,7 +646,7 @@ test('mute cancels active audio and pending test cues while practice keeps time'
   assert.equal(h.context.getHeartAudioState().soundActive, false);
   const count = h.contexts[0].nodes.length;
   h.clock.advance(10000); assert.equal(h.contexts[0].nodes.length, count);
-  assert.equal(h.el('session-timer').textContent, '04:50');
+  assert.equal(h.el('session-timer').textContent, '14:50');
   h.click('#sound-toggle'); assert.equal(h.context.getHeartAudioState().padActive, true);
   h.click('#end-session'); h.click('#forget-session');
   assert.equal(h.context.getHeartAudioState().soundActive, false); assert.equal(h.clock.tasks.size, 0);
@@ -559,19 +668,19 @@ test('unavailable or blocked sound never prevents practice, pause, or finishing'
 
 test('return, restart and pagehide clear answers, reflections and all owned cues', () => {
   const h = harness({ session: true, silentBells: true });
-  start(h, 'body', 240); h.clock.advance(60000); choose(h, 0); h.click('#end-session');
+  start(h, 'body-check'); h.clock.advance(60000); choose(h, 0); h.click('#end-session');
   assert.match(h.el('finish-results').textContent, /None/);
   h.click('[data-feeling="less"]'); assert.ok(h.el('finish-response').textContent.length > 0);
   h.click('#try-again');
   assert.equal(h.el('finish-results').children.length, 0); assert.equal(h.el('finish-response').textContent, '');
   assert.ok(h.document.querySelectorAll('[data-feeling]').every(button => button.getAttribute('aria-pressed') === 'false'));
-  h.click('#start-body'); h.clock.advance(60000); choose(h, 1);
+  h.click('#start-body-check'); h.clock.advance(60000); choose(h, 1);
   h.emit('pagehide'); const count = h.bells.length;
   h.clock.advance(300000);
   assert.equal(h.el('screen-heart').hidden, false); assert.equal(h.el('step-choices').children.length, 0);
   assert.equal(h.el('finish-results').children.length, 0); assert.equal(h.bells.length, count);
   assert.equal(h.clock.tasks.size, 0); assert.deepEqual(h.externalCalls, []);
-  start(h, 'body', 240); h.click('#end-session'); assert.equal(h.el('finish-results').textContent, '');
+  start(h, 'body-check'); h.click('#end-session'); assert.equal(h.el('finish-results').textContent, '');
 });
 
 test('both exercises link their research, keep valid return navigation, and expose no physiological score output', () => {

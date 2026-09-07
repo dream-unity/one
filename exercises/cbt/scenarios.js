@@ -22,7 +22,7 @@ export const TRANSFER_CASES = [
       },
       {
         "id": "b",
-        "label": "Keep the known problem on page 4",
+        "label": "Say: “We know page 4 needs work.”",
         "effect": "Mina knows one picture needs work. Other pages still need checking.",
         "valid": true,
         "reasonIds": [
@@ -64,9 +64,9 @@ export const TRANSFER_CASES = [
         "text": "No mark on a page means it has passed."
       }
     ],
-    "explanation": "Mina can keep the thought small or fix the picture first. Both help. The other pages might need work, or they might not. They have not been checked yet.",
+    "explanation": "Mina can say which page needs work or fix its picture first. Both help. The other pages might need work, or they might not. They have not been checked yet.",
     "skill": "scope",
-    "principle": "Let one fact speak for what it shows."
+    "principle": "One marked page tells you about that page."
   },
   {
     "id": "prototype-pattern",
@@ -454,7 +454,7 @@ export const TRANSFER_CASES = [
     "options": [
       {
         "id": "a",
-        "label": "Keep the concern and use the other printer today",
+        "label": "Say this printer needs checking; use the other one today",
         "effect": "The picture gets a different printer while this one needs checking.",
         "valid": true,
         "reasonIds": [
@@ -810,7 +810,7 @@ export const TRANSFER_CASES = [
     ],
     "explanation": "Keep today’s time. It fits the earlier times. That alone is no reason to drop the plan or promise it will work forever. Compare the next planned tries.",
     "skill": "update",
-    "principle": "Compare this try with how past tries varied."
+    "principle": "Compare this time with the faster and slower times before."
   },
   {
     "id": "variable-condition-change",

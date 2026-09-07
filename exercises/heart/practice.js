@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
 
-  const BREATH_LENGTHS = [180, 300, 600, 900];
+  const BREATH_LENGTHS = [180, 300, 600, 900, 1800, 3600, 7200, 10800];
   const BODY_LENGTHS = [240, 480, 720];
   const PACES = [5, 4, 0];
   const strength = () => [
@@ -28,33 +28,88 @@
     return steps;
   }
 
-  function makeBreathPlan(seconds, { pace = 5, kindness = true } = {}) {
-    if (!BREATH_LENGTHS.includes(seconds)) throw new RangeError('Choose 3, 5, 10, or 15 minutes.');
+  const FEELINGS = {
+    love: { name: 'love', cue: 'Bring to mind someone, an animal, or a place you love. Let the care become a feeling in your body.' },
+    gratitude: { name: 'gratitude', cue: 'Remember something good you received. Let “thank you” become a feeling in your body.' },
+    appreciation: { name: 'appreciation', cue: 'Notice something you value. Let the sense of its worth become a feeling in your body.' },
+    compassion: { name: 'compassion', cue: 'Bring to mind someone facing a small difficulty. Let your wish to help become a feeling of care in your body.' }
+  };
+  function feelingFor(name = 'love') {
+    if (!Object.hasOwn(FEELINGS, name)) throw new RangeError('Choose love, gratitude, appreciation, or compassion.');
+    return FEELINGS[name];
+  }
+  function makeBreathPlan(seconds, { pace = 5, feeling = 'love', kindness = true } = {}) {
+    if (!BREATH_LENGTHS.includes(seconds)) throw new RangeError('Choose an available practice length.');
     checkPace(pace);
     if (typeof kindness !== 'boolean') throw new TypeError('Kindness must be true or false.');
-    const part = seconds / 3;
-    return tagPlan([
+    const emotion = feelingFor(feeling);
+    const first = Math.round(seconds * .33), second = Math.round(seconds * .66) - first;
+    const plan = [
       {
-        id: 'breath-settle', title: 'Find an easy breath', seconds: part, pace,
-        prompt: 'Let your breath stay small and easy. Follow the guide only if it feels comfortable. You can use your own pace at any time.',
-        question: 'Can you follow a slower pace without making each breath bigger?'
+        id: 'breath-settle', title: '1 · Breathe with your heart in mind', seconds: first, pace,
+        prompt: 'Rest your attention in the middle of your chest. Breathe gently, five seconds in and five seconds out. Imagine the breath moving through this place. Air still goes into your lungs. Let the chest soften as you invite ' + emotion.name + '.',
+        inhale: 'Breathe in gently. Keep the heart area in mind. Soften the chest and invite ' + emotion.name + ' to come forward as a real feeling.',
+        exhale: 'Breathe out gently. Keep the heart area and the beginning of ' + emotion.name + ' together. Let the breath stay easy.',
+        question: 'Can you keep attention in the heart area while letting the feeling begin, without squeezing the chest or making your breath bigger?'
       },
       {
-        id: kindness ? 'breath-care' : 'breath-notice',
-        title: kindness ? 'Try a kind wish' : 'Stay with your breath', seconds: part, pace,
-        prompt: kindness
-          ? 'Keep an easy breath. If you like, quietly wish someone well. You do not have to feel happy. Staying with your breath is fine too.'
-          : 'Keep an easy breath. Notice one breath at a time. If your mind wanders, gently come back. Nothing special needs to happen.',
-        question: kindness
-          ? 'Does a kind wish change your experience, or do you expect it to? Either way, what can you actually notice?'
-          : 'What changes when you notice a breath without trying to improve it?'
+        id: 'breath-care', title: '2 · Feel ' + emotion.name + ' and your heart together', seconds: second, pace,
+        prompt: emotion.cue + ' Keep some attention in the heart area at the same time. Notice the feeling itself, not only the words or picture. Keep both present while you breathe.',
+        inhale: 'Breathe in with ' + emotion.name + '. Feel it in your body while keeping attention in the heart area. A thought can invite it; now notice the felt response.',
+        exhale: 'Breathe out with ' + emotion.name + '. Keep the feeling and heart area together. If the feeling fades, gently invite it again. Do not pretend it is there.',
+        question: 'What changes when a memory becomes a felt experience? Can you tell the image, body sensation, emotional tone, and wish to act apart while keeping them together?'
       },
       {
-        id: 'breath-own-pace', title: 'Take it with you', seconds: part, pace: 0,
-        prompt: 'Let your breath choose its own pace. Look around. Notice one colour or sound. Choose one small, kind thing to do after this practice.',
-        question: 'Can you carry a little of this care into an ordinary moment, even when you do not feel calm?'
+        id: 'breath-deepen', title: '3 · Keep it, deepen it, let it grow', seconds: seconds - first - second, pace,
+        prompt: 'Keep ' + emotion.name + ' and the heart area together as you breathe. Notice finer parts of the feeling. Let it become deeper, steadier, or stronger if that happens naturally. Can you sustain it with less effort? If it fades, find it again.',
+        inhale: 'Breathe in. Keep ' + emotion.name + ' and the heart area together. Explore a finer, deeper part of the feeling. Let its strength grow without forcing it.',
+        exhale: 'Breathe out. Sustain the feeling and heart attention together. Let the chest stay soft. Depth can mean more detail and steadiness, as well as strength.',
+        question: 'Can the feeling remain when the picture fades? Can it become stronger without strain, subtler without being lost, and steady without becoming rigid? Longer practice does not guarantee a stronger feeling.'
       }
-    ], 'breath');
+    ];
+    if (!kindness) plan.forEach(step => {
+      step.title = 'Heart-focused breathing';
+      step.prompt = 'Keep your attention in the heart area and breathe gently. In this comparison condition, do not deliberately add a feeling.';
+      step.inhale = 'Breathe in gently with attention in the heart area.';
+      step.exhale = 'Breathe out gently with attention in the heart area.';
+      step.question = 'What can breathing and chest attention alone change?';
+    });
+    return tagPlan(plan, 'breath');
+  }
+
+  const BODY_DIMENSIONS = [
+    { key: 'location', title: 'Where is it?', name: 'Location',
+      prompt: 'Where in your body is the feeling? Find its centre. Does it have a clear edge, or fade into the space around it? Notice more than one place if needed. Do not decide what it means yet.',
+      question: 'Is it at the skin, deeper inside, or hard to place? Can the edge move while the centre stays still? If you are holding love and heart attention together, where does that whole pattern reach?' },
+    { key: 'quality', title: 'What does it feel like?', name: 'Quality',
+      prompt: 'Notice the feel itself. It may be warm, cool, tight, soft, heavy, light, full, hollow, or something else. Choose words that fit what you feel. “Not clear” is a real answer.',
+      question: 'Can two different textures share one place? Notice an image of warmth separately from warmth you actually sense. Neither one tells you the cause on its own.' },
+    { key: 'intensity', title: 'How strong is the body feeling?', name: 'Intensity',
+      prompt: 'Give the body sensation a number from zero to ten, if you can. Then ask how strong the emotion or story is. These are two different things. A strong emotion can come with a faint body signal.',
+      question: 'Keep strength, clarity, and certainty apart: how big is the sensation, how much detail can you notice, and how sure are you? You can be sure and still be mistaken.',
+      choices: [...Array.from({length: 11}, (_, value) => ({value, label: String(value)})), {value:'unclear',label:'Not clear'}] },
+    { key: 'motion', title: 'Is it moving?', name: 'Motion',
+      prompt: 'Does the feeling stay still, pulse, shake, spread, or move? Is its movement steady or changing? Notice its speed and rhythm. Follow what is there without trying to move it.',
+      question: 'Does movement follow the breath, the heartbeat, or neither? A moving sensation, a picture of movement, and an urge to move are different layers.' },
+    { key: 'direction', title: 'Which way does it go?', name: 'Direction',
+      prompt: 'Does it seem to rise, sink, spread out, draw in, or stay in place? Follow its path, if there is one. “No direction” is fine. Do not turn a direction into an emotion name yet.',
+      question: 'Where does the path begin and end? Does it change with breathing? Is direction directly felt, imagined, or a mix? Keep those possibilities open.' },
+    { key: 'alignment', title: 'Do the parts agree?', name: 'Agreement',
+      prompt: 'Notice four parts: the body feeling, a picture or thought, what you want to do, and the emotion. Do they fit together, or pull different ways? For example, you may feel care and also want to move away.',
+      question: 'Hold all four layers in mind without making them match. Which leads, which follows, and which disagrees? Can you sustain love and heart attention while accurately noticing an uncomfortable part?' },
+    { key: 'valence', title: 'Pleasant, unpleasant, or mixed?', name: 'Feeling tone',
+      prompt: 'Does it feel pleasant, unpleasant, neither, or mixed? Do you want to move toward it, away from it, or stay? Only now try an emotion name, if one fits. Keep the body clues separate from your guess about their cause.',
+      question: 'Could a different emotion, a physical need, or the situation fit this same pattern? What new clue would change your mind? Let “I do not know yet” remain possible.',
+      choices: [{value:'pleasant',label:'Pleasant'}, {value:'unpleasant',label:'Unpleasant'}, {value:'neutral',label:'Neither'}, {value:'mixed',label:'Mixed'}, {value:'unclear',label:'Not clear'}] }
+  ];
+  function makeBodyPlan(seconds) {
+    if (![900, 1800, 3600].includes(seconds)) throw new RangeError('Choose 15, 30, or 60 minutes.');
+    return tagPlan(Array.from({length: seconds / 30}, (_, index) => {
+      const dimension = BODY_DIMENSIONS[index % 7];
+      return { ...dimension, id: 'map-' + (index + 1) + '-' + dimension.key,
+        dimension: index % 7, round: Math.floor(index / 7) + 1, seconds: 30, pace: 0,
+        ...(dimension.choices ? {choices: dimension.choices.map(choice => ({...choice}))} : {}) };
+    }), 'body');
   }
 
   const BODY_QUESTIONS = [
@@ -90,7 +145,7 @@
     ]
   ];
 
-  function makeBodyPlan(seconds) {
+  function makeBodyCheckPlan(seconds) {
     if (!BODY_LENGTHS.includes(seconds)) throw new RangeError('Choose 4, 8, or 12 minutes.');
     const cards = [
       {
@@ -146,17 +201,18 @@
     }))).flat(), 'body');
   }
 
-  function makeComparePlan({ pace = 5, first = 'breath' } = {}) {
+  function makeComparePlan({ pace = 5, first = 'breath', feeling = 'love' } = {}) {
+    const emotion = feelingFor(feeling);
     checkPace(pace);
     if (!['breath', 'care'].includes(first)) throw new RangeError('Start with breath or care.');
     const other = first === 'breath' ? 'care' : 'breath';
     const order = [first, other, other, first];
     const plan = [{
       id: 'compare-prediction', title: 'What do you expect?', seconds: 0, pace: 0, wait: true,
-      prompt: 'You will try easy breathing with and without a kind wish. Which way do you think will feel easier? A guess is enough.',
+      prompt: 'You will try heart-focused breathing with and without a felt emotion. Which way do you think will feel easier? A guess is enough.',
       question: 'A guess can shape what you notice. Can you leave room to be surprised?',
       choices: [
-        { value: 'breath', label: 'Breath alone' }, { value: 'care', label: 'A kind wish too' },
+        { value: 'breath', label: 'Breath alone' }, { value: 'care', label: emotion.name + ' with heart attention' },
         { value: 'same', label: 'About the same' }, { value: 'unclear', label: 'Not sure' },
         { value: 'skip', label: 'Skip' }
       ]
@@ -164,11 +220,11 @@
     order.forEach((condition, index) => {
       const round = index + 1;
       plan.push({
-        id: `compare-${round}-${condition}`, title: condition === 'care' ? 'Add a kind wish' : 'Notice your breath',
+        id: `compare-${round}-${condition}`, title: condition === 'care' ? 'Feel ' + emotion.name + ' and your heart together' : 'Breathe with heart attention',
         condition, round, seconds: 60, pace,
         prompt: condition === 'care'
-          ? 'Keep a small, easy breath. If you like, quietly wish someone well. You do not have to create a warm or happy feeling.'
-          : 'Keep a small, easy breath. Notice each breath. Let thoughts come and go. Follow the guide only if it feels comfortable.',
+          ? emotion.cue + ' Keep the felt emotion and heart-area attention together while you breathe. Invite a real feeling; report honestly if none comes.'
+          : 'Keep the same gentle breath and attention in the heart area. Do not deliberately invite an emotion in this round. If one carries over, notice it. Follow the guide only if it feels comfortable.',
         question: 'What can you notice without trying to make this part win?'
       });
       plan.push({
@@ -339,7 +395,7 @@
   }
 
   root.HeartPractice = Object.freeze({
-    makeBreathPlan, makeBodyPlan, makeComparePlan, createSession, advance, answer,
+    makeBreathPlan, makeBodyPlan, makeBodyCheckPlan, makeComparePlan, BODY_DIMENSIONS, FEELINGS, createSession, advance, answer,
     continueStep, pause, resume, finish, remainingSeconds, elapsedSeconds, currentStep, summary
   });
 })(globalThis);

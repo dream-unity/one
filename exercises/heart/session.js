@@ -16,7 +16,8 @@
   var soundChanges = 0;
   var paceChanges = 0;
   var ownBreath = false;
-  var selection = { breath: 300, body: 240, pace: 5 };
+  var selection = { breath: 900, body: 900, pace: 5, feeling: 'love' };
+  var peek = null;
   var beforeChild = null;
 
   function el(id) { return document.getElementById(id); }
@@ -52,7 +53,7 @@
   }
   function forgetData() {
     clearTick(); hush(); closePause(); resetBall();
-    session = null; shownStep = null; pauses = 0; soundChanges = 0; paceChanges = 0; ownBreath = false;
+    session = null; shownStep = null; peek = null; pauses = 0; soundChanges = 0; paceChanges = 0; ownBreath = false;
     var results = el('finish-results'); if (results) results.replaceChildren();
     var choices = el('step-choices'); if (choices) choices.replaceChildren();
     text('finish-summary', ''); text('finish-response', ''); text('step-feedback', '');
@@ -72,6 +73,8 @@
       button.setAttribute('aria-pressed', pace === selection.pace ? 'true' : 'false');
       button.disabled = child && pace !== 0;
     });
+    root.querySelectorAll('[data-emotion]').forEach(function (button) { button.setAttribute('aria-pressed', String(button.dataset.emotion === selection.feeling)); });
+    text('selected-feeling', selection.feeling);
     text('sound-toggle', soundOn ? 'Mute sound' : 'Use sound');
     if (el('sound-toggle')) {
       el('sound-toggle').setAttribute('aria-label', 'Sound');
@@ -80,19 +83,64 @@
   }
   function live() { return session && ['running', 'waiting', 'paused'].indexOf(session.status) >= 0; }
   function kind() { return session && session.plan.kind || lastKind; }
+  function buildMapChips(show) {
+    var group = el('map-chips'); if (!group) return;
+    group.hidden = !show; group.replaceChildren();
+    if (!show) return;
+    engine.BODY_DIMENSIONS.forEach(function (dimension, index) {
+      var button = document.createElement('button'); button.type = 'button';
+      button.textContent = (index + 1) + ' · ' + dimension.name;
+      button.dataset.dimension = index; button.setAttribute('aria-pressed', 'false');
+      button.addEventListener('click', function () {
+        if (!session || session.status !== 'running') return;
+        engine.advance(session, now()); render(false);
+        if (!session || session.status !== 'running') return;
+        var active = engine.currentStep(session);
+        peek = peek === index ? null : index;
+        var displayed = peek === null ? active : engine.BODY_DIMENSIONS[peek];
+        text('step-title', peek === null ? active.title : 'Read again · ' + displayed.title);
+        text('step-prompt', displayed.prompt); text('step-question', displayed.question);
+        if (el('step-choices')) el('step-choices').hidden = peek !== null;
+        text('peek-note', peek === null ? '' : 'The timer keeps going. Tap this button again to return to the current step.');
+        updateMapChips(active);
+      }); group.appendChild(button);
+    });
+  }
+  function updateMapChips(step) {
+    var group = el('map-chips'); if (!group || group.hidden) return;
+    group.querySelectorAll('button').forEach(function (button) {
+      var index = Number(button.dataset.dimension);
+      button.classList.toggle('is-current', index === step.dimension);
+      button.classList.toggle('is-done', index < step.dimension);
+      button.classList.toggle('is-peek', index === peek);
+      button.setAttribute('aria-pressed', String(index === peek));
+      if (index === step.dimension) button.setAttribute('aria-current', 'step'); else button.removeAttribute('aria-current');
+    });
+    if (peek === null) { text('peek-note', ''); if (el('step-choices')) el('step-choices').hidden = false; }
+  }
+  function updateCues() {
+    var cues = el('practice-cues'); if (!cues) return;
+    cues.hidden = kind() !== 'breath';
+    [400, 4000, 9000].forEach(function (delay, index) {
+      var cue = cues.querySelectorAll('[data-cue]')[index];
+      if (cue) cue.classList.toggle('is-active', session.elapsedMs >= delay);
+    });
+  }
   function newSession(which) {
     forgetData(); lastKind = which;
     var plan;
     if (which === 'body') plan = engine.makeBodyPlan(selection.body);
+    else if (which === 'body-check') plan = engine.makeBodyCheckPlan(480);
     else if (which === 'compare') {
       var bit;
       if (window.crypto && typeof window.crypto.getRandomValues === 'function') {
         var bytes = new Uint8Array(1); window.crypto.getRandomValues(bytes); bit = bytes[0] % 2;
       } else bit = Math.random() < 0.5 ? 0 : 1;
-      plan = engine.makeComparePlan({ pace: selection.pace, first: bit ? 'care' : 'breath' });
-    } else plan = engine.makeBreathPlan(selection.breath, { pace: selection.pace, kindness: !!(el('add-care') && el('add-care').checked) });
+      plan = engine.makeComparePlan({ pace: selection.pace, first: bit ? 'care' : 'breath', feeling: selection.feeling });
+    } else plan = engine.makeBreathPlan(selection.breath, { pace: selection.pace, feeling: selection.feeling });
     session = engine.createSession(plan, now());
-    text('session-name', which === 'body' ? 'Notice your body' : which === 'compare' ? 'Try both ways' : 'Breathe with ease');
+    text('session-name', which === 'body' ? 'Map the feeling' : which === 'body-check' ? 'Check a body clue' : which === 'compare' ? 'Compare breathing and ' + selection.feeling : 'Heart and ' + selection.feeling + ' together');
+    buildMapChips(which === 'body');
     showScreen('session');
     render(true);
     if (document.hidden) pausePractice('hidden');
@@ -117,7 +165,7 @@
     if (pace === 0) {
       resetBall(); text('breath-word', 'Your own breath'); text('breath-count', ''); return;
     }
-    var elapsed = Math.max(0, session.stepElapsedMs || 0);
+    var elapsed = Math.max(0, (kind() === 'breath' ? session.elapsedMs : session.stepElapsedMs) || 0);
     var phase = Math.floor(elapsed / (pace * 1000));
     var inhale = phase % 2 === 0;
     text('breath-word', inhale ? 'Breathe in' : 'Breathe out');
@@ -130,7 +178,11 @@
       ball.classList.add('is-paced');
     }
     ball.classList.toggle('is-paused', session.status === 'paused');
-    var nextPhaseKey = step.id + ':' + phase;
+    var nextPhaseKey = (kind() === 'breath' ? 'breath' : step.id) + ':' + phase;
+    if (step.inhale) {
+      text('phase-prompt', inhale ? step.inhale : step.exhale);
+      if (el('phase-prompt')) el('phase-prompt').hidden = false;
+    }
     if (phaseKey !== nextPhaseKey) {
       phaseKey = nextPhaseKey;
       if (soundOn && session.status === 'running' && !document.hidden) breathBell(inhale ? 'inhale' : 'exhale');
@@ -164,31 +216,38 @@
     if (session.status === 'ended') { finishView(false); return; }
     var step = engine.currentStep(session); if (!step) return;
     var changed = shownStep !== step.id;
+    if (force && peek !== null) { peek = null; text('step-title', step.title); }
     if (changed || force) {
-      var unpacedStart = step.id === 'breath-settle' && (ownBreath || Number(step.pace) === 0);
+      var unpacedStart = false;
       var prompt = unpacedStart ? 'Let your breath stay small and easy. There is no pace to match. Notice one breath at a time.' : step.prompt;
       if (ownBreath || Number(step.pace) === 0) prompt = prompt.replace('Follow the guide only if it feels comfortable.', 'Let your breath use its own pace.');
       var question = unpacedStart ? 'Can you notice your breath without trying to change it?' : step.question;
+      if (ownBreath || Number(step.pace) === 0) prompt = prompt.replace('five seconds in and five seconds out', 'at your own comfortable pace');
+      else if (Number(step.pace) === 4) prompt = prompt.replace('five seconds in and five seconds out', 'four seconds in and four seconds out');
       text('step-prompt', prompt); text('step-question', question || '');
       var deeper = el('deeper-step'); if (deeper) { deeper.hidden = !question; if (changed) deeper.open = false; }
     }
     if (changed) {
-      shownStep = step.id; phaseKey = null;
+      shownStep = step.id; peek = null;
+      if (kind() !== 'breath') phaseKey = null;
       text('step-title', step.title);
       text('step-feedback', ''); drawChoices(step);
-      if (kind() === 'body' && session.status === 'running' && soundOn && !document.hidden) breathBell('inhale');
+      if (kind() === 'body' && session.status === 'running' && soundOn && !document.hidden) breathBell(step.dimension === undefined || step.dimension % 2 === 0 ? 'inhale' : 'exhale');
     }
+    if (el('phase-prompt')) el('phase-prompt').hidden = !step.inhale || ownBreath || !step.pace;
+    updateMapChips(step);
+    updateCues();
     var waiting = session.status === 'waiting';
     var next = el('continue-step');
     if (next) { next.hidden = !waiting; next.dataset.stepId = step.id; next.disabled = !session.answers.some(function (answer) { return answer.stepId === step.id; }); }
     if (el('own-breath')) el('own-breath').hidden = kind() === 'body' || waiting || ownBreath || !step.pace;
     text('session-timer', clock(engine.remainingSeconds(session)));
-    text('session-step', 'Step ' + (session.index + 1) + ' of ' + session.plan.length + (waiting ? ' · Your choice' : ' · ' + clock(Math.max(0, step.seconds - session.stepElapsedMs / 1000)) + ' left'));
+    text('session-step', (step.dimension !== undefined ? 'Round ' + step.round + ' · ' + (step.dimension + 1) + ' of 7' : 'Step ' + (session.index + 1) + ' of ' + session.plan.length) + (waiting ? ' · Your choice' : ' · ' + clock(Math.max(0, step.seconds - session.stepElapsedMs / 1000)) + ' left'));
     text('session-time-note', waiting ? 'Take your time. The practice clock has stopped.' : 'The clock counts only the time you practise here.');
     var total = session.plan.totalSeconds || session.plan.reduce(function (sum, card) { return sum + (card.seconds || 0); }, 0);
     var progress = el('session-progress');
     if (progress) { progress.max = 100; progress.value = total ? Math.min(100, engine.elapsedSeconds(session) / total * 100) : 0; }
-    syncBall(step, force || changed);
+    syncBall(step, force || (changed && kind() !== 'breath'));
     if (waiting) {
       clearTick(); hush();
       if (changed) {
@@ -242,7 +301,7 @@
     clearTick(); hush(); closePause(); resetBall();
     var report = engine.summary(session);
     var completed = session.status === 'complete';
-    text('finish-title', completed ? 'Practice finished' : 'You finished here');
+    text('finish-title', completed ? 'Session complete' : 'You finished here');
     text('finish-summary', 'You practised for ' + clock(engine.elapsedSeconds(session)) + '.');
     var results = el('finish-results');
     if (results) {
@@ -260,6 +319,8 @@
     text('finish-note', kind() === 'compare'
       ? 'These are your reports from one try. They cannot prove why you felt a difference. Order, practice and other changes may matter.'
       : 'This page does not read your heart or body. Feeling better is welcome. Feeling the same or unsure is useful to notice too.');
+    if (el('map-this-feeling')) el('map-this-feeling').hidden = kind() !== 'breath';
+    text('finish-integration', kind() === 'breath' ? 'Notice the breath, chest, and feeling you actually have now. Keep the heart area and the feeling together for a moment, if that feels right. Carry it into one kind action, or map its full pattern next.' : 'Let the whole pattern come together: place, texture, strength, movement, direction, agreement, and feeling tone. Keep what you sensed separate from what you guessed. Choose one action and leave room to learn more.');
     showScreen('finish');
     if (natural && completed && soundOn && !document.hidden) completeBell();
   }
@@ -295,12 +356,15 @@
       syncSettings(); return;
     }
     if (button.hasAttribute('data-pace') && !live()) { selection.pace = Number(button.dataset.pace); syncSettings(); return; }
+    if (button.dataset.emotion && !live()) { selection.feeling = button.dataset.emotion; syncSettings(); return; }
     if (button.dataset.feeling) { reflect(button); return; }
     if (button.dataset.call === 'setWave' && !live()) { hush(); setWave(Number(button.dataset.value), button); return; }
     if (button.dataset.call === 'testBell') { if (soundOn && !live() && !document.hidden) { hush(); testBell(); } return; }
     switch (button.id) {
       case 'start-breath': newSession('breath'); break;
       case 'start-body': newSession('body'); break;
+      case 'start-body-check': newSession('body-check'); break;
+      case 'map-this-feeling': navigate('body'); break;
       case 'start-compare': newSession('compare'); break;
       case 'pause-session': pausePractice('pause'); break;
       case 'look-around': pausePractice('look'); break;
@@ -309,7 +373,7 @@
       case 'end-session': case 'finish-paused': endPractice(); break;
       case 'sound-toggle': toggleSound(); break;
       case 'own-breath': useOwnBreath(); break;
-      case 'try-again': navigate(lastKind === 'body' ? 'body' : 'breath'); break;
+      case 'try-again': navigate(lastKind === 'body' || lastKind === 'body-check' ? 'body' : 'breath'); break;
       case 'forget-session': navigate('heart'); break;
     }
   });

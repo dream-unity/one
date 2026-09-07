@@ -224,3 +224,36 @@ body.heart-page{margin:0;min-width:280px;min-height:100vh;background:radial-grad
  #heart-training .practice-card,#heart-training .heart-stage{background:Canvas}
  #heart-training #breath-ball{border-color:CanvasText}
 }
+
+/* Full-depth practice: a readable sequence inside the existing Dream Unity palette. */
+#heart-training .core-steps,#heart-training .map-overview{padding-left:1.5em;margin:24px 0;line-height:1.7}
+#heart-training .core-steps li,#heart-training .learn-body li{margin:14px 0;padding-left:5px}
+#heart-training .map-overview{display:grid;grid-template-columns:1fr 1fr;gap:10px 32px}
+#heart-training .emotion-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+#heart-training .emotion-choices button{font-size:22px;min-height:84px;text-align:left}
+#heart-training .emotion-choices span{display:block;font-size:17px;font-weight:400;margin-top:4px}
+#heart-training #screen-breath .time-choices{grid-template-columns:repeat(5,minmax(0,1fr))}
+#heart-training .practice-cues{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin:24px 0;font-size:16px}
+#heart-training .practice-cues [data-cue]{padding:6px 10px;border:1px solid var(--line);border-radius:9px}
+#heart-training .practice-cues .is-active{border-color:var(--accent);background:var(--soft)}
+#heart-training .practice-cues p{flex-basis:100%;font-size:15px;color:var(--muted)}
+#heart-training .map-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:26px}
+#heart-training .map-chips button{font-size:17px;min-height:52px;padding:10px 13px}
+#heart-training .map-chips .is-current{border:2px solid var(--accent);background:var(--soft)}
+#heart-training .map-chips .is-done{color:var(--muted);border-style:dashed}
+#heart-training .map-chips .is-peek{outline:2px dashed var(--accent);outline-offset:3px}
+#heart-training .phase-prompt{max-width:38ch;margin:22px auto 0;font-size:21px;line-height:1.6;color:var(--accent)}
+#heart-training .integration-note{margin:24px 0;font-size:21px;line-height:1.7}
+#heart-training .step-choices:has(button[data-choice="10"]) button{flex:0 1 60px;min-width:54px}
+#heart-training .step-choices button[data-choice="unclear"]{flex-basis:150px}
+#heart-training .learn-body{font-size:20px}
+#heart-training .learn-body a{overflow-wrap:anywhere}
+@media(max-width:680px){
+ #heart-training #screen-breath .time-choices{grid-template-columns:repeat(3,minmax(0,1fr))}
+ #heart-training .emotion-choices{grid-template-columns:1fr}
+ #heart-training .map-overview{grid-template-columns:1fr}
+ #heart-training .core-steps,#heart-training .map-overview,#heart-training .learn-body{font-size:20px}
+ #heart-training .session-heading{align-items:flex-start}
+ #heart-training .session-heading h1{font-size:25px}
+ #heart-training .phase-prompt{font-size:21px}
+}

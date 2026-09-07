@@ -13,13 +13,27 @@
     INTEND: "Choose a goal", ACT: "Take a step", BECOME: "Grow",
     MATTER: "Things", STRUCTURE: "How things fit", EMERGE: "What can grow"
   };
+  const DOMAIN_DESCRIPTIONS = {
+    HEART: "Learn to feel love and notice your heart.",
+    MIND: "Look at a thought. Test it. Choose a step.",
+    BODY: "Notice your body and learn through movement.",
+    PERCEIVE: "What can you see, hear or feel?",
+    MODEL: "What could explain it? How could you check?",
+    PREDICT: "What do you think will happen?",
+    INTEND: "What would you like to make happen?",
+    ACT: "What can you do next?",
+    BECOME: "What changes as you practise?",
+    MATTER: "What are things made of?",
+    STRUCTURE: "How do the parts work together?",
+    EMERGE: "What new things can happen together?"
+  };
   const WORLD_NAMES = {
     machine: "Dream Machine", maker: "Dream Maker", world: "Dream World"
   };
   const WORLD_COPY = {
     machine: {
       kicker: "Feel. Think. Move.",
-      description: "Practise using your feelings, thoughts and body. Choose Think to try a thought exercise."
+      description: "Choose Feel to explore your heart, or Think to work through a thought."
     },
     maker: {
       kicker: "Turn a wish into a step.",
@@ -95,7 +109,7 @@
   function showUnavailable(domain) {
     tryThought.href = new URL("./exercises/cbt/", document.baseURI).href;
     tryThought.textContent = "Try a thought exercise";
-    availabilityMessage.textContent = "This practice is not ready yet. You can try a thought exercise now.";
+    availabilityMessage.textContent = `${DOMAIN_ACTIONS[domain]} is coming soon. You can try a thought exercise now.`;
     availability.hidden = false;
     availability.scrollIntoView({ block: "nearest", behavior: "instant" });
   }
@@ -105,7 +119,7 @@
     document.body.dataset.domainSelected = `${world}:${domain.toLowerCase()}`;
     emitSelection(world, domain);
     if (world === "machine" && domain === "HEART") {
-      window.location.href = new URL("./exercises/heart/?v=heart-research-20260905-2", document.baseURI).href;
+      window.location.href = new URL("./exercises/heart/?v=heart-depth-20260907", document.baseURI).href;
     } else if (world === "machine" && domain === "MIND") {
       renderMindDomains();
       worldTitle?.focus({ preventScroll: true });
@@ -149,9 +163,14 @@
       const name = document.createElement("span");
       name.className = "world-step-name";
       name.textContent = domain.charAt(0) + domain.slice(1).toLowerCase();
-      button.append(action, name);
+      const description = document.createElement("span");
+      description.className = "world-step-description";
+      description.id = `domain-description-${world}-${domain.toLowerCase()}`;
+      description.textContent = DOMAIN_DESCRIPTIONS[domain];
+      button.append(action, name, description);
       button.setAttribute("aria-pressed", "false");
       button.setAttribute("aria-label", `${DOMAIN_ACTIONS[domain]}: ${name.textContent}, in ${WORLD_NAMES[world]}`);
+      button.setAttribute("aria-describedby", description.id);
       button.addEventListener("click", () => onSelect(domain, button));
       worldSteps.append(button);
     });

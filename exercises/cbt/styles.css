@@ -36,7 +36,7 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 28px 0; }
 .topbar { min-height: 110px; display: flex; align-items: center; justify-content: space-between; gap: 24px; border-bottom: 1px solid var(--line); margin-bottom: 38px; }
 .brand { display: inline-flex; align-items: center; gap: 14px; min-height: 56px; color: var(--ink); text-decoration: none; font-weight: 650; }
 .brand-mark { display: grid; place-items: center; width: 50px; height: 56px; color: var(--teal); font-size: 2.2rem; font-weight: 300; }
-.crumbs { display: block; font-size: .8rem; font-weight: 450; color: var(--muted); }
+.crumbs { display: block; font-size: .9rem; font-weight: 450; color: var(--muted); }
 .session-controls { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 .quiet { background: transparent; border-color: transparent; color: var(--muted); font-size: .9rem; }
 .timer { min-width: 76px; font-variant-numeric: tabular-nums; }
@@ -44,6 +44,7 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 28px 0; }
 .eyebrow { color: var(--teal-dark); font-size: .85rem; font-weight: 600; margin-bottom: 16px; }
 .intro h1 { max-width: 22ch; }
 .intro h1 span { color: var(--teal); white-space: nowrap; }
+.method-name { color: var(--teal-dark); font-size: 1rem; line-height: 1.5; margin: -8px 0 24px; }
 .intro-copy { color: var(--muted); font-size: 1.1rem; max-width: 58ch; margin: 22px 0 26px; }
 .method-preview { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 24px 32px; margin: 28px 0; border: 1px solid var(--line); border-radius: var(--radius); background: linear-gradient(115deg, #ffffffdf, #f2effcbb); }
 .method-preview span { display: flex; align-items: center; gap: 12px; font-size: 1.2rem; }
@@ -155,6 +156,13 @@ a.primary { display: inline-flex; align-items: center; justify-content: center; 
 .task-result button { margin-top: 10px; }
 summary { min-height: 56px; padding: 14px 4px; cursor: pointer; color: var(--teal-dark); font-weight: 600; }
 details > p { margin-top: 16px; }
+.learning-guide { margin-top: 28px; border-top: 1px solid var(--line); }
+.learning-guide > summary { padding-block: 20px; font-size: 1.05rem; }
+.guide-copy { max-width: 62ch; padding: 4px 0 16px; }
+.guide-copy dl { margin: 28px 0; }
+.guide-copy dt { margin-top: 26px; color: var(--ink); font-weight: 650; }
+.guide-copy dd { margin: 10px 0 0; color: var(--muted); }
+.guide-copy a { overflow-wrap: anywhere; }
 .optional-choice { border-top: 1px solid var(--line); padding-top: 4px; }
 @media (max-width: 1020px) {
   .app-shell { padding-right: 26px; padding-left: 26px; }
@@ -163,15 +171,15 @@ details > p { margin-top: 16px; }
   .panel-work { grid-template-columns: 1fr; }
 }
 @media (max-width: 799px) {
-  :root { font-size: 18px; }
+  :root { font-size: 20px; }
   .app-shell { padding: 0 22px 36px; }
   .topbar { min-height: 94px; gap: 12px; flex-wrap: wrap; padding: 18px 0; margin-bottom: 28px; }
-  .crumbs { font-size: 16px; }
+  .crumbs { font-size: 18px; }
   .workspace { grid-template-columns: minmax(0, 1fr); gap: 30px; }
   .scene-panel { position: static; padding: 22px; }
   .scene-panel .picture-board { max-width: 400px; }
   .panel-work { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .eyebrow, .stage-meta, .source, .slot-number, .pill, .source-line { font-size: 16px; }
+  .eyebrow, .stage-meta, .source, .slot-number, .pill, .source-line { font-size: 18px; }
   .intro { margin-top: 28px; }
   .intro-copy { font-size: 1.1rem; }
 }
@@ -193,7 +201,7 @@ details > p { margin-top: 16px; }
   .source-choices { gap: 10px; }
   .source-choices button { padding: 12px; font-size: 18px; }
   .card-pager { gap: 8px; }
-  .card-pager button { min-width: 52px; min-height: 52px; }
+  .card-pager button { min-width: 56px; min-height: 56px; }
   .choice { padding: 17px; }
   .action-bar .primary { flex: 1 1 170px; }
   .modal { padding: 24px; }

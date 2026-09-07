@@ -657,9 +657,9 @@ body[data-world-selected="true"] .portal-label:not(.is-active) {
 
 .portal-copy strong {
   display: block;
-  font-size: clamp(15px, 1.3vw, 20px);
+  font-size: clamp(18px, 1.65vw, 24px);
   font-weight: 500;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.08em;
   white-space: nowrap;
 }
 
@@ -866,7 +866,7 @@ body[data-world-selected="true"] .portal-label:not(.is-active) {
 .world-panel > p:first-child {
   margin: 0 0 10px;
   color: #585481;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   line-height: 1.5;
   letter-spacing: .015em;
@@ -890,7 +890,7 @@ body[data-world-selected="true"] .portal-label:not(.is-active) {
   margin: 16px auto 24px;
   color: #4c506a;
   font-family: "Manrope", "Helvetica Neue", Arial, sans-serif;
-  font-size: 19px;
+  font-size: 20px;
   line-height: 1.55;
 }
 
@@ -910,7 +910,7 @@ body[data-world-selected="true"] .portal-label:not(.is-active) {
   border: 1px solid rgba(99, 88, 160, .28);
   border-radius: 14px;
   background: rgba(255, 255, 255, .7);
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 600;
   line-height: 1.4;
   letter-spacing: 0;
@@ -939,7 +939,7 @@ body[data-world-selected="true"] .portal-label:not(.is-active) {
   justify-content: center;
   gap: 9px;
   min-width: 0;
-  min-height: 128px;
+  min-height: 200px;
   padding: 20px 14px;
   border-radius: 16px;
   background: linear-gradient(145deg, #fff, rgba(248, 247, 255, .86));
@@ -950,18 +950,27 @@ body[data-world-selected="true"] .portal-label:not(.is-active) {
 
 .world-step-action {
   color: #292d49;
-  font-size: clamp(21px, 2.3vw, 26px);
+  font-size: clamp(27px, 2.6vw, 32px);
   font-weight: 600;
   line-height: 1.22;
   letter-spacing: -.025em;
 }
 
 .world-step-name {
-  color: #585b75;
-  font-size: 16px;
+  color: #51466f;
+  font-size: clamp(23px, 2.1vw, 26px);
   font-weight: 500;
   line-height: 1.35;
-  letter-spacing: .02em;
+  letter-spacing: 0;
+}
+
+.world-step-description {
+  max-width: 24ch;
+  color: #555a72;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0;
 }
 
 .world-panel .world-step-button[aria-pressed="true"] {
@@ -1261,7 +1270,7 @@ body[data-world-selected="true"] .portal-label:not(.is-active) {
     height: 60px;
   }
 
-  .portal-copy strong { font-size: 15px; letter-spacing: .065em; }
+  .portal-copy strong { font-size: 17px; letter-spacing: .035em; }
   .portal-copy small { margin-top: 6px; font-size: 8px; letter-spacing: .07em; }
   .machine .portal-glyph { right: 16px; }
   .maker .portal-glyph { left: 16px; }
@@ -1302,7 +1311,7 @@ body[data-world-selected="true"] .portal-label:not(.is-active) {
   .portal-label.machine { top: 25%; left: 8px; }
   .portal-label.maker { top: 25%; right: 8px; }
   .portal-label.world { bottom: 8.5%; }
-  .portal-copy strong { font-size: 11px; letter-spacing: .035em; }
+  .portal-copy strong { font-size: 13px; letter-spacing: .01em; }
   .portal-copy small { margin-top: 5px; font-size: 7px; letter-spacing: .025em; }
   .portal-card .portal-glyph { width: 7px; height: 7px; }
   .machine .portal-glyph { right: 10px; }
@@ -1329,10 +1338,12 @@ body[data-world-selected="true"] .portal-label:not(.is-active) {
   }
 
   .world-panel h2 { font-size: 32px; }
-  .world-panel > p:nth-of-type(2) { font-size: 18px; }
+  .world-panel > p:nth-of-type(2) { font-size: 20px; }
   .world-steps { grid-template-columns: minmax(0, 1fr); gap: 10px; }
-  .world-panel .world-step-button { min-height: 92px; padding: 16px 18px; gap: 5px; }
-  .world-step-action { font-size: 23px; }
+  .world-panel .world-step-button { min-height: 152px; padding: 20px 18px; gap: 7px; }
+  .world-step-action { font-size: 28px; }
+  .world-step-name { font-size: 24px; }
+  .world-step-description { max-width: 29ch; }
   .world-panel .domain-back { width: 100%; justify-content: center; }
   .world-panel #return-unity { width: 100%; }
   .information { padding-inline: 30px; }
