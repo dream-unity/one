@@ -7,6 +7,12 @@
     world: ["MATTER", "STRUCTURE", "EMERGE"]
   };
   const MACHINE_MIND_DOMAINS = ["PERCEIVE", "MODEL", "PREDICT"];
+  const DOMAIN_ROUTES = {
+    HEART: "./exercises/heart/?v=heart-depth-20260907",
+    BODY: "./portals/body/", PERCEIVE: "./portals/perceive/", MODEL: "./exercises/cbt/", PREDICT: "./portals/predict/",
+    INTEND: "./portals/intend/", ACT: "./portals/act/", BECOME: "./portals/become/",
+    MATTER: "./portals/matter/", STRUCTURE: "./portals/structure/", EMERGE: "./portals/emerge/"
+  };
   const DOMAIN_ACTIONS = {
     HEART: "Feel", MIND: "Think", BODY: "Move",
     PERCEIVE: "Look closely", MODEL: "Check a thought", PREDICT: "What comes next?",
@@ -16,16 +22,16 @@
   const DOMAIN_DESCRIPTIONS = {
     HEART: "Learn to feel love and notice your heart.",
     MIND: "Look at a thought. Test it. Choose a step.",
-    BODY: "Notice your body and learn through movement.",
-    PERCEIVE: "What can you see, hear or feel?",
+    BODY: "Move gently, rest, or tap an easy rhythm.",
+    PERCEIVE: "Find a quiet signal. How sure are you?",
     MODEL: "What could explain it? How could you check?",
-    PREDICT: "What do you think will happen?",
-    INTEND: "What would you like to make happen?",
-    ACT: "What can you do next?",
-    BECOME: "What changes as you practise?",
-    MATTER: "What are things made of?",
-    STRUCTURE: "How do the parts work together?",
-    EMERGE: "What new things can happen together?"
+    PREDICT: "Guess a chance before the next seed opens.",
+    INTEND: "Turn a wish into a first step and a plan.",
+    ACT: "Guide a moving light, then try a small step.",
+    BECOME: "Imagine a challenge. Rehearse your next move.",
+    MATTER: "Catch a bounce. See where its energy goes.",
+    STRUCTURE: "Connect a network, or build a living village.",
+    EMERGE: "Change a rule. Watch a flock grow together."
   };
   const WORLD_NAMES = {
     machine: "Dream Machine", maker: "Dream Maker", world: "Dream World"
@@ -33,15 +39,15 @@
   const WORLD_COPY = {
     machine: {
       kicker: "Feel. Think. Move.",
-      description: "Choose Feel to explore your heart, or Think to work through a thought."
+      description: "Explore a feeling, look closely at a thought, or learn through an easy movement."
     },
     maker: {
       kicker: "Turn a wish into a step.",
-      description: "Choose a goal. Take a step. Learn as you go. These practices are not ready yet."
+      description: "Give a wish a first step. Guide it into action. Rehearse how you meet a challenge."
     },
     world: {
       kicker: "See how things work together.",
-      description: "See what happens when things work together. Choose How things fit to build a village."
+      description: "Play with energy. Build connections that survive a break. Make a flock with simple rules."
     }
   };
   const returnTarget = new URLSearchParams(window.location.search).get("return");
@@ -106,31 +112,20 @@
     });
   }
 
-  function showUnavailable(domain) {
-    tryThought.href = new URL("./exercises/cbt/", document.baseURI).href;
-    tryThought.textContent = "Try a thought exercise";
-    availabilityMessage.textContent = `${DOMAIN_ACTIONS[domain]} is coming soon. You can try a thought exercise now.`;
-    availability.hidden = false;
-    availability.scrollIntoView({ block: "nearest", behavior: "instant" });
+  function openDomain(domain) {
+    const route = DOMAIN_ROUTES[domain];
+    if (route) window.location.href = new URL(route, document.baseURI).href;
   }
 
   function selectDomain(world, domain, button) {
     markSelected(button);
     document.body.dataset.domainSelected = `${world}:${domain.toLowerCase()}`;
     emitSelection(world, domain);
-    if (world === "machine" && domain === "HEART") {
-      window.location.href = new URL("./exercises/heart/?v=heart-depth-20260907", document.baseURI).href;
-    } else if (world === "machine" && domain === "MIND") {
+    if (world === "machine" && domain === "MIND") {
       renderMindDomains();
       worldTitle?.focus({ preventScroll: true });
-    } else if (world === "world" && domain === "STRUCTURE") {
-      availabilityMessage.textContent = "Build a village. Gather food and wood. Choose what to build and help your village grow.";
-      tryThought.href = new URL("./games/empire-dawn/", document.baseURI).href;
-      tryThought.textContent = "Build a village";
-      availability.hidden = false;
-      availability.scrollIntoView({ block: "nearest", behavior: "instant" });
     } else {
-      showUnavailable(domain);
+      openDomain(domain);
     }
   }
 
@@ -138,11 +133,7 @@
     markSelected(button);
     document.body.dataset.domainSelected = `machine:mind:${domain.toLowerCase()}`;
     emitSelection("machine", domain, { parent: "mind", path: ["machine", "mind", domain.toLowerCase()] });
-    if (domain === "MODEL") {
-      window.location.href = new URL("./exercises/cbt/", document.baseURI).href;
-    } else {
-      showUnavailable(domain);
-    }
+    openDomain(domain);
   }
 
   function buildButtons(domains, world, onSelect, ariaLabel) {
@@ -155,7 +146,6 @@
       const button = document.createElement("button");
       button.type = "button";
       button.className = "world-step-button";
-      button.dataset.world = world;
       button.dataset.domain = domain.toLowerCase();
       const action = document.createElement("span");
       action.className = "world-step-action";
@@ -181,7 +171,7 @@
     backButton.classList.add("is-visible");
     if (worldKicker) worldKicker.textContent = "Dream Machine · Mind";
     if (worldTitle) worldTitle.textContent = "Think";
-    if (worldDescription) worldDescription.textContent = "Look closely. Check a thought. Think about what could happen. Start with Check a thought.";
+    if (worldDescription) worldDescription.textContent = "Observe what is here. Test an explanation. Forecast what could happen next.";
     buildButtons(MACHINE_MIND_DOMAINS, "machine", selectMindDomain, "Choose a way to practise thinking");
   }
 
@@ -204,7 +194,8 @@
 
   window.addEventListener("dreamunity:worldfocus", (event) => {
     delete document.body.dataset.domainSelected;
-    renderDomainButtons(event.detail?.key);
+    // The renderer also writes this panel. Apply navigation after all listeners.
+    queueMicrotask(() => renderDomainButtons(event.detail?.key));
   });
   window.addEventListener("dreamunity:unityfocus", () => {
     delete document.body.dataset.domainSelected;
@@ -222,31 +213,47 @@
     renderMind: renderMindDomains
   };
 
-  function revealMachinePanel() {
+  function revealWorldPanel(world = "machine") {
     document.body.dataset.worldSelected = "true";
-    worldPanel?.style.setProperty("--unity", "#4e91ef");
+    worldPanel?.style.setProperty("--unity", {machine:"#4e91ef",maker:"#51bfb4",world:"#8e63e8"}[world]);
     worldPanel?.classList.add("is-visible");
     worldPanel?.setAttribute("aria-hidden", "false");
     document.querySelectorAll("[data-portal]").forEach((portal) => {
-      portal.classList.toggle("is-active", portal.dataset.portal === "machine");
+      portal.classList.toggle("is-active", portal.dataset.portal === world);
     });
-    setPortalExpansion("machine");
+    setPortalExpansion(world);
   }
 
+  let userNavigated = false;
+  portalButtons.forEach(button => button.addEventListener("click", () => {
+    userNavigated = true;
+    queueMicrotask(() => { revealWorldPanel(button.dataset.world); renderDomainButtons(button.dataset.world); });
+  }));
+  returnHome?.addEventListener("click", () => {
+    userNavigated = true;
+    document.body.dataset.worldSelected = "false";
+    worldPanel?.classList.remove("is-visible");
+    worldPanel?.setAttribute("aria-hidden", "true");
+    setPortalExpansion(null);
+  });
   function restoreMachineContext() {
-    const returningToHeart = returnTarget === "machine-heart";
-    if (!returningToHeart && returnTarget !== "machine-mind-model") return;
-    window.__DREAM_UNITY__?.focus?.("machine");
-    revealMachinePanel();
-    if (returningToHeart) renderDomainButtons("machine");
-    else renderMindDomains();
-    const selectedButton = worldSteps.querySelector(returningToHeart ? '[data-domain="heart"]' : '[data-domain="model"]');
-    if (selectedButton) {
-      selectedButton.setAttribute("aria-pressed", "true");
-      document.body.dataset.domainSelected = returningToHeart ? "machine:heart" : "machine:mind:model";
-      selectedButton.focus({ preventScroll: true });
-    }
-    if (!returningToHeart && worldDescription) worldDescription.textContent = "Try Check a thought again. Practise noticing a thought, testing it and choosing what to do next.";
+    if (userNavigated || !returnTarget) return;
+    const parts = returnTarget.split("-");
+    const world = parts[0], nested = parts[1] === "mind";
+    if (!WORLD_DOMAINS[world]) return;
+    const domain = parts.at(-1);
+    window.__DREAM_UNITY__?.focus?.(world);
+    queueMicrotask(() => {
+      revealWorldPanel(world);
+      if (nested) renderMindDomains();
+      else renderDomainButtons(world);
+      const selectedButton = [...worldSteps.querySelectorAll('[data-domain]')].find(button => button.dataset.domain === domain);
+      if (selectedButton) {
+        selectedButton.setAttribute("aria-pressed", "true");
+        document.body.dataset.domainSelected = parts.join(":");
+        selectedButton.focus({ preventScroll: true });
+      }
+    });
     const cleanUrl = new URL(window.location.href);
     cleanUrl.searchParams.delete("return");
     cleanUrl.searchParams.delete("focus");
@@ -254,4 +261,5 @@
   }
 
   window.setTimeout(restoreMachineContext, 0);
+  window.addEventListener("dreamunity:ready", () => queueMicrotask(restoreMachineContext), { once: true });
 })();

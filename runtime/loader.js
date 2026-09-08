@@ -71,7 +71,7 @@
   };
 
   const loadDomainNavigation = () => {
-    if (window.__DREAM_UNITY_DOMAIN_NAV_LOADING__) return;
+    if (window.__DREAM_UNITY_DOMAIN_NAV_LOADING__ || window.__DREAM_UNITY_DOMAIN_NAV__) return;
     window.__DREAM_UNITY_DOMAIN_NAV_LOADING__ = true;
     const navigationScript = document.createElement("script");
     const navigationUrl = new URL("../portal-subnav.js", loaderUrl);
