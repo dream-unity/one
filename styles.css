@@ -1,5 +1,9 @@
 .all-portals-link { display:inline-flex; align-items:center; min-height:44px; padding:8px 12px; border:1px solid #827ca866; border-radius:7px; color:#403669; background:#ffffffaa; text-decoration:none; font-size:14px; letter-spacing:0; }
 .portal-map-link { display:inline-block; padding:12px 0; font-size:16px; color:#4a3c83; }
+.world-observatory-link { display:block; padding:16px 20px; margin:4px 0 18px; border:1px solid #8e63e888; border-radius:10px; color:#483276; background:#f0eaff; text-align:center; text-decoration:none; font-size:16px; line-height:1.4; font-weight:600; }
+.world-observatory-link[hidden] { display:none; }
+.world-observatory-link:hover { background:#e7dcff; }
+.world-observatory-link:focus-visible { outline:3px solid #7657ba; outline-offset:4px; }
 body[data-world-selected="true"] .webgl-fallback { display:none; }
 #webgl-fallback { display:none; }
 @media(max-width:560px) { .all-portals-link { position:fixed; left:50%; bottom:12px; transform:translateX(-50%); white-space:nowrap; } body[data-world-selected="true"] .all-portals-link { display:none; } }

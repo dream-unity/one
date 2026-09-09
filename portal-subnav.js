@@ -46,8 +46,8 @@
       description: "Give a wish a first step. Guide it into action. Rehearse how you meet a challenge."
     },
     world: {
-      kicker: "See how things work together.",
-      description: "Play with energy. Build connections that survive a break. Make a flock with simple rules."
+      kicker: "A world that dreams back.",
+      description: "Enter two worlds. Test what holds them together. Grow a third world from what you discover."
     }
   };
   const returnTarget = new URLSearchParams(window.location.search).get("return");
@@ -67,6 +67,13 @@
   backButton.textContent = "Back to Dream Machine";
   backButton.setAttribute("aria-label", "Back to Dream Machine: Feel, Think and Move");
   worldSteps.before(backButton);
+
+  const observatory = document.createElement("a");
+  observatory.className = "world-observatory-link";
+  observatory.href = new URL("./portals/dream-world/", document.baseURI).href;
+  observatory.textContent = "Enter the world that dreams back ↗";
+  observatory.hidden = true;
+  worldSteps.before(observatory);
 
   const availability = document.createElement("div");
   availability.className = "domain-availability";
@@ -168,6 +175,7 @@
   }
 
   function renderMindDomains() {
+    observatory.hidden = true;
     backButton.classList.add("is-visible");
     if (worldKicker) worldKicker.textContent = "Dream Machine · Mind";
     if (worldTitle) worldTitle.textContent = "Think";
@@ -178,6 +186,7 @@
   function renderDomainButtons(world) {
     const domains = WORLD_DOMAINS[world];
     if (!domains) return;
+    observatory.hidden = world !== "world";
     backButton.classList.remove("is-visible");
     if (worldKicker) worldKicker.textContent = WORLD_COPY[world].kicker;
     if (worldTitle) worldTitle.textContent = WORLD_NAMES[world];
@@ -198,6 +207,7 @@
     queueMicrotask(() => renderDomainButtons(event.detail?.key));
   });
   window.addEventListener("dreamunity:unityfocus", () => {
+    observatory.hidden = true;
     delete document.body.dataset.domainSelected;
     backButton.classList.remove("is-visible");
     availability.hidden = true;

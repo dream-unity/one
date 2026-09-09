@@ -42,6 +42,12 @@ Timed practices pause when hidden and require deliberate resumption. Simulations
 
 `npm test` verifies existing Heart/CBT behaviour and renderer integrity, plus all native routes and imports, proper scoring, timer boundaries, conservation of energy, bounce trajectories, graph resilience, deterministic flock comparisons and inertial control. These checks do not establish clinical efficacy or replace visual testing on target devices.
 
+## The World That Dreams Back
+
+Dream World also opens a shared observatory at [`portals/dream-world/`](portals/dream-world/). Enter two opposing network designs, trace their paths, predict the worst failure, and build a third world. All edge/vertex failure trials are enumerated from the actual design. A bounded local search can propose a one-bridge descendant from a completed test. Saved worlds, exact failed attempts, portable sharing links, notebook export/import and public GitHub submissions give an idea a history outside the current page.
+
+The personal notebook is explicitly local to the device. The shared atlas is stored in the repository, with source issue attribution. Scheduled Astra review uses the connected GitHub app; it requires no public AI credential. See the [model notes](portals/dream-world/README.md) and [evolution procedure](portals/dream-world/EVOLUTION.md). The observatory does not collect private records from other Dream Unity activities or claim to measure human learning.
+
 ## Rendering architecture
 
 - Direct WebGL rendering with deterministic faceted materials and additive light sprites

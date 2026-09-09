@@ -6,6 +6,13 @@ const picker = $('#portal-select');
 picker.innerHTML = `<option value="">All portals</option>` + portals.map(p => `<option value="${esc(p.id)}" ${id === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
 picker.addEventListener('change', () => { location.href = picker.value ? portalUrl(picker.value) : new URL('./', import.meta.url).href; });
 if (portal) {
+  if (portal.world === 'world') {
+    const observatory = document.createElement('a');
+    observatory.href = new URL('./dream-world/', import.meta.url).href;
+    observatory.className = 'observatory-entry';
+    observatory.textContent = 'Enter the world that dreams back · build, test and share a world ↗';
+    $('#main').querySelector('.page-heading').after(observatory);
+  }
   const next = portals.find(p => p.id === portal.next);
   $('#next-portal').href = portalUrl(next.id);
   $('#next-portal').textContent = `Next: ${next.name} · ${next.title} →`;
@@ -28,4 +35,9 @@ if (portal) {
   }
 } else {
   $('#portal-groups').innerHTML = Object.entries(worlds).map(([world, name]) => `<section class="portal-group" data-world="${world}"><div class="group-heading"><h2>${name}</h2><span>${{machine:'Feel. Think. Move.',maker:'Choose. Try. Grow.',world:'Experiment. Connect. Discover.'}[world]}</span></div><div class="portal-grid">${portals.filter(p => p.world === world).map(p => `<a class="portal-tile" href="${esc(portalUrl(p.id))}"><span class="tile-name">${p.name}<span aria-hidden="true">↗</span></span><h3>${p.title}</h3><p>${p.line}</p><small>${p.type} · ${p.time}</small></a>`).join('')}</div></section>`).join('');
+  const observatory = document.createElement('a');
+  observatory.href = new URL('./dream-world/', import.meta.url).href;
+  observatory.className = 'observatory-entry';
+  observatory.textContent = 'The world that dreams back · explore two worlds, then grow your own ↗';
+  $('.portal-group[data-world="world"] .group-heading').after(observatory);
 }
