@@ -202,6 +202,11 @@ body {
   padding: 5px 6px 5px calc(6px + .48em);
   background: #ebe4d5 url("./assets/parchment-texture.svg") repeat;
 }
+@media (min-aspect-ratio: 11/10) {
+  .portal-artwork.is-3d {
+    top: calc(env(safe-area-inset-top, 0px) + var(--available-height) * .5);
+  }
+}
 .is-3d .portal { z-index: 2; overflow: visible; clip-path: none; min-width: 44px; min-height: 44px; }
 .is-3d .portal-caption,
 .is-3d .portal--maker .portal-caption {
