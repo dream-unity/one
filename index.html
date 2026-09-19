@@ -1,276 +1,42 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#ebe4d5" />
-    <meta
-      name="description"
-      content="Dream Unity — where perception, intention and reality converge."
-    />
-    <title>Dream Unity — The Nexus of All Possibilities</title>
-    <link rel="stylesheet" href="./styles.css?v=parchment-20260919" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='none' stroke='%236b63a8' stroke-width='3' d='M32 3 51 32 32 61 13 32zM32 3v58M13 32h38M32 3 20 32l12 29 12-29z'/%3E%3C/svg%3E" />
-  </head>
-  <body>
-    <div id="boot" class="boot" aria-live="polite">
-      <div class="boot-mark" aria-hidden="true">
-        <span></span><span></span><span></span>
-      </div>
-      <p>DREAM UNITY</p>
-      <div class="boot-track"><span id="boot-progress" style="width: 8%"></span></div>
-      <small id="boot-status">LOADING UNITY CORE</small>
-    </div>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#ebe4d5" />
+  <meta name="description" content="Enter Dream Unity: Dream Machine, Dream Maker and Dream World." />
+  <title>Dream Unity</title>
+  <link rel="preload" as="image" href="./assets/dream-unity-portals-refined.webp" type="image/webp" />
+  <link rel="stylesheet" href="./styles.css?v=breath-interface-20260919" />
+</head>
+<body>
+  <main class="portal-page">
+    <nav class="portal-artwork" aria-label="Choose a Dream Unity portal">
+      <h1 class="portal-title">Dream Unity</h1>
+      <img class="portal-image" src="./assets/dream-unity-portals-refined.webp" width="1254" height="1254" alt="" fetchpriority="high" draggable="false" />
 
-    <main id="experience" class="experience" aria-label="Dream Unity interactive visualization">
-      <div class="visual-scaffold" aria-hidden="true">
-        <svg viewBox="0 0 1536 864" preserveAspectRatio="xMidYMid slice" role="presentation">
-          <defs>
-            <radialGradient id="field-glow">
-              <stop offset="0" stop-color="#fff" stop-opacity=".72" />
-              <stop offset=".55" stop-color="#dcdaf2" stop-opacity=".14" />
-              <stop offset="1" stop-color="#b9c6df" stop-opacity="0" />
-            </radialGradient>
-            <radialGradient id="violet-glow">
-              <stop offset="0" stop-color="#fff" stop-opacity=".9" />
-              <stop offset=".14" stop-color="#ad91ff" stop-opacity=".32" />
-              <stop offset="1" stop-color="#7b62de" stop-opacity="0" />
-            </radialGradient>
-            <linearGradient id="core-left" x1="0" y1="0" x2="1" y2="1">
-              <stop stop-color="#f5efff" stop-opacity=".26" />
-              <stop offset="1" stop-color="#6040be" stop-opacity=".19" />
-            </linearGradient>
-            <linearGradient id="core-right" x1="1" y1="0" x2="0" y2="1">
-              <stop stop-color="#a996f0" stop-opacity=".2" />
-              <stop offset="1" stop-color="#39217e" stop-opacity=".16" />
-            </linearGradient>
-            <linearGradient id="orbit-blue" x1="0" x2="1">
-              <stop stop-color="#4694eb" stop-opacity=".08" />
-              <stop offset=".5" stop-color="#6f8de6" stop-opacity=".5" />
-              <stop offset="1" stop-color="#9acde5" stop-opacity=".08" />
-            </linearGradient>
-            <linearGradient id="orbit-teal" x1="1" x2="0">
-              <stop stop-color="#59cabd" stop-opacity=".08" />
-              <stop offset=".5" stop-color="#6ccbc3" stop-opacity=".48" />
-              <stop offset="1" stop-color="#8ebbe8" stop-opacity=".08" />
-            </linearGradient>
-          </defs>
+      <button class="portal portal-card portal--machine" type="button" data-world="machine" aria-label="Open Dream Machine" aria-controls="world-panel" aria-expanded="false">
+        <span class="portal-caption"><span>Dream<br />Machine</span></span>
+      </button>
+      <button class="portal portal-card portal--maker" type="button" data-world="maker" aria-label="Open Dream Maker" aria-controls="world-panel" aria-expanded="false">
+        <span class="portal-caption"><span>Dream<br />Maker</span></span>
+      </button>
+      <button class="portal portal-card portal--reality" type="button" data-world="world" aria-label="Open Dream World" aria-controls="world-panel" aria-expanded="false">
+        <span class="portal-caption"><span>Dream<br />World</span></span>
+      </button>
+    </nav>
+  </main>
 
-          <g class="scaffold-field">
-            <circle cx="768" cy="334" r="324" fill="url(#field-glow)" />
-            <circle cx="768" cy="334" r="294" />
-            <ellipse cx="768" cy="334" rx="294" ry="85" />
-            <ellipse cx="768" cy="334" rx="294" ry="163" />
-            <ellipse cx="768" cy="334" rx="102" ry="294" />
-            <ellipse cx="768" cy="334" rx="207" ry="294" />
-            <path d="M474 334c75-86 198-144 294-144s219 58 294 144c-75 86-198 144-294 144S549 420 474 334Z" />
-          </g>
+  <dialog id="world-panel" class="world-panel" aria-labelledby="world-title" aria-describedby="world-description" aria-hidden="true">
+    <p id="world-kicker"></p>
+    <h2 id="world-title" tabindex="-1"></h2>
+    <p id="world-description"></p>
+    <div id="world-steps" class="world-steps"></div>
+    <button id="return-unity" type="button">Back to home</button>
+  </dialog>
 
-          <g class="scaffold-orbits">
-            <path class="orbit-blue" d="M306 220C410 72 698 145 943 335c196 152 131 311-177 302C487 630 225 457 306 220Z" />
-            <path class="orbit-teal" d="M1230 220c-98-150-390-76-635 116-194 152-130 310 176 301 282-8 538-183 459-417Z" />
-            <path class="orbit-violet" d="M318 252c32 275 251 393 452 393s424-119 449-394C1067 393 919 432 768 432S470 394 318 252Z" />
-            <path class="orbit-dots" d="M280 266C385 613 650 686 905 621c226-58 374-250 333-385" />
-          </g>
-
-          <g class="scaffold-platform">
-            <ellipse cx="768" cy="739" rx="522" ry="90" class="platform-fill" />
-            <ellipse cx="768" cy="729" rx="472" ry="67" />
-            <ellipse cx="768" cy="723" rx="390" ry="48" />
-            <ellipse cx="768" cy="718" rx="304" ry="33" />
-            <ellipse cx="768" cy="714" rx="208" ry="21" />
-            <path d="M247 739v14c17 53 247 95 521 95s504-42 521-95v-14" />
-          </g>
-
-          <g class="scaffold-core">
-            <polygon points="768,172 931,337 768,502 605,337" class="core-outline" />
-            <polygon points="768,172 768,337 605,337" fill="url(#core-left)" />
-            <polygon points="768,172 931,337 768,337" fill="url(#core-right)" />
-            <polygon points="605,337 768,337 768,502" fill="url(#core-right)" />
-            <polygon points="768,337 931,337 768,502" fill="url(#core-left)" />
-            <path d="M768 172 685 286l83 51 83-51-83-114Zm-163 165 80-51m246 51-80-51M768 502V337" />
-            <circle cx="768" cy="337" r="105" fill="url(#violet-glow)" class="core-light" />
-            <path class="core-ray" d="M548 337h440M768 112v450" />
-          </g>
-
-          <g class="scaffold-portals">
-            <g transform="translate(335 227)"><circle r="88" class="portal-halo machine-halo" /><circle r="68" /><circle r="52" /><path d="M-76 0h152M0-76v152" /></g>
-            <g transform="translate(1201 227)"><circle r="88" class="portal-halo maker-halo" /><circle r="68" /><circle r="52" /><path d="M-76 0h152M0-76v152" /></g>
-            <g transform="translate(768 638)"><circle r="77" class="portal-halo world-halo" /><circle r="60" /><circle r="45" /><path d="M-67 0h134M0-67v134" /></g>
-          </g>
-        </svg>
-      </div>
-      <div id="scene" class="scene" aria-label="Interactive three-world visualization"></div>
-      <div class="atmosphere" aria-hidden="true"></div>
-      <div class="grain" aria-hidden="true"></div>
-
-      <header class="topbar">
-        <a class="brand" href="./" aria-label="Dream Unity home">
-          <span class="brand-gem" aria-hidden="true">
-            <i></i><i></i><i></i><i></i>
-          </span>
-          <span class="brand-copy">
-            <strong>DREAM UNITY</strong>
-            <span><i></i><i></i><i></i><i></i></span>
-          </span>
-        </a>
-
-        <div class="top-actions">
-          <a class="all-portals-link" href="./portals/">All portals ↗</a>
-          <button id="sound-toggle" class="sound-toggle" type="button" aria-pressed="false" aria-busy="true" aria-label="Starting Dream Maker Eye" data-audio-state="starting" data-audio-intent="on">
-            <span class="sound-bars" aria-hidden="true"><i></i><i></i><i></i></span>
-            <span>MUSIC</span>
-            <strong>AUTO</strong>
-          </button>
-          <button id="menu-toggle" class="menu-toggle" type="button" aria-label="Open information panel" aria-expanded="false">
-            <i></i><i></i><i></i>
-          </button>
-        </div>
-      </header>
-
-      <section class="intro" aria-label="Dream Unity introduction">
-        <p class="eyebrow"><span></span> THE MIND MAKES WORLDS <span></span></p>
-        <h1><span>DREAM</span> <strong>UNITY</strong></h1>
-        <p>THE NEXUS OF ALL POSSIBILITIES</p>
-      </section>
-
-      <nav class="portal-interface" aria-label="Choose a Dream Unity world">
-        <div class="portal-label machine" data-portal="machine">
-          <button class="portal-card" type="button" data-world="machine" aria-label="Enter Dream Machine">
-            <span class="portal-surface" aria-hidden="true">
-              <svg class="portal-frame" viewBox="0 0 400 100" preserveAspectRatio="none" focusable="false">
-                <path class="portal-frame-outline" d="M14.5,1.5L398.5,1.5L398.5,98.5L14.5,98.5L1.5,50Z" />
-                <path class="portal-frame-light" d="M16.5,3H383.5" />
-                <path class="portal-frame-accent" d="M144,95.5H256" />
-              </svg>
-              <span class="portal-glyph"></span>
-            </span>
-            <span class="portal-copy"><strong>DREAM MACHINE</strong><small>PERCEIVE · MODEL · PREDICT</small></span>
-          </button>
-          <span class="portal-thread" aria-hidden="true"></span>
-        </div>
-        <div class="portal-label maker" data-portal="maker">
-          <button class="portal-card" type="button" data-world="maker" aria-label="Enter Dream Maker">
-            <span class="portal-surface" aria-hidden="true">
-              <svg class="portal-frame" viewBox="0 0 400 100" preserveAspectRatio="none" focusable="false">
-                <path class="portal-frame-outline" d="M1.5,1.5L385.5,1.5L398.5,50L385.5,98.5L1.5,98.5Z" />
-                <path class="portal-frame-light" d="M16.5,3H383.5" />
-                <path class="portal-frame-accent" d="M144,95.5H256" />
-              </svg>
-              <span class="portal-glyph"></span>
-            </span>
-            <span class="portal-copy"><strong>DREAM MAKER</strong><small>INTEND · ACT · BECOME</small></span>
-          </button>
-          <span class="portal-thread" aria-hidden="true"></span>
-        </div>
-        <div class="portal-label world" data-portal="world">
-          <button class="portal-card" type="button" data-world="world" aria-label="Enter Dream World">
-            <span class="portal-surface" aria-hidden="true">
-              <svg class="portal-frame" viewBox="0 0 400 100" preserveAspectRatio="none" focusable="false">
-                <path class="portal-frame-outline" d="M14.5,1.5L385.5,1.5L398.5,50L385.5,98.5L14.5,98.5L1.5,50Z" />
-                <path class="portal-frame-light" d="M16.5,3H383.5" />
-                <path class="portal-frame-accent" d="M144,95.5H256" />
-              </svg>
-              <span class="portal-glyph"></span>
-            </span>
-            <span class="portal-copy"><strong>DREAM WORLD</strong><small>MATTER · STRUCTURE · EMERGE</small></span>
-          </button>
-          <span class="portal-thread" aria-hidden="true"></span>
-        </div>
-      </nav>
-
-      <aside id="information" class="information" aria-hidden="true">
-        <button id="menu-close" class="information-close" type="button" aria-label="Close information panel">×</button>
-        <p class="panel-kicker">ABOUT DREAM UNITY</p>
-        <h2>Think. Make. Explore.</h2>
-        <p>
-          Look closely at your thoughts. Choose what you want to make. Try a step and see what happens.
-        </p>
-        <div class="panel-map">
-          <span><i class="machine-dot"></i>DREAM MACHINE<small>Look closely · Check a thought · Guess what comes next</small></span>
-          <span><i class="maker-dot"></i>DREAM MAKER<small>Choose a goal · Take a step · Grow</small></span>
-          <span><i class="world-dot"></i>DREAM WORLD<small>Things · How things fit · What can grow</small></span>
-        </div>
-        <p class="panel-controls">Drag to turn. Pinch or scroll to look closer. Tap a world to open it.</p>
-        <p><a class="portal-map-link" href="./portals/">Explore all eleven portals →</a></p>
-      </aside>
-
-      <section id="world-panel" class="world-panel" aria-live="polite" aria-hidden="true">
-        <p id="world-kicker">CHOOSE A PLACE</p>
-        <h2 id="world-title">DREAM MACHINE</h2>
-        <p id="world-description"></p>
-        <div id="world-steps" class="world-steps"></div>
-        <button id="return-unity" type="button">Back to Dream Unity</button>
-      </section>
-
-      <div class="status status-left" aria-label="Field calibration status">
-        <span class="status-orb"><i></i></span>
-        <p>FIELD CALIBRATION<strong id="calibration-status">OPTIMAL</strong></p>
-      </div>
-
-      <div class="status status-right" aria-label="System harmony status">
-        <span class="harmony-dial"><i></i></span>
-        <p>SYSTEM HARMONY<strong id="harmony-value">100%</strong></p>
-      </div>
-
-      <div class="instructions" aria-hidden="true">
-        <span>DRAG TO ORBIT</span><i></i><span>PINCH TO ZOOM</span><i></i><span>SELECT A WORLD</span>
-      </div>
-
-      <p class="unity-line">THREE PORTALS <span>·</span> ONE CONSCIOUSNESS</p>
-
-      <div id="webgl-fallback" class="webgl-fallback" hidden>
-        <span class="fallback-gem"></span>
-        <h1>DREAM UNITY</h1>
-        <p>The moving world could not open. You can still choose a world.</p>
-      </div>
-    </main>
-
-    <audio
-      id="dream-unity-soundtrack"
-      autoplay
-      loop
-      preload="auto"
-      playsinline
-      webkit-playsinline
-      hidden
-      aria-hidden="true"
-    >
-      <source src="./assets/audio/dream-maker-eye.mp3?v=b23033e55592" type="audio/mpeg" />
-    </audio>
-
-    <noscript>
-      <div class="noscript">Please turn on JavaScript to open the worlds.</div>
-    </noscript>
-
-    <script>
-      (function () {
-        var revealStaticExperience = function () {
-          if (window.__DREAM_UNITY__) return;
-          var bootScreen = document.getElementById("boot");
-          var progress = document.getElementById("boot-progress");
-          var status = document.getElementById("boot-status");
-          var calibration = document.getElementById("calibration-status");
-          var harmony = document.getElementById("harmony-value");
-          if (progress) progress.style.width = "100%";
-          if (status) status.textContent = "OPENING RESILIENT VISUAL MODE";
-          if (calibration) calibration.textContent = "VISUAL MODE";
-          if (harmony) harmony.textContent = "READY";
-          if (document.body.dataset) document.body.dataset.renderProfile = "static";
-          else document.body.setAttribute("data-render-profile", "static");
-          window.setTimeout(function () {
-            if (!bootScreen) return;
-            if (bootScreen.classList) bootScreen.classList.add("is-complete");
-            else bootScreen.className += " is-complete";
-          }, 180);
-        };
-        window.__DREAM_UNITY_REVEAL_STATIC__ = revealStaticExperience;
-        window.__DREAM_UNITY_WATCHDOG__ = window.setTimeout(revealStaticExperience, 6000);
-      }());
-    </script>
-    <script defer src="./audio-controller.js?v=audio-crossbrowser-b23033e55592-v3"></script>
-    <script defer src="./portal-subnav.js?v=dream-world-20260909"></script>
-    <script type="module" src="./portal-depth.js?v=portal-frames-20260905-2"></script>
-    <script defer src="./runtime/loader.js?v=readable-depth-20260907" onerror="window.__DREAM_UNITY_REVEAL_STATIC__ &amp;&amp; window.__DREAM_UNITY_REVEAL_STATIC__()"></script>
-  </body>
+  <noscript><p class="no-script"><a href="./portals/">Explore all Dream Unity portals</a></p></noscript>
+  <script defer src="./portal-subnav.js?v=breath-interface-20260919"></script>
+  <script defer src="./home-dialog.js?v=breath-interface-20260919"></script>
+</body>
 </html>

@@ -20,19 +20,15 @@ const readSegmentedRuntime = async () => {
   return { manifest, runtime: Buffer.concat(parts) };
 };
 
-test("the front page exposes the complete Dream Unity interface", async () => {
+test("the front page exposes three accessible circular portals", async () => {
   const html = await read("index.html");
-  for (const required of [
-    "DREAM UNITY",
-    "THE NEXUS OF ALL POSSIBILITIES",
-    "FIELD CALIBRATION",
-    "SYSTEM HARMONY",
-    "runtime/loader.js"
-  ]) {
-    assert.match(html, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  for (const world of ["machine", "maker", "world"]) {
+    assert.match(html, new RegExp(`<button[^>]+data-world="${world}"[^>]+aria-label="Open Dream`));
   }
-  assert.equal((html.match(/data-world=/g) || []).length, 3, "all three portals must be directly selectable");
-  assert.match(html, /class="visual-scaffold"/, "the resilient visual depth scaffold is missing");
+  assert.equal((html.match(/data-world=/g) || []).length, 3);
+  assert.match(html, /<dialog[^>]+id="world-panel"[^>]+aria-labelledby="world-title"/);
+  assert.match(html, /<h1 class="portal-title">Dream Unity<\/h1>/);
+  assert.match(html, /portal-subnav\.js\?v=breath-interface-/);
 });
 
 test("all three worlds retain their intended causal stages", async () => {
@@ -51,15 +47,9 @@ test("the deployed experience has no runtime CDN or font dependency", async () =
   assert.doesNotMatch(`${html}\n${main}\n${scene}\n${css}`, /cdn\.jsdelivr|unpkg\.com|esm\.sh|fonts\.googleapis/);
 });
 
-test("the Dream Unity title remains legible above the central crystal", async () => {
-  const css = await read("styles.css");
-  assert.match(css, /top:\s*clamp\(58px,\s*9vh,\s*84px\)/, "desktop title anchor moved away from the upper field");
-  assert.match(css, /top:\s*clamp\(56px,\s*8\.5vh,\s*72px\)/, "mobile title anchor moved away from the upper field");
-  assert.doesNotMatch(css, /top:\s*55\.2%|top:\s*54%/, "the title fell back over the crystal");
-  assert.match(css, /\.intro::before[\s\S]*?radial-gradient/, "the title lost its readability veil");
-});
 
-test("the known-good scene and deployed renderer are protected byte for byte", async () => {
+
+test("the retained 3D scene and renderer stay unchanged by the interface replacement", async () => {
   assert.equal(
     await sha256("src/scene.js"),
     "4c28ac6109bb75c3f7531d423529c1b2ff62a37dc76779f14c58c0702e7e39c9",
@@ -72,123 +62,30 @@ test("the known-good scene and deployed renderer are protected byte for byte", a
   );
 });
 
-test("home portal positions and shapes stay unchanged while their text can grow", async () => {
-  const css = (await read("styles.css")).replace(/\/\*[\s\S]*?\*\//g, "");
-  // Geometry recorded from HEAD before the authorized readability changes.
-  // Preserve both the desktop rules and their later narrow-screen overrides.
-  const expected = {
-    ".experience": [
-      { position: "relative", width: "100%", height: "100%", "min-height": "520px" },
-      { "min-height": "450px" }
-    ],
-    ".scene, .scene > canvas, .scene > div": [
-      { position: "absolute", inset: "0", width: "100%", height: "100%" }
-    ],
-    ".visual-scaffold": [{ position: "absolute", "z-index": "0", inset: "0" }],
-    ".intro": [
-      { position: "absolute", "z-index": "14", top: "clamp(58px, 9vh, 84px)", left: "50%", width: "min(290px, 46vw)", transform: "translate(-50%, -50%)" },
-      { top: "clamp(56px, 8.5vh, 72px)", width: "190px" }
-    ],
-    ".portal-label.machine": [{ top: "24.5%", left: "2.1%" }, { top: "25%", left: "8px" }],
-    ".portal-label.maker": [{ top: "24.5%", right: "2.1%" }, { top: "25%", right: "8px" }],
-    ".portal-label.world": [{ bottom: "7.5%", left: "50%", transform: "translateX(-50%)" }, { bottom: "8.5%" }],
-    ".portal-card": [
-      { position: "relative", width: "clamp(270px, 26vw, 408px)", height: "clamp(68px, 6.8vw, 98px)", padding: "0 clamp(21px, 2vw, 33px)" },
-      { width: "190px", height: "68px", "padding-inline": "19px" }
-    ],
-    ".portal-label.machine .portal-card": [
-      { "clip-path": "polygon(13px 0, 100% 0, 100% 100%, 13px 100%, 0 50%)" },
-      { "padding-right": "16px" }
-    ],
-    ".portal-label.maker .portal-card": [
-      { "clip-path": "polygon(0 0, calc(100% - 13px) 0, 100% 50%, calc(100% - 13px) 100%, 0 100%)" },
-      { "padding-left": "16px" }
-    ],
-    ".portal-label.world .portal-card": [
-      { width: "clamp(205px, 18vw, 286px)", height: "clamp(59px, 5.7vw, 82px)", "clip-path": "polygon(13px 0, calc(100% - 13px) 0, 100% 50%, calc(100% - 13px) 100%, 13px 100%, 0 50%)" },
-      { width: "190px", height: "60px" }
-    ],
-    ".portal-card, .portal-label.world .portal-card": [
-      { width: "139px", height: "49px", padding: "0 13px" }
-    ]
-  };
-  const properties = new Set([
-    "position", "inset", "top", "right", "bottom", "left", "width", "height", "min-height",
-    "padding", "padding-inline", "padding-left", "padding-right", "transform", "clip-path", "z-index"
-  ]);
-  const actual = Object.fromEntries(Object.keys(expected).map((selector) => [selector, []]));
-  for (const [, selectorText, declarationText] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-    const selector = selectorText.trim().replace(/\s+/g, " ");
-    if (!Object.hasOwn(expected, selector)) continue;
-    const declarations = {};
-    for (const declaration of declarationText.split(";")) {
-      const colon = declaration.indexOf(":");
-      if (colon < 0) continue;
-      const property = declaration.slice(0, colon).trim();
-      if (properties.has(property)) declarations[property] = declaration.slice(colon + 1).trim();
-    }
-    actual[selector].push(declarations);
-  }
-  assert.deepEqual(actual, expected, "the front page geometry changed outside the authorized text resizing");
+test("the front page reuses the original Breath Journal artwork and parchment", async () => {
+  assert.equal(await sha256("assets/dream-unity-portals-refined.webp"),
+    "2d398bb08d89aba766ce7fadb6d3547470ec1ae83feaaa16cb094c08d1dbc1af");
+  assert.equal(await sha256("assets/parchment-texture.svg"),
+    "0863a04273a9c7a1f167c0c5934b64ed8fc73b922d39dabeb771f744166aea09");
+  assert.match(await read("index.html"), /class="portal-image"[^>]+src="\.\/assets\/dream-unity-portals-refined\.webp"/);
 });
 
-test("the page cannot remain trapped behind its loading screen", async () => {
-  const [html, main, loader] = await Promise.all([
-    read("index.html"),
-    read("src/main.js"),
-    read("runtime/loader.js")
-  ]);
-  assert.match(html, /__DREAM_UNITY_WATCHDOG__/);
-  assert.match(html, /setTimeout\(revealStaticExperience, 6000\)/);
-  assert.match(html, /defer src="\.\/runtime\/loader\.js\?v=readable-depth-20260907"/);
-  assert.match(main, /clearTimeout\(window\.__DREAM_UNITY_WATCHDOG__\)/);
-  assert.doesNotMatch(html, /<script[^>]+src="\.\/runtime\/dream-unity\.min\.js"/);
-  assert.match(loader, /fetch\(manifestUrl, \{ cache: "no-store" \}\)/);
-  assert.match(loader, /chunkUrl\.searchParams\.set\("v", manifest\.revision\)/);
-  assert.match(loader, /globalThis\.crypto\.subtle\.digest\("SHA-256", runtimeBytes\)/);
-  assert.match(loader, /fetchChunks\(manifest, "reload"\)/);
-  assert.match(loader, /buffer\.byteLength !== chunk\.bytes/);
-  assert.match(loader, /totalBytes !== manifest\.totalBytes/);
+test("the circular home page does not start the previous 3D scene or its overlays", async () => {
+  const html = await read("index.html");
+  assert.doesNotMatch(html, /runtime\/loader\.js|audio-controller\.js|portal-depth\.js|<canvas|id="(?:scene|boot|sound-toggle|information)"|FIELD CALIBRATION|SYSTEM HARMONY/);
+  assert.match(html, /<img[^>]+class="portal-image"/);
+  assert.match(html, /<noscript>[\s\S]*?href="\.\/portals\/"/);
 });
 
-test("Dream Maker Eye overrides only the music event without rebuilding the visualization", async () => {
-  const [html, main, controller] = await Promise.all([
-    read("index.html"),
-    read("src/main.js"),
-    read("audio-controller.js")
-  ]);
-  const audioScript = html.indexOf("audio-controller.js?v=audio-crossbrowser-b23033e55592-v3");
-  const runtimeScript = html.indexOf("runtime/loader.js?v=readable-depth-20260907");
-  assert.ok(audioScript > -1, "the independent audio controller is not loaded");
-  assert.ok(audioScript < runtimeScript, "the audio controller should initialize independently of the 3D runtime");
-  assert.match(html, /id="sound-toggle"[^>]*aria-pressed="false"[^>]*data-audio-state="starting"[^>]*data-audio-intent="on"/,
-    "the server-rendered control must distinguish autoplay intent from actual playback");
-  assert.match(html, /<span>MUSIC<\/span>\s*<strong>AUTO<\/strong>/,
-    "the control must not claim playback before play() succeeds");
-  assert.match(html, /<audio[\s\S]*?id="dream-unity-soundtrack"[\s\S]*?autoplay[\s\S]*?loop[\s\S]*?<source[^>]+type="audio\/mpeg"/,
-    "the browser-native autoplay and loop path is missing");
-  assert.doesNotMatch(html, /<script type="module" src="\.\/audio-controller\.js/,
-    "the audio controller must remain executable in browsers without modules");
-  assert.match(main, /UnityAudio/, "the known-good runtime fallback unexpectedly changed");
-  assert.match(controller, /stopImmediatePropagation\(\)/, "the replacement must isolate the original button handler");
-  assert.match(controller, /self\.toggle\(true\);\s*\}, true\);/, "the replacement must win before the restored bubble handler");
-  assert.match(controller, /defaultOn: true/);
-  assert.match(controller, /controller\.autoplay\(\)/);
-  assert.match(controller, /addEventListener\("playing"/, "ON must be driven by real media playback");
-  assert.match(controller, /addEventListener\("pause"/, "external browser pauses must invalidate ON");
-  assert.doesNotMatch(controller, /\b(?:const|let|class|async|await|export|import)\b|=>|\?\?|\?\./,
-    "the cross-browser controller contains syntax that legacy engines cannot parse");
-  assert.match(controller, /assets\/audio\/dream-maker-eye\.mp3\?v=b23033e55592/);
-  assert.equal(
-    await sha256("assets/audio/dream-maker-eye.mp3"),
-    "b23033e55592bdb62cb9a51f529aebf63401453d15fe6b45e06a9fae298e0d14",
-    "the replacement track differs from the supplied file"
-  );
-  assert.equal(
-    (await stat(new URL("../assets/audio/dream-maker-eye.mp3", import.meta.url))).size,
-    8_281_268,
-    "the replacement track is truncated"
-  );
+test("the retained audio controller and original soundtrack stay intact", async () => {
+  const controller = await read("audio-controller.js");
+  assert.match(controller, /stopImmediatePropagation\(\)/);
+  assert.match(controller, /addEventListener\("playing"/);
+  assert.match(controller, /addEventListener\("pause"/);
+  assert.doesNotMatch(controller, /\b(?:const|let|class|async|await|export|import)\b|=>|\?\?|\?\./);
+  assert.equal(await sha256("assets/audio/dream-maker-eye.mp3"),
+    "b23033e55592bdb62cb9a51f529aebf63401453d15fe6b45e06a9fae298e0d14");
+  assert.equal((await stat(new URL("../assets/audio/dream-maker-eye.mp3", import.meta.url))).size, 8_281_268);
 });
 
 class FakeButton {
