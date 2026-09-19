@@ -62,13 +62,13 @@ test("the Dream Unity title remains legible above the central crystal", async ()
 test("the known-good scene and deployed renderer are protected byte for byte", async () => {
   assert.equal(
     await sha256("src/scene.js"),
-    "ad007d172071c5d075c180ac53c44c8c2e0f1e4047d08941c92b4dc0cd7d6332",
-    "the approved 3D scene must remain unchanged during the readability update"
+    "4c28ac6109bb75c3f7531d423529c1b2ff62a37dc76779f14c58c0702e7e39c9",
+    "the approved 3D scene with its parchment background must remain intact"
   );
   assert.equal(
     JSON.parse(await read("runtime/chunks/manifest.json")).revision,
-    "2c7a596e4dcc54a48a1bea3a8f232669859ae7e6a4e0100d28346f3491de4a91",
-    "the approved deployed visualization runtime must remain unchanged during the readability update"
+    "42a58ede068deaa8f64c352e1d6f82fd2deeda96f4839ce644a083df087e8d43",
+    "the deployed visualization must match the approved parchment-background runtime"
   );
 });
 

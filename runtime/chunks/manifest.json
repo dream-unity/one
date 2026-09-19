@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "revision": "2c7a596e4dcc54a48a1bea3a8f232669859ae7e6a4e0100d28346f3491de4a91",
-  "totalBytes": 622338,
+  "revision": "42a58ede068deaa8f64c352e1d6f82fd2deeda96f4839ce644a083df087e8d43",
+  "totalBytes": 619631,
   "chunks": [
     {
       "file": "dream-unity-00.chunk.js",
@@ -41,7 +41,7 @@
     },
     {
       "file": "dream-unity-09.chunk.js",
-      "bytes": 32514
+      "bytes": 29807
     }
   ]
 }

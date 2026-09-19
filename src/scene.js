@@ -255,7 +255,6 @@ export class DreamUnityScene {
     this.rayTexture = createRayTexture();
 
     this.#createLights();
-    this.#createScenery();
 
     this.system = new THREE.Group();
     this.system.name = "Dream Unity System";
@@ -288,53 +287,6 @@ export class DreamUnityScene {
     const violet = new THREE.PointLight(0x8761ff, 3.4, 9, 2);
     violet.position.set(0, 0.65, 2.4);
     this.scene.add(violet);
-  }
-
-  #createScenery() {
-    this.scenery = new THREE.Group();
-    this.scene.add(this.scenery);
-
-    const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(32, 24),
-      new THREE.MeshLambertMaterial({ color: 0xe9edf4, transparent: true, opacity: 0.78 })
-    );
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.set(0, -3.18, -4.2);
-    this.scenery.add(floor);
-
-    const mountainMaterial = new THREE.MeshLambertMaterial({
-      color: 0xe1e6ee,
-      transparent: true,
-      opacity: 0.78,
-      flatShading: true
-    });
-    const mountains = [
-      [-8.6, -2.3, -10, 3.0, 4.8], [-5.9, -2.65, -11, 2.1, 3.4],
-      [6.1, -2.55, -11, 2.3, 3.8], [8.9, -2.25, -10, 3.1, 5.1]
-    ];
-    mountains.forEach(([x, y, z, radius, height], index) => {
-      const mesh = new THREE.Mesh(new THREE.ConeGeometry(radius, height, 5, 1), mountainMaterial);
-      mesh.position.set(x, y, z);
-      mesh.scale.z = 0.72;
-      mesh.rotation.y = index * 0.61;
-      this.scenery.add(mesh);
-    });
-
-    const crystalMaterial = new THREE.MeshPhongMaterial({
-      color: 0xc9d5e7,
-      specular: 0xffffff,
-      shininess: 110,
-      transparent: true,
-      opacity: 0.68,
-      flatShading: true
-    });
-    const spires = [[-7.15, -1.85, -1.8, 0.43, 3.1], [7.25, -1.72, -2.0, 0.56, 3.55], [-5.8, -2.6, 0.3, 0.15, 0.9], [5.95, -2.6, 0.2, 0.18, 1.0]];
-    spires.forEach(([x, y, z, radius, height], index) => {
-      const spire = new THREE.Mesh(new THREE.ConeGeometry(radius, height, 5), crystalMaterial);
-      spire.position.set(x, y, z);
-      spire.rotation.y = index * 0.72;
-      this.scenery.add(spire);
-    });
   }
 
   #createField() {
