@@ -185,39 +185,22 @@ body {
   font-size: 2.5cqw;
 }
 
-/* The drawing's ink is lifted into real 3D rings. Keep the still image ready
-   underneath for startup, unsupported graphics and context recovery. */
+/* One original drawing in both states: rendering never changes its layout,
+   labels, colour or outer paper mask. Keep the img ready as the fallback. */
 .symbol-canvas {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  z-index: 1;
+  z-index: 0;
   opacity: 0;
   pointer-events: none;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 2%, #000 98%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 2%, #000 98%, transparent);
 }
 .is-3d { cursor: default; user-select: none; -webkit-user-select: none; }
 .is-3d .symbol-canvas { opacity: 1; }
 .is-3d .portal-image { visibility: hidden; }
-.is-3d .portal-title {
-  top: 4%;
-  padding: 5px 6px 5px calc(6px + .48em);
-  background: #ebe4d5 url("./assets/parchment-texture.svg") repeat;
-}
-@media (min-aspect-ratio: 11/10) {
-  .portal-artwork.is-3d {
-    top: calc(env(safe-area-inset-top, 0px) + var(--available-height) * .5);
-  }
-}
-.is-3d .portal { z-index: 2; overflow: visible; clip-path: none; min-width: 44px; min-height: 44px; }
-.is-3d .portal-caption,
-.is-3d .portal--maker .portal-caption {
-  top: 50%;
-  width: var(--disc-size, 100%);
-  font-size: max(10px, var(--label-size, 2.05cqw));
-  box-shadow: inset 0 0 18px rgb(106 80 39 / 12%);
-}
-.is-3d .portal:focus-visible { outline: 2px solid #705431; outline-offset: 5px; }
 .world-panel {
   width: min(720px, calc(100% - 32px));
   max-height: calc(100svh - 40px);
