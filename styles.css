@@ -5,6 +5,8 @@
   font-family: Georgia, "Times New Roman", serif;
 }
 * { box-sizing: border-box; }
+/* Protect cached versions of the old home markup during deployment updates. */
+.symbol-controls, .symbol-hint, #symbol-motion, #symbol-reset { display: none !important; }
 html, body { margin: 0; min-width: 280px; min-height: 100%; }
 /* Repeat the actual supplied paper texture across the entire viewport. */
 body {
@@ -21,6 +23,7 @@ body {
 .portal-artwork {
   position: relative;
   isolation: isolate;
+  pointer-events: none;
   /* Always show the complete original symbol, including its outermost lines. */
   width: min(100%, 100vh, 1254px);
   width: min(100%, calc(100svh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)), 1254px);
@@ -157,7 +160,7 @@ body {
 
 /* Use the original circular artwork with this site's existing portal names. */
 .portal-artwork { container-type: inline-size; }
-.portal-card { margin: 0; padding: 0; border: 0; color: inherit; font: inherit; }
+.portal-card { margin: 0; padding: 0; border: 0; color: inherit; font: inherit; pointer-events: auto; }
 .portal-caption {
   position: absolute;
   left: 50%;
@@ -193,8 +196,7 @@ body {
   opacity: 0;
   pointer-events: none;
 }
-.is-3d { cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
-.is-3d.is-dragging { cursor: grabbing; }
+.is-3d { cursor: default; user-select: none; -webkit-user-select: none; }
 .is-3d .symbol-canvas { opacity: 1; }
 .is-3d .portal-image { visibility: hidden; }
 .is-3d .portal-title {

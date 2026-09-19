@@ -1,4 +1,9 @@
 (() => {
+  // Old cached home markup can outlive its stylesheet. Remove the retired
+  // toolbar before initialising the portals, including on the static fallback.
+  document.querySelectorAll('.symbol-controls, .symbol-hint, #symbol-motion, #symbol-reset')
+    .forEach((element) => element.remove());
+
   const panel = document.getElementById("world-panel");
   const returnHome = document.getElementById("return-unity");
   const title = document.getElementById("world-title");

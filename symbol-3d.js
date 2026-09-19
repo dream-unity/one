@@ -22,10 +22,6 @@ let ready = false, contextLost = false, destroyed = false;
 let paused = motionPreference.matches, raf = 0, frameCount = 0, lastTime = 0;
 let elapsed = 0, width = 1, height = 1, settling = 0, slowFrames = 0;
 let quality = compact ? 'mobile' : 'desktop';
-let zoom = 1, targetZoom = 1;
-const rotation = { x: 0, y: 0 };
-const target = { x: 0, y: 0 };
-const pointers = new Map();
 const rings = [], portals = [], travellers = [], nerves = [];
 let life = sampleLife(0);
 const surfaceUniforms = { uLifeTime: { value: 0 }, uLifeBreath: { value: 0 } };
@@ -36,26 +32,11 @@ const worldPosition = new THREE.Vector3();
 const worldScale = new THREE.Vector3();
 const cameraQuaternion = new THREE.Quaternion();
 const inverseQuaternion = new THREE.Quaternion();
-let pinchDistance = 0, dragDistance = 0, suppressClickUntil = 0;
 
 function pause(value) {
   paused = Boolean(value);
-  status.textContent = paused ? 'Symbol animation paused. You can still drag to explore.' : 'Symbol animation playing.';
+  status.textContent = paused ? 'Symbol animation paused.' : 'Symbol animation playing.';
   settling = 1;
-  wake();
-}
-
-function reset() {
-  target.x = 0;
-  target.y = 0;
-  targetZoom = 1;
-  settling = motionPreference.matches || paused ? 1 : 75;
-  if (paused || motionPreference.matches) {
-    rotation.x = target.x;
-    rotation.y = target.y;
-    zoom = targetZoom;
-  }
-  status.textContent = 'Symbol view reset.';
   wake();
 }
 
@@ -63,7 +44,7 @@ function fallback(message) {
   ready = false;
   cancelAnimationFrame(raf);
   raf = 0;
-  host.classList.remove('is-3d', 'is-dragging');
+  host.classList.remove('is-3d');
   for (const button of buttons) button.removeAttribute('style');
   if (message) status.textContent = message;
 }
@@ -82,14 +63,15 @@ function destroy() {
 
 window.__DREAM_SYMBOL__ = {
   getState: () => ({ ready, paused, reducedMotion: motionPreference.matches, frameCount,
-    rotation: { ...rotation }, zoom, ringCount: rings.length,
+    rotation: { x: mechanism?.rotation.x ?? 0, y: mechanism?.rotation.y ?? 0 },
+    zoom: camera?.zoom ?? 1, ringCount: rings.length,
     meshCount: scene ? (() => { let count = 0; scene.traverse(object => { if (object.isMesh) count++; }); return count; })() : 0,
     quality, contextLost, life: { ...life },
     centroid: portalCenters[1] ? { ...portalCenters[1] } : null,
     portalCenters: portalCenters.map(point => ({ ...point })),
     ringPoses: rings.map(({ group }) => ({ x: group.rotation.x, y: group.rotation.y, z: group.rotation.z, scale: group.scale.x })),
   }),
-  reset, pause, destroy,
+  pause, destroy,
 };
 
 // Isolate ink from the unmodified source so the paper remains behind every layer.
@@ -265,23 +247,16 @@ function tick(time) {
   const rawDelta = lastTime ? (time - lastTime) / 1000 : 1 / 60;
   const dt = Math.min(rawDelta, .05);
   lastTime = time;
-  // Slow the whole living rhythm together; input smoothing stays responsive.
+  // Slow autonomous motion; the camera and the body's pose remain fixed.
   if (!paused) elapsed += dt / 12;
-  const follow = 1 - Math.exp(-dt * 8);
-  rotation.x = lerp(rotation.x, target.x, follow);
-  rotation.y = lerp(rotation.y, target.y, follow);
-  zoom = lerp(zoom, targetZoom, follow);
-  camera.zoom = zoom;
-  camera.updateProjectionMatrix();
   const alive = !paused;
   life = sampleLife(elapsed);
   surfaceUniforms.uLifeTime.value = elapsed;
   surfaceUniforms.uLifeBreath.value = life.breath;
-  // Keep the body grounded: no automatic scaling, rocking or depth motion.
-  // Only deliberate dragging changes the overall viewing angle.
+  // Fixed centre, scale and orientation. Only the internal rings circulate.
   mechanism.position.set(0, 0, 0);
   mechanism.scale.setScalar(life.bodyScale);
-  mechanism.rotation.set(rotation.x, rotation.y, 0);
+  mechanism.rotation.set(0, 0, 0);
   for (const ring of rings) {
     const pose = sampleBand(life, ring.index, ring.isOuter);
     ring.group.rotation.set(pose.x, pose.y, pose.z);
@@ -351,7 +326,7 @@ function tick(time) {
     renderer.setSize(width, height, false);
   }
   if (settling > 0) settling--;
-  if (alive || settling > 0 || pointers.size) raf = requestAnimationFrame(tick);
+  if (alive || settling > 0) raf = requestAnimationFrame(tick);
 }
 
 function resize() {
@@ -432,7 +407,7 @@ async function start() {
       wake();
       status.textContent = '3D symbol restored.';
     });
-    installInteractions();
+    installLifecycle();
   } catch (error) {
     fallback('Explore the still symbol. All three portals are available.');
     renderer?.dispose();
@@ -442,62 +417,8 @@ async function start() {
   }
 }
 
-function installInteractions() {
+function installLifecycle() {
   listen(motionPreference, 'change', event => { if (event.matches) pause(true); });
-  listen(host, 'pointerdown', event => {
-    if (!ready || event.target.closest('button') || (event.pointerType === 'mouse' && event.button !== 0)) return;
-    event.preventDefault();
-    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    host.setPointerCapture(event.pointerId);
-    dragDistance = 0;
-    host.classList.add('is-dragging');
-    if (pointers.size === 2) {
-      const [a, b] = [...pointers.values()];
-      pinchDistance = Math.hypot(a.x - b.x, a.y - b.y);
-    }
-    wake();
-  });
-  listen(host, 'pointermove', event => {
-    const previous = pointers.get(event.pointerId);
-    if (!previous) return;
-    const dx = event.clientX - previous.x, dy = event.clientY - previous.y;
-    dragDistance += Math.abs(dx) + Math.abs(dy);
-    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    if (pointers.size > 1) {
-      const [a, b] = [...pointers.values()];
-      const distance = Math.hypot(a.x - b.x, a.y - b.y);
-      if (pinchDistance) targetZoom = clamp(targetZoom * distance / pinchDistance, .78, 1.35);
-      pinchDistance = distance;
-    } else {
-      target.y = clamp(target.y + dx / width * 2.6, -.80, .80);
-      target.x = clamp(target.x + dy / height * 2.6, -.65, .65);
-    }
-    if (paused || motionPreference.matches) {
-      rotation.x = target.x; rotation.y = target.y; zoom = targetZoom;
-    }
-    settling = 45;
-    wake();
-  });
-  function release(event) {
-    if (!pointers.has(event.pointerId)) return;
-    pointers.delete(event.pointerId);
-    if (host.hasPointerCapture(event.pointerId)) host.releasePointerCapture(event.pointerId);
-    pinchDistance = 0;
-    if (dragDistance > 6) suppressClickUntil = performance.now() + 250;
-    if (!pointers.size) host.classList.remove('is-dragging');
-  }
-  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) listen(host, type, release);
-  listen(host, 'click', event => {
-    if (performance.now() < suppressClickUntil) { event.preventDefault(); event.stopImmediatePropagation(); }
-  }, { capture: true });
-  listen(host, 'wheel', event => {
-    if (!ready || panel.open) return;
-    event.preventDefault();
-    targetZoom = clamp(targetZoom * Math.exp(-event.deltaY * .001), .78, 1.35);
-    if (paused || motionPreference.matches) zoom = targetZoom;
-    settling = 45;
-    wake();
-  }, { passive: false });
   listen(window, 'pagehide', event => { if (!event.persisted) destroy(); });
 }
 

@@ -12,7 +12,7 @@ Dream Unity models the circulation through which possibility becomes reality and
 
 Select Dream Machine, Dream Maker or Dream World inside the three illustrated circles. Each opens its existing practices, including Heart · Mind · Body and the nested Perceive · Model · Predict choices. Native dialogs support keyboard navigation, Escape and returning to the selected circle.
 
-The original artwork becomes a grounded, living 3D ink-and-bronze symbol. Its body and three portals keep a fixed size, position and depth. Life comes from slow coordinated counter-rotation, fine ink flowing around each ring, and a soft pulse of brass light circulating in opposite pairs. There is no automatic swelling, rocking, parallax or movement toward and away from the viewer. Drag to tilt the symbol, and scroll or pinch to zoom. The page has no bottom control strip. The paper texture remains the original Breath Journal background.
+The original artwork becomes a grounded, living 3D ink-and-bronze symbol. Its body and three portals keep a fixed size, position and depth. Life comes from slow coordinated counter-rotation, fine ink flowing around each ring, and a soft pulse of brass light circulating in opposite pairs. The symbol runs entirely on autopilot: dragging, manual rotation and scene zoom are disabled. There is no swelling, rocking, parallax, movement toward and away from the viewer, or control strip. The paper texture remains the original Breath Journal background.
 
 The `symbol-3d.js` module uses the locally vendored Three.js renderer and the shared rhythm in `symbol-life.js`. It extracts transparent ink from the unmodified artwork at runtime, maps it onto deforming ring meshes, and projects the accessible portal buttons onto their hubs. Orthographic projection and deformation that preserves opposite points prevent drifting or unequal perspective enlargement. Motion starts paused for reduced-motion preferences, rendering stops behind a world dialog or hidden tab, and mobile devices use lighter geometry and resolution. Unsupported WebGL or a lost graphics context exposes the functional original illustration.
 
@@ -84,7 +84,6 @@ The root is deployment-ready for GitHub Pages. The home symbol imports its rende
 ## Controls
 
 - Tap or click a circle to open a world
-- Drag the artwork to orbit; scroll or pinch to zoom
 - Choose a practice, or choose Mind to reach its three branches
 - Tab and Enter navigate the controls
 - Escape or Back to home closes the world panel
