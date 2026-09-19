@@ -276,7 +276,8 @@ function tick(time) {
   const rawDelta = lastTime ? (time - lastTime) / 1000 : 1 / 60;
   const dt = Math.min(rawDelta, .05);
   lastTime = time;
-  if (!paused) elapsed += dt;
+  // Slow the whole living rhythm together; input smoothing stays responsive.
+  if (!paused) elapsed += dt / 3;
   const follow = 1 - Math.exp(-dt * 8);
   rotation.x = lerp(rotation.x, target.x, follow);
   rotation.y = lerp(rotation.y, target.y, follow);
