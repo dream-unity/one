@@ -1,5 +1,5 @@
-// A shared rhythm drives the entire organism. Opposite surface points remain
-// opposite, so breathing and circulation cannot translate the body.
+// A shared rhythm drives circulation inside a fixed body. Its radius, depth
+// and scale stay constant; only the ink and ring details flow around it.
 export function sampleLife(time) {
   const phase = time * Math.PI * 2 / 6.4;
   const breath = Math.sin(phase);
@@ -8,9 +8,8 @@ export function sampleLife(time) {
     + .36 * Math.pow((1 + Math.cos(heart - .88)) / 2, 20);
   return {
     elapsed: time, phase, breath, pulse,
-    bodyScale: 1 + breath * .027 + pulse * .004,
+    bodyScale: 1,
     circulation: time * .27 + Math.sin(phase) * .065,
-    opening: .5 + breath * .5,
   };
 }
 
@@ -18,25 +17,23 @@ export function sampleBand(life, index, outer) {
   const pair = Math.floor(index / 2);
   const direction = index % 2 === 0 ? 1 : -1;
   const wave = Math.sin(life.phase - pair * .38);
-  const precession = life.elapsed * .38;
-  const openness = .18 + life.opening * .19;
   return {
-    x: direction * Math.cos(precession) * openness * (outer ? 1 : .55),
-    y: direction * Math.sin(precession) * openness * (outer ? 1 : .55),
+    x: direction * (outer ? .10 : .05),
+    y: 0,
     z: direction * (life.circulation * (outer ? .60 : 1.35) + wave * .035),
-    scale: 1 + wave * (outer ? .022 : .034) + life.pulse * (outer ? .003 : .009),
+    scale: 1,
   };
 }
 
 export function deformSurface(x, y, z, time, breath) {
   const angle = Math.atan2(y, x);
   const radius = Math.hypot(x, y);
-  const radial = 1 + (.009 + .005 * breath) * Math.sin(angle * 2 + time * .72)
+  const ripple = (.006 + .002 * breath) * Math.sin(angle * 2 + time * .72)
     + .003 * Math.sin(angle * 4 - time * .36);
   return {
-    x: x * radial,
-    y: y * radial,
-    z: z + .025 * radius * Math.sin(angle * 3 + time * .48),
+    x: radius * Math.cos(angle + ripple),
+    y: radius * Math.sin(angle + ripple),
+    z,
   };
 }
 
@@ -44,10 +41,9 @@ export function deformSurface(x, y, z, time, breath) {
 export const LIVING_SURFACE_GLSL = `
   float livingAngle = atan(position.y, position.x);
   float livingRadius = length(position.xy);
-  float livingRadial = 1.0 + (0.009 + 0.005 * uLifeBreath)
+  float livingRipple = (0.006 + 0.002 * uLifeBreath)
     * sin(livingAngle * 2.0 + uLifeTime * 0.72)
     + 0.003 * sin(livingAngle * 4.0 - uLifeTime * 0.36);
-  transformed.xy *= livingRadial;
-  transformed.z += 0.025 * livingRadius
-    * sin(livingAngle * 3.0 + uLifeTime * 0.48);
+  transformed.xy = livingRadius * vec2(
+    cos(livingAngle + livingRipple), sin(livingAngle + livingRipple));
 `;

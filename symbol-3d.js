@@ -1,5 +1,5 @@
 import * as THREE from './vendor/three/three.module.min.js';
-import { sampleLife, sampleBand, deformSurface, LIVING_SURFACE_GLSL } from './symbol-life.js?v=living-symbol-20260919';
+import { sampleLife, sampleBand, deformSurface, LIVING_SURFACE_GLSL } from './symbol-life.js?v=grounded-symbol-20260920';
 
 // The original drawing is the surface of the mechanism, and also its fallback.
 const host = document.querySelector('.portal-artwork');
@@ -25,10 +25,9 @@ let ready = false, contextLost = false, destroyed = false;
 let paused = motionPreference.matches, raf = 0, frameCount = 0, lastTime = 0;
 let elapsed = 0, width = 1, height = 1, settling = 0, slowFrames = 0;
 let quality = compact ? 'mobile' : 'desktop';
-let zoom = 1, targetZoom = 1, hover = -1;
+let zoom = 1, targetZoom = 1;
 const rotation = { x: 0, y: 0 };
 const target = { x: 0, y: 0 };
-const pointer = { x: 0, y: 0 };
 const pointers = new Map();
 const rings = [], portals = [], travellers = [], nerves = [];
 let life = sampleLife(0);
@@ -60,7 +59,6 @@ function reset() {
   target.x = 0;
   target.y = 0;
   targetZoom = 1;
-  pointer.x = pointer.y = 0;
   settling = motionPreference.matches || paused ? 1 : 75;
   if (paused || motionPreference.matches) {
     rotation.x = target.x;
@@ -157,7 +155,7 @@ function build() {
       shader.vertexShader = 'uniform float uLifeTime;\nuniform float uLifeBreath;\n' + shader.vertexShader;
       shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n' + LIVING_SURFACE_GLSL);
     };
-    material.customProgramCacheKey = () => 'dream-unity-living-surface-1';
+    material.customProgramCacheKey = () => 'dream-unity-grounded-surface-2';
     return material;
   }
   const ink = living(own(new THREE.MeshStandardMaterial({ map: texture, transparent: true, alphaTest: .045,
@@ -195,7 +193,7 @@ function build() {
     return group;
   }
 
-  // Counter-rotating pairs open and close like a single breathing body.
+  // Counter-rotating pairs keep a fixed size, inclination and depth.
   const outerBands = [[415, 452], [452, 484], [484, 516], [516, 604]];
   outerBands.forEach(([inner, outer], index) => {
     const band = ring(mechanism, inner, outer, 627, 627, index, true, outer < 600);
@@ -254,7 +252,7 @@ function build() {
       pin.position.set(sign * (spec.outer - 5) * S, 0, .025);
       hub.add(pin);
     }
-    portals.push({ hub, face, radius: labelRadius, attention: 0, button: buttons[index] });
+    portals.push({ hub, face, radius: labelRadius, button: buttons[index] });
   });
 
   // Each circulating mote has an opposite partner, preserving visual balance.
@@ -289,13 +287,11 @@ function tick(time) {
   life = sampleLife(elapsed);
   surfaceUniforms.uLifeTime.value = elapsed;
   surfaceUniforms.uLifeBreath.value = life.breath;
-  // Never translate the body. Orthographic projection keeps its heart pinned
-  // at the viewport centre, even while the layers turn in depth.
+  // Keep the body grounded: no automatic scaling, rocking or depth motion.
+  // Only deliberate dragging changes the overall viewing angle.
   mechanism.position.set(0, 0, 0);
   mechanism.scale.setScalar(life.bodyScale);
-  mechanism.rotation.set(rotation.x + Math.sin(life.phase * .5) * .045 + pointer.y * .025,
-    rotation.y + Math.sin(life.phase * .5) * .065 + pointer.x * .025,
-    Math.sin(life.phase * .5) * .012);
+  mechanism.rotation.set(rotation.x, rotation.y, 0);
   for (const ring of rings) {
     const pose = sampleBand(life, ring.index, ring.isOuter);
     ring.group.rotation.set(pose.x, pose.y, pose.z);
@@ -305,11 +301,11 @@ function tick(time) {
     const angle = life.circulation * traveller.direction * 1.65 + traveller.phase;
     const point = deformSurface(Math.cos(angle) * traveller.radius, Math.sin(angle) * traveller.radius, .025, elapsed, life.breath);
     traveller.mesh.position.set(point.x, point.y, point.z);
-    traveller.mesh.scale.setScalar(.80 + life.pulse * .34);
+    traveller.mesh.scale.setScalar(.90);
   }
   goldMaterial.emissiveIntensity = .10 + life.pulse * .13;
   for (const nerve of nerves) {
-    if (nerve.bridge) { nerve.bridge.scale.y = 1 + life.breath * .025; continue; }
+    if (nerve.bridge) continue;
     const phase = (elapsed / 3.2 + nerve.phase) % 1;
     const distance = phase * 3.55;
     nerve.pair.forEach((particle, index) => {
@@ -321,7 +317,7 @@ function tick(time) {
   const dust = circulationField.geometry.attributes.position;
   for (let i = 0; i < dust.count / 2; i++) {
     const angle = i * 2.399963 + life.circulation * .55;
-    const radius = (2.95 + (i % 5) * .28) * (1 + life.breath * .025);
+    const radius = 2.95 + (i % 5) * .28;
     const point = deformSurface(Math.cos(angle) * radius, Math.sin(angle) * radius, 0, elapsed, life.breath);
     dust.setXYZ(i * 2, point.x, point.y, point.z);
     dust.setXYZ(i * 2 + 1, -point.x, -point.y, -point.z);
@@ -330,10 +326,8 @@ function tick(time) {
   camera.getWorldQuaternion(cameraQuaternion);
   portals.forEach((portal, index) => {
     const side = index - 1;
-    portal.attention = lerp(portal.attention, hover === index ? 1 : 0, follow);
-    portal.hub.position.set(side * (2.17 + life.breath * .075),
-      side * Math.sin(life.phase) * .018, side * Math.sin(life.phase) * .065);
-    portal.hub.scale.setScalar(1 + life.breath * .012 + life.pulse * .010 + portal.attention * .035);
+    portal.hub.position.set(side * 2.17, 0, 0);
+    portal.hub.scale.setScalar(1);
     portal.hub.updateWorldMatrix(true, false);
     portal.hub.getWorldQuaternion(inverseQuaternion).invert();
     portal.face.quaternion.copy(inverseQuaternion).multiply(cameraQuaternion);
@@ -418,8 +412,8 @@ async function start() {
     const rimLight = new THREE.DirectionalLight(0xffffff, 2.2);
     rimLight.position.set(4, -1, 5);
     scene.add(rimLight);
-    const shadow = new THREE.Mesh(own(new THREE.PlaneGeometry(30, 30)), own(new THREE.ShadowMaterial({ opacity: .065, color: 0x5b432a })));
-    shadow.position.z = -2.4;
+    const shadow = new THREE.Mesh(own(new THREE.PlaneGeometry(30, 30)), own(new THREE.ShadowMaterial({ opacity: .065, color: 0x5b432a, depthWrite: false })));
+    shadow.position.z = -.85;
     shadow.receiveShadow = true;
     scene.add(shadow);
     build();
@@ -465,10 +459,6 @@ function installInteractions() {
   listen(motionButton, 'click', () => pause(!paused));
   listen(resetButton, 'click', reset);
   listen(motionPreference, 'change', event => { if (event.matches) pause(true); });
-  buttons.forEach((button, index) => {
-    for (const event of ['pointerenter', 'focus']) listen(button, event, () => { hover = index; settling = 30; wake(); });
-    for (const event of ['pointerleave', 'blur']) listen(button, event, () => { if (hover === index) hover = -1; settling = 30; wake(); });
-  });
   listen(host, 'pointerdown', event => {
     if (!ready || event.target.closest('button') || (event.pointerType === 'mouse' && event.button !== 0)) return;
     event.preventDefault();
@@ -484,14 +474,7 @@ function installInteractions() {
   });
   listen(host, 'pointermove', event => {
     const previous = pointers.get(event.pointerId);
-    if (!previous) {
-      if (!paused && event.pointerType === 'mouse') {
-        const bounds = host.getBoundingClientRect();
-        pointer.x = clamp((event.clientX - bounds.left) / bounds.width - .5, -.5, .5);
-        pointer.y = clamp((event.clientY - bounds.top) / bounds.height - .5, -.5, .5);
-      }
-      return;
-    }
+    if (!previous) return;
     const dx = event.clientX - previous.x, dy = event.clientY - previous.y;
     dragDistance += Math.abs(dx) + Math.abs(dy);
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });

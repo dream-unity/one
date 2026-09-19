@@ -7,34 +7,32 @@ const near = (actual, expected, tolerance = 1e-10) => {
     `Expected ${actual} to be within ${tolerance} of ${expected}`);
 };
 
-test('the living body breathes within a stable envelope throughout long sessions', () => {
-  let smallestBody = Infinity;
-  let largestBody = -Infinity;
+test('the grounded body and rings never swell or change inclination during long sessions', () => {
   const times = Array.from({ length: 2401 }, (_, index) => index / 20);
   times.push(3600, 86_400, 604_800, 31_536_000);
   for (const time of times) {
     const life = sampleLife(time);
     for (const value of Object.values(life)) assert.ok(Number.isFinite(value));
-    assert.ok(life.bodyScale >= .96 && life.bodyScale <= 1.04);
-    assert.ok(life.opening >= 0 && life.opening <= 1);
+    assert.equal(life.bodyScale, 1);
     assert.ok(life.breath >= -1 && life.breath <= 1);
     assert.ok(life.pulse >= 0 && life.pulse <= 1.4);
-    smallestBody = Math.min(smallestBody, life.bodyScale);
-    largestBody = Math.max(largestBody, life.bodyScale);
     for (const outer of [false, true]) {
       for (let index = 0; index < 4; index++) {
         const pose = sampleBand(life, index, outer);
         for (const value of Object.values(pose)) assert.ok(Number.isFinite(value));
         assert.ok(Math.abs(pose.x) <= .4 && Math.abs(pose.y) <= .4);
-        assert.ok(pose.scale >= .94 && pose.scale <= 1.06);
+        assert.equal(pose.scale, 1);
+        const initial = sampleBand(sampleLife(0), index, outer);
+        assert.equal(pose.x, initial.x);
+        assert.equal(pose.y, initial.y);
       }
     }
   }
-  assert.ok(smallestBody < .98, 'the organism visibly exhales');
-  assert.ok(largestBody > 1.02, 'the organism visibly inhales');
+  assert.notEqual(sampleBand(sampleLife(0), 0, true).z,
+    sampleBand(sampleLife(3), 0, true).z, 'rings keep circulating inside the fixed body');
 });
 
-test('paired layers counter-rotate while breathing at exactly the same scale', () => {
+test('paired layers counter-rotate at exactly the same fixed scale', () => {
   for (let frame = 0; frame <= 1920; frame++) {
     const life = sampleLife(frame / 60);
     for (const outer of [false, true]) {
@@ -48,7 +46,7 @@ test('paired layers counter-rotate while breathing at exactly the same scale', (
   }
 });
 
-test('surface deformation preserves opposite points and the centre in three dimensions', () => {
+test('surface flow preserves opposite points, exact radius and exact depth', () => {
   for (const time of [0, .13, 1.6, 3.2, 6.4, 17.3, 3600, 86_400]) {
     const { breath } = sampleLife(time);
     near(deformSurface(0, 0, 0, time, breath).x, 0);
@@ -64,14 +62,14 @@ test('surface deformation preserves opposite points and the centre in three dime
         const b = deformSurface(-x, -y, -z, time, breath);
         for (const axis of ['x', 'y', 'z']) near(a[axis] + b[axis], 0);
         const deformedRadius = Math.hypot(a.x, a.y);
-        assert.ok(deformedRadius >= radius * .98 && deformedRadius <= radius * 1.02);
-        assert.ok(Math.abs(a.z - z) <= radius * .026);
+        near(deformedRadius, radius);
+        assert.equal(a.z, z);
       }
     }
   }
 });
 
-test('breathing, circulation and surface waves remain smooth across cycle boundaries', () => {
+test('circulation and surface flow remain smooth across cycle boundaries', () => {
   const dt = 1 / 60;
   for (let frame = 0; frame < 2400; frame++) {
     const time = frame * dt;
