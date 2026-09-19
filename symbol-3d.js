@@ -15,15 +15,14 @@ const relief = { value: 0 };
 const rings = [];
 const S = 10 / 1254;
 const segments = 192;
-let renderer, scene, camera, mechanism, wallMaterial, resizeObserver, panelObserver;
+let renderer, scene, camera, mechanism, wallMaterial, shadowMaterial, resizeObserver, panelObserver;
 let ready = false, contextLost = false, destroyed = false;
 let paused = motionPreference.matches, raf = 0, frameCount = 0, lastTime = 0;
 let elapsed = 0, width = 1, height = 1, life = sampleLife(0);
 
-// Actual annular surfaces and side walls carry the original, full-colour ink.
-// Compensate the small, FIXED inclination in the geometry, keeping each ring's
-// projected circle the original size. Rotating details never swell or drift.
-function ringSurface(inner, outer, cx, cy, tilt) {
+// Real bevelled surfaces: their inclination is visible, never cancelled by
+// screen-space compensation. The body's position and scale remain fixed.
+function ringSurface(inner, outer, cx, cy) {
   const geometry = own(new THREE.RingGeometry(inner * S, outer * S, segments, 8));
   const position = geometry.attributes.position;
   const uv = geometry.attributes.uv;
@@ -31,21 +30,21 @@ function ringSurface(inner, outer, cx, cy, tilt) {
     const x = position.getX(i), y = position.getY(i);
     const radius = Math.hypot(x, y) / S;
     const across = THREE.MathUtils.clamp((radius - inner) / (outer - inner), 0, 1);
-    const z = -.018 * Math.pow(Math.abs(across * 2 - 1), 6);
+    const z = -.035 * Math.pow(Math.abs(across * 2 - 1), 6);
     uv.setXY(i, (cx + x / S) / 1254, 1 - (cy - y / S) / 1254);
-    position.setXYZ(i, x, (y + z * Math.sin(tilt)) / Math.cos(tilt), z);
+    position.setXYZ(i, x, y, z);
   }
   geometry.computeVertexNormals();
   return geometry;
 }
 
-function ringWall(radius, tilt) {
+function ringWall(radius) {
   const positions = [], indices = [];
   for (let i = 0; i <= segments; i++) {
     const angle = i / segments * Math.PI * 2;
     const x = Math.cos(angle) * radius * S;
-    const y = (Math.sin(angle) * radius * S - .018 * Math.sin(tilt)) / Math.cos(tilt);
-    positions.push(x, y, -.018, x, y, -.078);
+    const y = Math.sin(angle) * radius * S;
+    positions.push(x, y, -.035, x, y, -.18);
     if (i < segments) {
       const a = i * 2;
       indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
@@ -70,14 +69,44 @@ function build() {
   const material = own(new THREE.MeshBasicMaterial({ map: texture, toneMapped: false,
     depthTest: false, depthWrite: false, side: THREE.DoubleSide }));
   const backing = new THREE.Mesh(own(new THREE.PlaneGeometry(10, 10)), material);
+  // Remove the flat copies underneath the moving rings. When a real ring
+  // inclines, it reveals paper, not a second drawing glued to the background.
+  material.onBeforeCompile = shader => {
+    shader.fragmentShader = `
+      float ringArea(float radius, float inner, float outer) {
+        return step(inner, radius) * (1.0 - step(outer, radius));
+      }
+    ` + shader.fragmentShader;
+    shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
+      #include <map_fragment>
+      vec2 pixel = vec2(vMapUv.x, 1.0 - vMapUv.y) * 1254.0;
+      float area = ringArea(distance(pixel, vec2(627.0)), 414.5, 516.5);
+      area = max(area, ringArea(distance(pixel, vec2(354.0, 627.0)), 69.5, 128.5));
+      area = max(area, ringArea(distance(pixel, vec2(626.0, 604.0)), 138.5, 186.5));
+      area = max(area, ringArea(distance(pixel, vec2(899.0, 627.0)), 69.5, 128.5));
+      // A mirrored blank corner of the same source supplies matching paper.
+      vec2 paperPixel = vec2(18.0) + abs(fract(pixel / 268.0) * 2.0 - 1.0) * 116.0;
+      vec4 paper = texture2D(map, vec2(paperPixel.x / 1254.0, 1.0 - paperPixel.y / 1254.0));
+      diffuseColor = mix(diffuseColor, paper, area);
+    `);
+  };
+  material.customProgramCacheKey = () => 'paper-without-flat-rings-1';
+  backing.position.z = -1.65;
   backing.renderOrder = 0;
   mechanism.add(backing);
 
+  shadowMaterial = own(new THREE.ShadowMaterial({ color: 0x373229, opacity: 0, depthWrite: false }));
+  const shadow = new THREE.Mesh(own(new THREE.PlaneGeometry(10, 10)), shadowMaterial);
+  shadow.position.z = -1.6;
+  shadow.receiveShadow = true;
+  shadow.renderOrder = 1;
+  mechanism.add(shadow);
+
   function ringMaterial(cx, cy) {
     const faceMaterial = own(material.clone());
-    // Share the transparent queue so walls render beneath faces and the fixed
-    // spine renders last. The ring faces themselves remain fully opaque.
-    faceMaterial.transparent = true;
+    faceMaterial.depthTest = true;
+    faceMaterial.depthWrite = true;
+    faceMaterial.transparent = false;
     faceMaterial.onBeforeCompile = shader => {
       shader.uniforms.uRelief = relief;
       shader.uniforms.uRingCenter = { value: new THREE.Vector2(cx, cy) };
@@ -99,38 +128,39 @@ function build() {
         vec2 cleanPixel = uRingCenter + vec2(sampleX, sampleY);
         vec2 cleanUv = vec2(cleanPixel.x / 1254.0, 1.0 - cleanPixel.y / 1254.0);
         diffuseColor = mix(diffuseColor, texture2D(map, cleanUv), repair);
-        float ink = 1.0 - smoothstep(0.18, 0.78, dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)));
         float light = dot(normalize(vReliefNormal), normalize(vec3(-0.5, 0.7, 1.0)));
-        diffuseColor.rgb *= 1.0 + uRelief * ink * (light - 0.76) * 0.28;
+        diffuseColor.rgb *= mix(1.0, 0.55 + max(light, 0.0) * 0.6, uRelief);
       `);
     };
-    faceMaterial.customProgramCacheKey = () => 'original-ink-ring-relief-2';
+    faceMaterial.customProgramCacheKey = () => 'dimensional-original-ink-3';
     return faceMaterial;
   }
-  wallMaterial = own(new THREE.MeshBasicMaterial({ color: 0x433d32, transparent: true,
-    opacity: 0, depthTest: false, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
+  wallMaterial = own(new THREE.MeshStandardMaterial({ color: 0x635e52,
+    roughness: .82, metalness: .06, side: THREE.DoubleSide, toneMapped: false }));
 
   function addRing(inner, outer, cx, cy, index, isOuter) {
-    const tilt = (index % 2 ? -1 : 1) * (isOuter ? .06 : .075);
     const spin = new THREE.Group();
     spin.position.set((cx - 627) * S, (627 - cy) * S, 0);
     const inclined = new THREE.Group();
-    inclined.rotation.x = tilt;
     spin.add(inclined);
     mechanism.add(spin);
     for (const radius of [inner, outer]) {
-      const wall = new THREE.Mesh(ringWall(radius, tilt), wallMaterial);
-      wall.renderOrder = 1;
+      const wall = new THREE.Mesh(ringWall(radius), wallMaterial);
+      wall.castShadow = true;
+      wall.renderOrder = 2;
       inclined.add(wall);
     }
-    const face = new THREE.Mesh(ringSurface(inner, outer, cx, cy, tilt), ringMaterial(cx, cy));
+    const face = new THREE.Mesh(ringSurface(inner, outer, cx, cy), ringMaterial(cx, cy));
+    face.castShadow = true;
     face.renderOrder = 2;
     inclined.add(face);
     rings.push({ spin, inclined, index, isOuter, inner, outer,
       initialAngle: sampleBand(sampleLife(0), index, isOuter).z });
   }
 
-  [[415, 452], [452, 484], [484, 516], [516, 604]].forEach(([inner, outer], i) =>
+  // Keep the sparse outer construction guides on the paper: giving that
+  // mostly-empty annulus solid walls would turn it into a broad white rim.
+  [[415, 452], [452, 484], [484, 516]].forEach(([inner, outer], i) =>
     addRing(inner, outer, 627, 627, i, true));
   // The maker's drawing is deliberately eccentric: keep its original centre
   // and leave the offset label disc stationary, instead of rebuilding the hub.
@@ -151,7 +181,16 @@ function build() {
     shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
       #include <map_fragment>
       vec2 pixel = vec2(vMapUv.x, 1.0 - vMapUv.y) * 1254.0;
-      float spine = 1.0 - smoothstep(16.0, 19.0, abs(pixel.y - 627.0));
+      float across = abs(pixel.y - 627.0);
+      float spine = 1.0 - smoothstep(1.5, 2.8, across);
+      float bridges = max(step(420.0, pixel.x) * (1.0 - step(523.0, pixel.x)),
+        step(730.0, pixel.x) * (1.0 - step(833.0, pixel.x)));
+      bridges = max(bridges, step(155.0, pixel.x) * (1.0 - step(288.0, pixel.x)));
+      bridges = max(bridges, step(969.0, pixel.x) * (1.0 - step(1100.0, pixel.x)));
+      spine = max(spine, bridges * (1.0 - smoothstep(4.0, 7.0, across)));
+      float pins = min(min(distance(pixel, vec2(282.0, 627.0)), distance(pixel, vec2(426.0, 627.0))),
+        min(distance(pixel, vec2(828.0, 627.0)), distance(pixel, vec2(972.0, 627.0))));
+      spine = max(spine, 1.0 - smoothstep(7.0, 9.0, pins));
       float labels = max(1.0 - smoothstep(68.0, 70.0, distance(pixel, vec2(354.0, 627.0))),
         1.0 - smoothstep(68.0, 70.0, distance(pixel, vec2(899.0, 627.0))));
       labels = max(labels, 1.0 - smoothstep(129.0, 132.0, distance(pixel, vec2(626.0, 604.0))));
@@ -160,7 +199,7 @@ function build() {
   };
   spineMaterial.customProgramCacheKey = () => 'original-anchored-spine-1';
   const spine = new THREE.Mesh(own(new THREE.PlaneGeometry(10, 10)), spineMaterial);
-  spine.renderOrder = 3;
+  spine.renderOrder = 10;
   mechanism.add(spine);
 }
 
@@ -183,16 +222,24 @@ function tick(time) {
   if (!canRender()) return;
   // Continuous counter-rotation, on the same slow clock as the earlier 3D
   // simulation. Each real ring turns; the body and camera never move.
-  const dt = lastTime ? Math.min((time - lastTime) / 1000, .05) : 0;
+  // Preserve the chosen real-time pace on slower devices too. Wake resets
+  // lastTime after suspension, so background time never causes a catch-up.
+  const dt = lastTime ? Math.min((time - lastTime) / 1000, .25) : 0;
   lastTime = time;
   if (!paused) elapsed += dt / 12;
   life = sampleLife(elapsed);
+  relief.value = 1 - Math.exp(-elapsed * 3);
   for (const ring of rings) {
     const pose = sampleBand(life, ring.index, ring.isOuter);
     ring.spin.rotation.z = (pose.z - ring.initialAngle) * (ring.isOuter ? .55 : .4);
+    const direction = ring.index % 2 ? -1 : 1;
+    const phase = life.phase * .32 + Math.floor(ring.index / 2) * .45;
+    ring.inclined.rotation.x = direction * relief.value
+      * ((ring.isOuter ? .24 : .20) + Math.sin(phase) * .045);
+    ring.inclined.rotation.y = direction * relief.value
+      * ((ring.isOuter ? .12 : .09) * Math.cos(phase * .8));
   }
-  relief.value = 1 - Math.exp(-elapsed * 3);
-  wallMaterial.opacity = relief.value * .2;
+  shadowMaterial.opacity = relief.value * .13;
   renderer.render(scene, camera);
   frameCount++;
   host.classList.add('is-3d');
@@ -246,11 +293,11 @@ window.__DREAM_SYMBOL__ = {
       ready, paused, reducedMotion: motionPreference.matches, frameCount, contextLost,
       rotation: { x: mechanism?.rotation.x ?? 0, y: mechanism?.rotation.y ?? 0 },
       position: mechanism?.position.toArray(), scale: mechanism?.scale.toArray(),
-      zoom: camera?.zoom ?? 1, meshCount: rings.length * 3 + (mechanism ? 2 : 0),
+      zoom: camera?.zoom ?? 1, meshCount: rings.length * 3 + (mechanism ? 3 : 0),
       ringCount: rings.length, wallMeshCount: rings.length * 2,
       simulation: 'rotating-3d-rings',
       life: { ...life }, centroid: portalCenters[1], portalCenters,
-      ringPoses: rings.map(ring => ({ x: ring.inclined.rotation.x, y: 0,
+      ringPoses: rings.map(ring => ({ x: ring.inclined.rotation.x, y: ring.inclined.rotation.y,
         z: ring.spin.rotation.z, scale: ring.spin.scale.x,
         depth: 2 * ring.outer * S * Math.tan(ring.inclined.rotation.x),
         center: ring.spin.position.toArray() })),
@@ -268,12 +315,24 @@ async function start() {
     renderer.setClearColor(0x000000, 0);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.NoToneMapping;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.domElement.className = 'symbol-canvas';
     renderer.domElement.setAttribute('aria-hidden', 'true');
     host.prepend(renderer.domElement);
     scene = new THREE.Scene();
     camera = new THREE.OrthographicCamera(-5, 5, 5, -5, .1, 30);
     camera.position.set(0, 0, 10);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8271, 2));
+    const light = new THREE.DirectionalLight(0xffffff, 2.8);
+    light.position.set(-1.5, 2.5, 30);
+    light.castShadow = true;
+    light.shadow.mapSize.set(1024, 1024);
+    Object.assign(light.shadow.camera, { left: -5.5, right: 5.5, top: 5.5, bottom: -5.5, near: 20, far: 40 });
+    light.shadow.bias = -.0003;
+    light.shadow.normalBias = .01;
+    light.shadow.radius = 2;
+    scene.add(light);
     build();
     ready = true;
     resize();
