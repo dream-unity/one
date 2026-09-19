@@ -12,7 +12,9 @@ Dream Unity models the circulation through which possibility becomes reality and
 
 Select Dream Machine, Dream Maker or Dream World inside the three illustrated circles. Each opens its existing practices, including Heart · Mind · Body and the nested Perceive · Model · Predict choices. Native dialogs support keyboard navigation, Escape and returning to the selected circle.
 
-The original artwork and paper texture are served locally. The front page loads no 3D renderer, animated background, calibration overlays or music controls.
+The original artwork becomes a real 3D ink-and-bronze mechanism: concentric rings precess and counter-rotate, floating portal hubs respond to hover, and small brass travellers orbit the bands. Drag to tilt the whole symbol, scroll or pinch to zoom, and use Pause or Reset view. The paper texture remains the original Breath Journal background.
+
+The self-contained `symbol-3d.js` module uses the locally vendored Three.js renderer. It extracts transparent ink from the unmodified artwork at runtime, maps it onto independent ring meshes, and projects the accessible portal buttons onto their moving hubs. Motion starts paused for reduced-motion preferences, rendering stops behind a world dialog or hidden tab, and mobile devices use lighter geometry and resolution. Unsupported WebGL or a lost graphics context exposes the functional original illustration.
 
 ## Complete portal map
 
@@ -77,11 +79,13 @@ Open the local address printed by Vite.
 npm run check
 ```
 
-The root is deployment-ready for GitHub Pages. The tree-shaken production runtime is delivered as integrity-checked 64 KB segments, reconstructed locally, and executed only after every byte is verified. This avoids large-response truncation without a JavaScript CDN or build server.
+The root is deployment-ready for GitHub Pages. The home symbol imports its renderer directly from `vendor/three/`; no build step or external CDN is required for changes to `symbol-3d.js`. The retained previous scene has a separate build pipeline and integrity-checked runtime segments.
 
 ## Controls
 
 - Tap or click a circle to open a world
+- Drag the artwork to orbit; scroll or pinch to zoom
+- Pause stops automatic motion; Reset view restores the original viewing angle
 - Choose a practice, or choose Mind to reach its three branches
 - Tab and Enter navigate the controls
 - Escape or Back to home closes the world panel

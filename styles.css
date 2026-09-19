@@ -182,6 +182,73 @@ body {
   font-size: 2.5cqw;
 }
 
+/* The drawing's ink is lifted into real 3D rings. Keep the still image ready
+   underneath for startup, unsupported graphics and context recovery. */
+.symbol-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  opacity: 0;
+  pointer-events: none;
+}
+.is-3d { cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+.is-3d.is-dragging { cursor: grabbing; }
+.is-3d .symbol-canvas { opacity: 1; }
+.is-3d .portal-image { visibility: hidden; }
+.is-3d .portal-title {
+  top: 4%;
+  padding: 5px 6px 5px calc(6px + .48em);
+  background: #ebe4d5 url("./assets/parchment-texture.svg") repeat;
+}
+.is-3d .portal { z-index: 2; overflow: visible; clip-path: none; min-width: 44px; min-height: 44px; }
+.is-3d .portal-caption,
+.is-3d .portal--maker .portal-caption {
+  top: 50%;
+  width: var(--disc-size, 100%);
+  font-size: max(10px, var(--label-size, 2.05cqw));
+  box-shadow: inset 0 0 18px rgb(106 80 39 / 12%);
+}
+.is-3d .portal:focus-visible { outline: 2px solid #705431; outline-offset: 5px; }
+.symbol-controls {
+  position: fixed;
+  left: 50%;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  padding: 3px 15px;
+  border-radius: 24px;
+  background: rgb(235 228 213 / 83%);
+  backdrop-filter: blur(5px);
+  color: #65533b;
+  font: 11px/1.4 Georgia, "Times New Roman", serif;
+  letter-spacing: .035em;
+}
+.symbol-controls[hidden] { display: none; }
+.symbol-hint span { padding: 0 4px; }
+.symbol-controls button {
+  min-height: 38px;
+  padding: 5px 0;
+  border: 0;
+  background: none;
+  color: #463825;
+  font: inherit;
+  cursor: pointer;
+}
+.symbol-controls button:hover { color: #110d06; text-decoration: underline; text-underline-offset: 4px; }
+.symbol-controls button:focus-visible { outline: 2px solid #705431; outline-offset: 4px; }
+@media (max-width: 600px) {
+  .symbol-controls { gap: 18px; bottom: max(30px, env(safe-area-inset-bottom)); flex-wrap: wrap; justify-content: center; }
+  .symbol-hint { font-size: 0; }
+  .symbol-hint::after { content: "Drag to explore · Pinch to zoom"; font-size: 10px; }
+}
+
 .world-panel {
   width: min(720px, calc(100% - 32px));
   max-height: calc(100svh - 40px);

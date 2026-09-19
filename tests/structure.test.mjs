@@ -72,7 +72,8 @@ test("the front page reuses the original Breath Journal artwork and parchment", 
 
 test("the circular home page does not start the previous 3D scene or its overlays", async () => {
   const html = await read("index.html");
-  assert.doesNotMatch(html, /runtime\/loader\.js|audio-controller\.js|portal-depth\.js|<canvas|id="(?:scene|boot|sound-toggle|information)"|FIELD CALIBRATION|SYSTEM HARMONY/);
+  assert.doesNotMatch(html, /runtime\/loader\.js|audio-controller\.js|portal-depth\.js|id="(?:scene|boot|sound-toggle|information)"|FIELD CALIBRATION|SYSTEM HARMONY/);
+  assert.match(html, /type="module" src="\.\/symbol-3d\.js/);
   assert.match(html, /<img[^>]+class="portal-image"/);
   assert.match(html, /<noscript>[\s\S]*?href="\.\/portals\/"/);
 });
