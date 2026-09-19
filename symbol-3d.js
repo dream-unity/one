@@ -5,9 +5,6 @@ import { sampleLife, sampleBand, deformSurface, LIVING_SURFACE_GLSL } from './sy
 const host = document.querySelector('.portal-artwork');
 const original = host.querySelector('.portal-image');
 const buttons = [...host.querySelectorAll('.portal-card')];
-const controls = document.querySelector('.symbol-controls');
-const motionButton = document.querySelector('#symbol-motion');
-const resetButton = document.querySelector('#symbol-reset');
 const status = document.querySelector('#symbol-status');
 const panel = document.querySelector('#world-panel');
 const motionPreference = matchMedia('(prefers-reduced-motion: reduce)');
@@ -41,15 +38,8 @@ const cameraQuaternion = new THREE.Quaternion();
 const inverseQuaternion = new THREE.Quaternion();
 let pinchDistance = 0, dragDistance = 0, suppressClickUntil = 0;
 
-function updateControls() {
-  motionButton.setAttribute('aria-pressed', String(!paused));
-  motionButton.setAttribute('aria-label', paused ? 'Play symbol animation' : 'Pause symbol animation');
-  motionButton.textContent = paused ? 'Play' : 'Pause';
-}
-
 function pause(value) {
   paused = Boolean(value);
-  updateControls();
   status.textContent = paused ? 'Symbol animation paused. You can still drag to explore.' : 'Symbol animation playing.';
   settling = 1;
   wake();
@@ -74,7 +64,6 @@ function fallback(message) {
   cancelAnimationFrame(raf);
   raf = 0;
   host.classList.remove('is-3d', 'is-dragging');
-  controls.hidden = true;
   for (const button of buttons) button.removeAttribute('style');
   if (message) status.textContent = message;
 }
@@ -277,7 +266,7 @@ function tick(time) {
   const dt = Math.min(rawDelta, .05);
   lastTime = time;
   // Slow the whole living rhythm together; input smoothing stays responsive.
-  if (!paused) elapsed += dt / 3;
+  if (!paused) elapsed += dt / 12;
   const follow = 1 - Math.exp(-dt * 8);
   rotation.x = lerp(rotation.x, target.x, follow);
   rotation.y = lerp(rotation.y, target.y, follow);
@@ -353,8 +342,6 @@ function tick(time) {
   frameCount++;
   if (!host.classList.contains('is-3d')) {
     host.classList.add('is-3d');
-    controls.hidden = false;
-    updateControls();
   }
   if (alive && rawDelta > .055) slowFrames++; else slowFrames = Math.max(0, slowFrames - 1);
   if (slowFrames > 90 && quality !== 'low') {
@@ -424,7 +411,6 @@ async function start() {
     cancelAnimationFrame(raf);
     raf = 0;
     tick(performance.now());
-    updateControls();
     resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(host);
     panelObserver = new MutationObserver(() => {
@@ -457,8 +443,6 @@ async function start() {
 }
 
 function installInteractions() {
-  listen(motionButton, 'click', () => pause(!paused));
-  listen(resetButton, 'click', reset);
   listen(motionPreference, 'change', event => { if (event.matches) pause(true); });
   listen(host, 'pointerdown', event => {
     if (!ready || event.target.closest('button') || (event.pointerType === 'mouse' && event.button !== 0)) return;
