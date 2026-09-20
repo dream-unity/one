@@ -220,8 +220,8 @@ function pause(value) {
 function tick(time) {
   raf = 0;
   if (!canRender()) return;
-  // Continuous counter-rotation, on the same slow clock as the earlier 3D
-  // simulation. Each real ring turns; the body and camera never move.
+  // A modest lift in circulation and tilt makes the depth readable on the
+  // same slow clock. Each real ring turns; the body and camera never move.
   // Preserve the chosen real-time pace on slower devices too. Wake resets
   // lastTime after suspension, so background time never causes a catch-up.
   const dt = lastTime ? Math.min((time - lastTime) / 1000, .25) : 0;
@@ -231,11 +231,11 @@ function tick(time) {
   relief.value = 1 - Math.exp(-elapsed * 3);
   for (const ring of rings) {
     const pose = sampleBand(life, ring.index, ring.isOuter);
-    ring.spin.rotation.z = (pose.z - ring.initialAngle) * (ring.isOuter ? .55 : .4);
+    ring.spin.rotation.z = (pose.z - ring.initialAngle) * (ring.isOuter ? .68 : .50);
     const direction = ring.index % 2 ? -1 : 1;
-    const phase = life.phase * .32 + Math.floor(ring.index / 2) * .45;
+    const phase = life.phase * .50 + Math.floor(ring.index / 2) * .45;
     ring.inclined.rotation.x = direction * relief.value
-      * ((ring.isOuter ? .24 : .20) + Math.sin(phase) * .045);
+      * ((ring.isOuter ? .24 : .20) + Math.sin(phase) * .055);
     ring.inclined.rotation.y = direction * relief.value
       * ((ring.isOuter ? .12 : .09) * Math.cos(phase * .8));
   }
