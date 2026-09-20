@@ -20,15 +20,16 @@ const readSegmentedRuntime = async () => {
   return { manifest, runtime: Buffer.concat(parts) };
 };
 
-test("the front page exposes three accessible circular portals", async () => {
+test("the front page exposes Dream World and labels the two restricted portals", async () => {
   const html = await read("index.html");
-  for (const world of ["machine", "maker", "world"]) {
-    assert.match(html, new RegExp(`<button[^>]+data-world="${world}"[^>]+aria-label="Open Dream`));
+  assert.match(html, /<button[^>]+data-world="world"[^>]+aria-label="Open Dream World"/);
+  for (const world of ["machine", "maker"]) {
+    assert.match(html, new RegExp(`<button[^>]+data-world="${world}"[^>]+aria-label="Dream [^"]+access restricted"[^>]+disabled[^>]+aria-disabled="true"`));
   }
   assert.equal((html.match(/data-world=/g) || []).length, 3);
   assert.match(html, /<dialog[^>]+id="world-panel"[^>]+aria-labelledby="world-title"/);
   assert.match(html, /<h1 class="portal-title">Dream Unity<\/h1>/);
-  assert.match(html, /portal-subnav\.js\?v=breath-interface-/);
+  assert.match(html, /portal-subnav\.js\?v=portal-access-/);
 });
 
 test("all three worlds retain their intended causal stages", async () => {
@@ -75,7 +76,7 @@ test("the circular home page does not start the previous 3D scene or its overlay
   assert.doesNotMatch(html, /runtime\/loader\.js|audio-controller\.js|portal-depth\.js|id="(?:scene|boot|sound-toggle|information)"|FIELD CALIBRATION|SYSTEM HARMONY/);
   assert.match(html, /type="module" src="\.\/symbol-3d\.js/);
   assert.match(html, /<img[^>]+class="portal-image"/);
-  assert.match(html, /<noscript>[\s\S]*?href="\.\/portals\/"/);
+  assert.doesNotMatch(html, /href="\.\/portals\//);
 });
 
 test("the retained audio controller and original soundtrack stay intact", async () => {

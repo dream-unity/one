@@ -7,7 +7,7 @@
   <meta name="description" content="Enter Dream Unity: Dream Machine, Dream Maker and Dream World." />
   <title>Dream Unity</title>
   <link rel="preload" as="image" href="./assets/dream-unity-portals-refined.webp" type="image/webp" />
-  <link rel="stylesheet" href="./styles.css?v=portal-order-title-20260920" />
+  <link rel="stylesheet" href="./styles.css?v=portal-access-20260920" />
 </head>
 <body>
   <main class="portal-page">
@@ -15,29 +15,29 @@
       <h1 class="portal-title">Dream Unity</h1>
       <img class="portal-image" src="./assets/dream-unity-portals-refined.webp" width="1254" height="1254" alt="" fetchpriority="high" draggable="false" />
 
-      <button class="portal portal-card portal--machine" type="button" data-world="machine" aria-label="Open Dream Machine" aria-controls="world-panel" aria-expanded="false">
-        <span class="portal-caption"><span>Dream<br />Machine</span></span>
+      <button class="portal portal-card portal--machine" type="button" data-world="machine" aria-label="Dream Machine — access restricted" title="Access restricted" disabled aria-disabled="true" aria-controls="world-panel" aria-expanded="false">
+        <span class="portal-caption"><span>Dream<br />Machine</span><svg class="portal-lock" viewBox="0 0 20 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M5 10V7a5 5 0 0 1 10 0v3"/><rect x="2" y="10" width="16" height="12" rx="2"/><path d="M10 14v4"/></svg></span>
       </button>
       <button class="portal portal-card portal--reality" type="button" data-world="world" aria-label="Open Dream World" aria-controls="world-panel" aria-expanded="false">
         <span class="portal-caption"><span>Dream<br />World</span></span>
       </button>
-      <button class="portal portal-card portal--maker" type="button" data-world="maker" aria-label="Open Dream Maker" aria-controls="world-panel" aria-expanded="false">
-        <span class="portal-caption"><span>Dream<br />Maker</span></span>
+      <button class="portal portal-card portal--maker" type="button" data-world="maker" aria-label="Dream Maker — access restricted" title="Access restricted" disabled aria-disabled="true" aria-controls="world-panel" aria-expanded="false">
+        <span class="portal-caption"><span>Dream<br />Maker</span><svg class="portal-lock" viewBox="0 0 20 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M5 10V7a5 5 0 0 1 10 0v3"/><rect x="2" y="10" width="16" height="12" rx="2"/><path d="M10 14v4"/></svg></span>
       </button>
     </nav>
     <p id="symbol-status" class="visually-hidden" role="status" aria-live="polite"></p>
   </main>
 
-  <dialog id="world-panel" class="world-panel" aria-labelledby="world-title" aria-describedby="world-description" aria-hidden="true">
-    <p id="world-kicker"></p>
+  <dialog id="world-panel" class="world-panel" aria-labelledby="world-title" aria-hidden="true">
+    <p id="world-kicker" hidden></p>
     <h2 id="world-title" tabindex="-1"></h2>
-    <p id="world-description"></p>
-    <div id="world-steps" class="world-steps"></div>
+    <p id="world-description" hidden></p>
+    <div id="world-steps" class="world-steps" hidden></div>
     <button id="return-unity" type="button">Back to home</button>
   </dialog>
 
-  <noscript><p class="no-script"><a href="./portals/">Explore all Dream Unity portals</a></p></noscript>
-  <script defer src="./portal-subnav.js?v=breath-interface-20260919"></script>
+  <noscript><p class="no-script">Dream Maker and Dream Machine are currently restricted.</p></noscript>
+  <script defer src="./portal-subnav.js?v=portal-access-20260920"></script>
   <script defer src="./home-dialog.js?v=autopilot-20260920"></script>
   <script type="module" src="./symbol-motion.js?v=visible-ink-20260920"></script>
   <script type="module" src="./symbol-3d.js?v=visible-ink-20260920"></script>

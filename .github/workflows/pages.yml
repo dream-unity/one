@@ -29,10 +29,13 @@ jobs:
         with:
           enablement: true
 
+      - name: Stage permitted public files
+        run: node scripts/stage-public-site.mjs
+
       - name: Upload static experience
         uses: actions/upload-pages-artifact@v4
         with:
-          path: .
+          path: .public-site
 
       - name: Deploy
         id: deployment
