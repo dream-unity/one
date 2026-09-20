@@ -5,8 +5,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const repository = fileURLToPath(new URL('../', import.meta.url));
 export const PUBLIC_DIRECTORY = resolve(repository, '.public-site');
 
-// Explicitly publish the home experience only. Keeping an activity in source
-// control must never make its old direct URL accessible on the public site.
+// Explicitly publish the home experience and its God's Eye entry only. Keeping
+// an activity in source control must never expose its retired direct URL.
 export const PUBLIC_FILES = Object.freeze([
   '.nojekyll',
   'CNAME',
@@ -18,6 +18,9 @@ export const PUBLIC_FILES = Object.freeze([
   'symbol-motion.js',
   'symbol-3d.js',
   'symbol-surface.js',
+  'dream-world/index.html',
+  'dream-world/entry.js',
+  'dream-world/entry.css',
   'assets/dream-unity-portals-refined.webp',
   'assets/parchment-texture.svg',
   'vendor/three/three.module.min.js',

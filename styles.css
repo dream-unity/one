@@ -153,7 +153,7 @@ body {
 
 /* Use the original circular artwork with this site's existing portal names. */
 .portal-artwork { container-type: inline-size; }
-.portal-card { margin: 0; padding: 0; border: 0; color: inherit; font: inherit; pointer-events: auto; }
+.portal-card { margin: 0; padding: 0; border: 0; color: inherit; font: inherit; text-decoration: none; pointer-events: auto; }
 .portal-caption {
   position: absolute;
   left: 50%;

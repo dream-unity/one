@@ -11,11 +11,12 @@ const permitted = [
   '.nojekyll', 'CNAME', '404.html', 'index.html', 'styles.css',
   'portal-subnav.js', 'home-dialog.js', 'symbol-motion.js', 'symbol-3d.js',
   'symbol-surface.js', 'assets/dream-unity-portals-refined.webp',
+  'dream-world/index.html', 'dream-world/entry.js', 'dream-world/entry.css',
   'assets/parchment-texture.svg', 'vendor/three/three.module.min.js',
   'vendor/three/three.core.min.js', 'vendor/three/LICENSE',
 ].sort();
 
-test('publication contains only the home dependency closure and removes stale applications', async () => {
+test('publication contains only the home and God’s Eye entry dependencies and removes stale applications', async () => {
   assert.deepEqual([...PUBLIC_FILES].sort(), permitted);
   const stale = join(PUBLIC_DIRECTORY, 'portals/dream-world/index.html');
   await mkdir(dirname(stale), { recursive: true });
@@ -51,7 +52,7 @@ test('publication contains only the home dependency closure and removes stale ap
   }
 });
 
-test('legacy branch publishing excludes every non-home source file', async () => {
+test('legacy branch publishing excludes every source file outside the home and God’s Eye entry', async () => {
   await assert.rejects(readFile(join(repository, '.nojekyll')), { code: 'ENOENT' },
     'root .nojekyll would bypass branch publication exclusions');
   const config = JSON.parse(await readFile(join(repository, '_config.yml'), 'utf8'));

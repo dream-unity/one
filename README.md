@@ -2,7 +2,7 @@
 
 The circular parchment front page for Dream Unity, using the original artwork and layout from the Breath Journal repository.
 
-**Public availability:** Dream World is empty, and Dream Machine and Dream Maker are restricted. Only the animated home page and its required assets are published. The activity descriptions below document retained repository source, which is excluded from the public site; previous activity URLs no longer serve those applications.
+**Public availability:** [Dream Unity](https://dreamunity.one/) opens the complete God’s Eye View application through **Dream World**. Dream Machine and Dream Maker remain restricted. The published site contains the animated home page, its required assets and the small `/dream-world/` entry route. The older activity descriptions below document retained repository source, which is excluded from publication.
 
 Dream Unity models the circulation through which possibility becomes reality and returns transformed:
 
@@ -12,17 +12,19 @@ Dream Unity models the circulation through which possibility becomes reality and
 
 ## Experience
 
-Select Dream Machine, Dream Maker or Dream World inside the three illustrated circles. Each opens its existing practices, including Heart · Mind · Body and the nested Perceive · Model · Predict choices. Native dialogs support keyboard navigation, Escape and returning to the selected circle.
+Select **Dream World** inside the illustrated circle to open the full God’s Eye View application in the same tab. Its globe, layers, tracking, camera and radio directories, visual modes and provider APIs remain together at [the November-1st deployment](https://november-1st-sable.vercel.app/). Browser Back or the application’s “↖ Dream Unity” link returns home. Machine and Maker are visibly disabled.
+
+The entry route preserves shared query and camera/hash state while fixing the destination to the complete application. It uses normal browser navigation, with a visible fallback link. No application subset, cross-origin iframe or secret credential is shipped by `one`. See [the integration notes](docs/DREAM_WORLD_INTEGRATION.md) for ownership, deployment and verification details. External data availability and optional provider credentials continue to determine which live services are available.
 
 The original artwork forms a living 3D surface with clearly moving ink details. Bands of the original drawing turn clockwise at four degrees per second, while every ring keeps its original centre and radius. The outer construction guides, connecting spine, labels and portal positions stay fixed. Shallow relief and soft cast shadows preserve the ink-and-parchment style. There is no zoom, movement of the whole body, dragging, or control strip.
 
 `symbol-motion.js` starts independently of Three.js and animates the original ink in SVG even if WebGL is unavailable or its module fails to load. The 3D renderer uses the same browser animation clock and rotating source coordinates, so context loss does not stop the visible movement. Source and destination masks keep the horizontal spine and label openings in place; rigid angular sampling avoids accumulated texture distortion. Reduced-motion preferences use half-speed ink and lower relief instead of silently freezing the page. Motion suspends behind a world dialog or hidden tab and resumes at its existing pose.
 
-`symbol-3d.js` adds the locally vendored Three.js renderer and a 15-second relief rhythm from `symbol-surface.js`. The connected mesh's X/Y coordinates remain fixed; only its shallow Z relief, normals and sampled ink details change. Height and slope coefficients are computed once and shared by the surface and shadow pass. The complete source square fits the viewport without enlargement or cropping. All three original HTML portals remain functional in both rendering modes.
+`symbol-3d.js` adds the locally vendored Three.js renderer and a 15-second relief rhythm from `symbol-surface.js`. The connected mesh's X/Y coordinates remain fixed; only its shallow Z relief, normals and sampled ink details change. Height and slope coefficients are computed once and shared by the surface and shadow pass. The complete source square fits the viewport without enlargement or cropping. The native Dream World link and restricted portal buttons work independently of both rendering modes.
 
-## Complete portal map
+## Retained, unpublished portal map
 
-The home screen and `/portals/` open all eleven final destinations. Heart practices and the CBT laboratory remain intact; Structure also retains direct access to Empire Dawn.
+The source under `/portals/` retains eleven previous destinations. These are not published or opened from the current home screen. Heart practices and the CBT laboratory remain intact in source; Structure also retains its Empire Dawn integration.
 
 | World | Portal | Working experience |
 | --- | --- | --- |
@@ -38,7 +40,7 @@ The home screen and `/portals/` open all eleven final destinations. Heart practi
 | World | Structure | A nine-node graph challenge that checks every single-link failure, plus the village game |
 | World | Emerge | Two deterministic boids worlds sharing their initial state, with independently adjustable rules |
 
-The nine new native activities use independent JavaScript modules and no additional packages. `portals/core.js` contains the inspectable numerical models. The directory, HTML entrypoints and metadata are generated by `node scripts/generate-portals.mjs`; all generated HTML is tracked for GitHub Pages. The root keeps its previous renderer files for reference but no longer loads them on the home screen.
+The nine native activities use independent JavaScript modules and no additional packages. `portals/core.js` contains the inspectable numerical models. The directory, HTML entrypoints and metadata are generated by `node scripts/generate-portals.mjs`; generated HTML remains tracked for reference and tests, and is excluded from public deployment. The root keeps its previous renderer files for reference but no longer loads them on the home screen.
 
 ### Scientific and interaction boundaries
 
@@ -48,9 +50,9 @@ Timed practices pause when hidden and require deliberate resumption. Simulations
 
 `npm test` verifies existing Heart/CBT behaviour and renderer integrity, plus all native routes and imports, proper scoring, timer boundaries, conservation of energy, bounce trajectories, graph resilience, deterministic flock comparisons and inertial control. These checks do not establish clinical efficacy or replace visual testing on target devices.
 
-## The World That Dreams Back
+## Retained observatory: The World That Dreams Back
 
-Dream World also opens a shared observatory at [`portals/dream-world/`](portals/dream-world/). Enter two opposing network designs, trace their paths, predict the worst failure, and build a third world. All edge/vertex failure trials are enumerated from the actual design. A bounded local search can propose a one-bridge descendant from a completed test. Saved worlds, exact failed attempts, portable sharing links, notebook export/import and public GitHub submissions give an idea a history outside the current page.
+The earlier shared observatory remains as unpublished source at [`portals/dream-world/`](portals/dream-world/). It is distinct from the new public `/dream-world/` route to God’s Eye. Its experiment lets participants enter two opposing network designs, trace their paths, predict the worst failure, and build a third world. All edge/vertex failure trials are enumerated from the actual design. A bounded local search can propose a one-bridge descendant from a completed test. Saved worlds, exact failed attempts, portable sharing links, notebook export/import and public GitHub submissions give an idea a history outside the current page.
 
 The personal notebook is explicitly local to the device. The shared atlas is stored in the repository, with source issue attribution. Scheduled Astra review uses the connected GitHub app; it requires no public AI credential. See the [model notes](portals/dream-world/README.md) and [evolution procedure](portals/dream-world/EVOLUTION.md). The observatory does not collect private records from other Dream Unity activities or claim to measure human learning.
 
@@ -83,16 +85,16 @@ Open the local address printed by Vite.
 npm run check
 ```
 
-GitHub Pages publishes `.public-site/`, generated by `node scripts/stage-public-site.mjs` from an explicit home-asset allowlist. Never upload the repository root: it contains the unpublished portal, exercise and game sources. Staging recreates the output directory so removed or stale activity files cannot remain in the deployment. The home symbol imports its renderer directly from `vendor/three/`; no external CDN or bundling is required. The retained previous scene has a separate build pipeline and integrity-checked runtime segments. Run `node --test tests/public-site.test.mjs` to verify the publication boundary.
+GitHub Pages publishes `.public-site/`, generated by `node scripts/stage-public-site.mjs` from an explicit allowlist of home assets and the three Dream World entry files. Never upload the repository root: it contains the unpublished portal, exercise and game sources. Staging recreates the output directory so removed or stale activity files cannot remain in the deployment. The home symbol imports its renderer directly from `vendor/three/`; no external CDN or bundling is required. The retained previous scene has a separate build pipeline and integrity-checked runtime segments. Run `npm test` for repository and integration tests, or `node --test tests/public-site.test.mjs tests/dream-world-entry.test.mjs` for the publication and entry checks alone.
 
 Legacy branch-based Pages publishing is also covered by `_config.yml`, which excludes the retained activities and non-home sources. Do not restore a root `.nojekyll` file: that bypasses these exclusions. The staging script generates `.nojekyll` only inside its already-filtered output.
 
 ## Controls
 
-- Tap or click a circle to open a world
-- Choose a practice, or choose Mind to reach its three branches
-- Tab and Enter navigate the controls
-- Escape or Back to home closes the world panel
+- Tap or click Dream World to open God’s Eye View
+- Tab and Enter activate the native Dream World link; modified clicks can open a new tab
+- Browser Back or “↖ Dream Unity” inside God’s Eye returns home
+- Dream Machine and Dream Maker remain restricted
 
 ## License
 

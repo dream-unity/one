@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, access } from 'node:fs/promises';
+import { PUBLIC_FILES } from '../scripts/stage-public-site.mjs';
 import { BUDGET, FOUNDERS, SCENARIOS, POINTS, edgeKey, edgeCost, cost, validateWorld, validateCommunity, canonicalEdges, reach, report, routeTo, grow, encodeWorld, decodeWorld, signature } from '../portals/dream-world/model.js';
 
 test('founding worlds share fixed conditions and expose a genuine resilience tradeoff',()=>{
@@ -60,7 +61,7 @@ test('community designs require a public source and never masquerade as founders
   assert.throws(()=>validateCommunity({version:1,worlds:[communityWorld,communityWorld]}));
   assert.equal(signature({...FOUNDERS[0],name:'Other name'}),signature(FOUNDERS[0]));
 });
-test('world entrypoints, same-origin assets and existing Dream World integration resolve',async()=>{
+test('retained observatory assets resolve in source while the public Dream World entry selects God’s Eye',async()=>{
   const root=new URL('../portals/dream-world/',import.meta.url),html=await readFile(new URL('index.html',root),'utf8'),app=await readFile(new URL('app.js',root),'utf8');
   for(const match of html.matchAll(/(?:href|src)="(\.{1,2}\/[^"#]+)"/g)) {
     const target=new URL(match[1].split(/[?#]/)[0],root);await access(target.pathname.endsWith('/')?new URL('index.html',target):target);
@@ -68,6 +69,12 @@ test('world entrypoints, same-origin assets and existing Dream World integration
   const ids=new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]));
   for(const match of app.matchAll(/\$\('#([a-z-]+)'\)/g))assert.ok(ids.has(match[1]),`Missing static element: ${match[1]}`);
   assert.match(html,/connect-src 'self'/);assert.doesNotMatch(`${html}\n${app}`,/OPENAI_API_KEY|sk-proj-|eval\(|new Function/);
-  const nav=await readFile(new URL('../portal-subnav.js',import.meta.url),'utf8');assert.match(nav,/\.\/portals\/dream-world\//);assert.match(nav,/observatory\.hidden = world !== "world"/);
+  const home=await readFile(new URL('../index.html',import.meta.url),'utf8');
+  assert.match(home,/<a\b[^>]*href="\.\/dream-world\/"[^>]*data-world="world"/);
+  const nav=await readFile(new URL('../portal-subnav.js',import.meta.url),'utf8');
+  assert.doesNotMatch(`${home}\n${nav}`,/\.\/portals\/dream-world\//);
+  assert.ok(PUBLIC_FILES.includes('dream-world/index.html'));
+  assert.ok(!PUBLIC_FILES.some(file=>file.startsWith('portals/')),
+    'retained observatory and other restricted activities must stay source-only');
   const atlas=validateCommunity(JSON.parse(await readFile(new URL('community.json',root),'utf8')));assert.ok(Array.isArray(atlas.worlds));
 });

@@ -22,7 +22,11 @@ const readSegmentedRuntime = async () => {
 
 test("the front page exposes Dream World and labels the two restricted portals", async () => {
   const html = await read("index.html");
-  assert.match(html, /<button[^>]+data-world="world"[^>]+aria-label="Open Dream World"/);
+  const world = html.match(/<a\b[^>]*data-world="world"[^>]*>/)?.[0];
+  assert.ok(world, "Dream World must remain a native link without requiring JavaScript");
+  assert.match(world, /href="\.\/dream-world\/"/);
+  assert.match(world, /aria-label="Open Dream World"/);
+  assert.doesNotMatch(world, /\b(?:disabled|aria-disabled|aria-expanded|aria-controls|target)=/);
   for (const world of ["machine", "maker"]) {
     assert.match(html, new RegExp(`<button[^>]+data-world="${world}"[^>]+aria-label="Dream [^"]+access restricted"[^>]+disabled[^>]+aria-disabled="true"`));
   }
