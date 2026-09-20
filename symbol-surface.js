@@ -2,7 +2,7 @@
 // describe soft relief, not separate circular cut-outs of the source image.
 export const SURFACE_SIZE = 1254;
 export const SURFACE_SCALE = 10 / SURFACE_SIZE;
-export const SURFACE_CYCLE = 36;
+export const SURFACE_CYCLE = 30;
 export const SURFACE_RINGS = [
   { cx: 627, cy: 627, inner: 390, outer: 540, height: .28, twist: .065, direction: 1 },
   { cx: 354, cy: 627, inner: 65, outer: 146, height: .16, twist: .12, direction: 1 },

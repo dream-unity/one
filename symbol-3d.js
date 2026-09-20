@@ -1,5 +1,5 @@
 import * as THREE from './vendor/three/three.module.min.js';
-import { SURFACE_GLSL, SURFACE_SCALE, SURFACE_RINGS, sampleSurface, sampleSurfaceLife } from './symbol-surface.js?v=coherent-20260920';
+import { SURFACE_GLSL, SURFACE_SCALE, SURFACE_RINGS, sampleSurface, sampleSurfaceLife } from './symbol-surface.js?v=coherent-pace-20260920';
 
 const host = document.querySelector('.portal-artwork');
 const original = host.querySelector('.portal-image');
