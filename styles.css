@@ -169,6 +169,15 @@ body {
 .is-3d { cursor: default; user-select: none; -webkit-user-select: none; }
 .is-3d .symbol-canvas { opacity: 1; }
 .is-3d .portal-image { visibility: hidden; }
+.symbol-ink {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+.is-3d .symbol-ink { visibility: hidden; }
 .world-panel {
   width: min(720px, calc(100% - 32px));
   max-height: calc(100svh - 40px);

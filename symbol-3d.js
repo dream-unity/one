@@ -1,6 +1,7 @@
 import * as THREE from './vendor/three/three.module.min.js';
 import { SURFACE_GLSL, SURFACE_SCALE, SURFACE_RINGS, sampleSurface, sampleSurfaceBasis,
   sampleSurfaceLife, advanceSurfaceTime } from './symbol-surface.js?v=clockwise-20260920';
+import { INK_GLSL, INK_RINGS, getInkMotion, pauseInkMotion } from './symbol-motion.js?v=visible-ink-20260920';
 
 const host = document.querySelector('.portal-artwork');
 const original = host.querySelector('.portal-image');
@@ -14,10 +15,11 @@ const own = resource => { disposables.add(resource); return resource; };
 const listen = (target, type, handler) => target.addEventListener(type, handler, { signal: events.signal });
 const relief = { value: 0 };
 const surfaceLife = { value: new THREE.Vector4() };
+const inkTurn = { value: new THREE.Vector2(1, 0) };
 const segments = 128;
 let renderer, scene, camera, mechanism, surface, resizeObserver, panelObserver;
 let ready = false, contextLost = false, destroyed = false;
-let paused = motionPreference.matches, raf = 0, frameCount = 0, lastTime = null;
+let paused = false, raf = 0, frameCount = 0, lastTime = null;
 let elapsed = 0, width = 1, height = 1, life = sampleSurfaceLife(0);
 
 // Precompute height and slope coefficients once, instead of evaluating the
@@ -67,7 +69,7 @@ function build() {
   addReliefAttributes(geometry);
   const material = own(new THREE.MeshStandardMaterial({ map: texture,
     roughness: 1, metalness: 0, toneMapped: false }));
-  const uniforms = { uSurfaceLife: surfaceLife, uSurfaceRelief: relief };
+  const uniforms = { uSurfaceLife: surfaceLife, uSurfaceRelief: relief, uInkTurn: inkTurn };
   material.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = SURFACE_GLSL + shader.vertexShader;
@@ -80,6 +82,16 @@ function build() {
     shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>',
       'vec3 transformed = surfacePoint;');
     shader.fragmentShader = 'uniform float uSurfaceRelief;\n' + shader.fragmentShader;
+    shader.fragmentShader = shader.fragmentShader.replace('#include <map_pars_fragment>',
+      '#include <map_pars_fragment>\n' + INK_GLSL);
+    // Rotate original ink landmarks on their existing circular tracks. Mixing
+    // complete rigid samples avoids any accumulating twist or change of radius.
+    shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
+      vec2 inkPoint = vec2(vMapUv.x, 1.0 - vMapUv.y) * 1254.0;
+      vec4 ink = texture2D(map, vMapUv);
+      ${INK_RINGS.map(r => `ink = turningInk(ink, inkPoint, vec4(${r.cx}.0, ${r.cy}.0, ${r.inner}.0, ${r.outer}.0), ${r.feather}.0);`).join('\n')}
+      diffuseColor *= ink;
+    `);
     shader.fragmentShader = shader.fragmentShader.replace('#include <shadowmap_pars_fragment>',
       '#include <shadowmap_pars_fragment>\n#include <shadowmask_pars_fragment>');
     // Preserve the original RGB on flat paper. Only real surface inclination
@@ -93,7 +105,7 @@ function build() {
       #include <opaque_fragment>
     `);
   };
-  material.customProgramCacheKey = () => 'fixed-proportions-relief-1';
+  material.customProgramCacheKey = () => 'visible-clockwise-ink-1';
   surface = new THREE.Mesh(geometry, material);
   surface.castShadow = true;
   surface.receiveShadow = true;
@@ -122,6 +134,7 @@ function wake() {
 
 function pause(value) {
   paused = Boolean(value);
+  pauseInkMotion(paused);
   status.textContent = paused ? 'Symbol animation paused.' : 'Symbol animation playing.';
   wake();
 }
@@ -134,7 +147,9 @@ function tick(time) {
   elapsed = advanceSurfaceTime(elapsed, lastTime, time, paused);
   lastTime = time;
   life = sampleSurfaceLife(elapsed);
-  relief.value = life.relief;
+  const ink = getInkMotion();
+  inkTurn.value.set(Math.cos(ink.angle), Math.sin(ink.angle));
+  relief.value = life.relief * (motionPreference.matches ? .45 : 1);
   surfaceLife.value.fromArray(life.wave);
   renderer.render(scene, camera);
   frameCount++;
@@ -191,10 +206,12 @@ window.__DREAM_SYMBOL__ = {
       ready, paused, reducedMotion: motionPreference.matches, frameCount, contextLost,
       rotation: { x: mechanism?.rotation.x ?? 0, y: mechanism?.rotation.y ?? 0 },
       position: mechanism?.position.toArray(), scale: mechanism?.scale.toArray(),
-      zoom: camera?.zoom ?? 1, meshCount: surface ? 1 : 0,
+      zoom: camera?.zoom ?? 1, meshCount: ready && surface ? 1 : 0,
       vertexCount: surface?.geometry.attributes.position.count ?? 0,
       bufferSize: renderer ? [renderer.domElement.width, renderer.domElement.height] : null,
-      simulation: 'continuous-3d-relief',
+      simulation: ready && !contextLost ? 'continuous-3d-relief'
+        : getInkMotion().active ? 'animated-ink' : 'static-illustration',
+      inkMotion: getInkMotion(),
       life: { ...life }, centroid: portalCenters[1], portalCenters,
       surfaceSamples: SURFACE_RINGS.flatMap(ring => {
         const radius = (ring.inner + ring.outer) / 2;
@@ -256,7 +273,7 @@ async function start() {
     listen(renderer.domElement, 'webglcontextlost', event => {
       event.preventDefault();
       contextLost = true;
-      fallback('The original artwork remains available. All portals are ready.');
+      fallback('Clockwise animation continues. All portals are ready.');
     });
     listen(renderer.domElement, 'webglcontextrestored', () => {
       contextLost = false;
@@ -265,12 +282,12 @@ async function start() {
       wake();
       status.textContent = 'Symbol animation restored.';
     });
-    listen(motionPreference, 'change', event => { if (event.matches) pause(true); });
+    listen(motionPreference, 'change', wake);
     listen(window, 'pagehide', event => { if (!event.persisted) destroy(); });
   } catch (error) {
     destroy();
-    status.textContent = 'Explore the original artwork. All three portals are available.';
-    console.info('Dream Unity: using the original illustration.', error.message);
+    status.textContent = 'Clockwise animation is playing. All three portals are available.';
+    console.info('Dream Unity: using the animated ink fallback.', error.message);
   }
 }
 
