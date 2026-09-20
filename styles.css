@@ -50,16 +50,31 @@ body {
   z-index: 3;
   width: max-content;
   margin: 0;
-  padding-left: .48em;
+  padding-left: .32em;
   color: #2b271f;
-  font-size: clamp(7px, calc(min(100vw, 100vh, 1254px) * .0125), 18px);
-  font-size: clamp(7px, calc(min(100vw, 100svh, 1254px) * .0125), 18px);
-  font-weight: 500;
-  line-height: 1;
-  letter-spacing: .48em;
+  font-family: "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
+  font-size: clamp(8px, calc(min(100vw, 100vh, 1254px) * .0165), 22px);
+  font-size: clamp(8px, calc(min(100vw, 100svh, 1254px) * .0165), 22px);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: .32em;
+  text-shadow: 0 1px 0 rgb(255 253 243 / 65%);
   text-transform: uppercase;
   white-space: nowrap;
   pointer-events: none;
+}
+.portal-title::before, .portal-title::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 2em;
+  height: 1px;
+  background: linear-gradient(to right, transparent, #8b795c);
+}
+.portal-title::before { right: calc(100% + .85em); }
+.portal-title::after {
+  left: calc(100% + .85em);
+  transform: rotate(180deg);
 }
 .portal {
   position: absolute;
@@ -83,13 +98,13 @@ body {
   --diameter: 20.414673%; /* 256 / 1254 */
   z-index: 2;
 }
-.portal--maker {
+.portal--reality {
   --x: 49.920255%; /* 626 / 1254 */
   --y: 48.165869%; /* 604 / 1254 */
   --diameter: 29.665072%; /* 372 / 1254 */
   z-index: 1;
 }
-.portal--reality {
+.portal--maker {
   --x: 71.69059%; /* 899 / 1254 */
   --y: 50%;
   --diameter: 20.414673%;
@@ -147,7 +162,7 @@ body {
   text-align: center;
   pointer-events: none;
 }
-.portal--maker .portal-caption {
+.portal--reality .portal-caption {
   top: 56.182796%; /* Labels share y=627; this portal's centre is y=604. */
   width: 56.989247%; /* 212 / 372: retain the original inner rim. */
   font-size: 2.5cqw;
