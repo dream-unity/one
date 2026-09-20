@@ -273,7 +273,7 @@ async function start() {
     listen(renderer.domElement, 'webglcontextlost', event => {
       event.preventDefault();
       contextLost = true;
-      fallback('Clockwise animation continues. All portals are ready.');
+      fallback('Clockwise animation continues.');
     });
     listen(renderer.domElement, 'webglcontextrestored', () => {
       contextLost = false;
@@ -286,7 +286,7 @@ async function start() {
     listen(window, 'pagehide', event => { if (!event.persisted) destroy(); });
   } catch (error) {
     destroy();
-    status.textContent = 'Clockwise animation is playing. All three portals are available.';
+    status.textContent = 'Clockwise animation is playing.';
     console.info('Dream Unity: using the animated ink fallback.', error.message);
   }
 }
