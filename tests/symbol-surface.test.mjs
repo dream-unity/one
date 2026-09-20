@@ -77,20 +77,61 @@ test('each region changes real depth and slope within two seconds at every cycle
     }
 });
 
-test('isolated left and right hub depth and normals are mirrored', () => {
+test('isolated left and right hubs move together in the same direction', () => {
   // Exclude the deliberately eccentric centre ring's overlapping regions.
   for (const t of sessionTimes)
     for (const a of [1, 1.5, 2, 4, 4.5, 5].map(n => n * Math.PI / 3)) {
       const dx = 100 * Math.cos(a), dy = 100 * Math.sin(a);
       const left = sampleSurface(354 + dx, 627 + dy, t);
-      const right = sampleSurface(899 - dx, 627 + dy, t);
-      near(left.x + right.x, 1253);
+      const right = sampleSurface(899 + dx, 627 + dy, t);
+      near(right.x - left.x, 545);
       near(left.y, right.y);
       near(left.z, right.z);
-      const l = slope(354 + dx, 627 + dy, t), r = slope(899 - dx, 627 + dy, t);
-      near(l[0], -r[0]);
+      const l = slope(354 + dx, 627 + dy, t), r = slope(899 + dx, 627 + dy, t);
+      near(l[0], r[0]);
       near(l[1], r[1]);
     }
+});
+
+test('sampled relief travels clockwise through every phase without reversing', () => {
+  // These four isolated points recover the primary wave's spatial phase while
+  // cancelling the secondary harmonic. Positive angles are clockwise in the
+  // drawing's downward-Y coordinates; no direction configuration is inspected.
+  for (const ring of SURFACE_RINGS) {
+    const radius = (ring.inner + ring.outer) / 2;
+    const points = [Math.PI / 4, Math.PI / 3, 2 * Math.PI / 3, 3 * Math.PI / 4]
+      .map(angle => {
+        const x = ring.cx + radius * Math.cos(angle);
+        const y = ring.cy + radius * Math.sin(angle);
+        for (const other of SURFACE_RINGS) {
+          if (other === ring) continue;
+          const distance = Math.hypot(x - other.cx, y - other.cy);
+          assert.ok(distance <= other.inner || distance >= other.outer,
+            'Direction probe must sample only one field');
+        }
+        const envelope = sampleSurfaceBasis(x, y)[0];
+        assert.ok(envelope > .001, 'Direction probe must be outside fixed anchors');
+        return { x, y, envelope };
+      });
+    let previousPhase;
+    for (let step = 0; step <= 72; step++) {
+      const time = 72 + step * SURFACE_CYCLE / 24;
+      const relief = sampleSurfaceLife(time).relief;
+      const [a, b, c, d] = points.map(({ x, y, envelope }) =>
+        sampleSurface(x, y, time).z / (relief * envelope) - 1);
+      const sine = (a - d) / 2;
+      const cosine = -(b + c) + (a + d) / 2;
+      assert.ok(Math.hypot(sine, cosine) > .5, 'Travelling relief disappeared');
+      const phase = Math.atan2(sine, cosine);
+      if (previousPhase !== undefined) {
+        const delta = Math.atan2(Math.sin(phase - previousPhase),
+          Math.cos(phase - previousPhase));
+        assert.ok(delta > 0, `Relief reversed at ring ${ring.cx}, time ${time}`);
+        near(delta, Math.PI * 2 / 24);
+      }
+      previousPhase = phase;
+    }
+  }
 });
 
 test('precomputed coefficients match an analytic travelling wave and source-Y slope sign', () => {

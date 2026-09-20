@@ -2,12 +2,12 @@
 // travels around its contours, preserving every circle, join and proportion.
 export const SURFACE_SIZE = 1254;
 export const SURFACE_SCALE = 10 / SURFACE_SIZE;
-export const SURFACE_CYCLE = 18;
+export const SURFACE_CYCLE = 15;
 export const SURFACE_RINGS = [
-  { cx: 627, cy: 627, inner: 405, outer: 526, height: .13, direction: 1 },
-  { cx: 354, cy: 627, inner: 65, outer: 140, height: .075, direction: 1 },
-  { cx: 626, cy: 604, inner: 108, outer: 200, height: .10, direction: -1 },
-  { cx: 899, cy: 627, inner: 65, outer: 140, height: .075, direction: -1 },
+  { cx: 627, cy: 627, inner: 405, outer: 526, height: .13 },
+  { cx: 354, cy: 627, inner: 65, outer: 140, height: .075 },
+  { cx: 626, cy: 604, inner: 108, outer: 200, height: .10 },
+  { cx: 899, cy: 627, inner: 65, outer: 140, height: .075 },
 ];
 
 const smooth = (lo, hi, x) => {
@@ -58,11 +58,11 @@ export function sampleSurfaceBasis(x, y) {
     const h = ring.height * weights[index] * anchored;
     const angle = Math.atan2(y - ring.cy, x - ring.cx);
     basis[0] += h;
-    // cos(2*angle - direction*phase): a continuous travelling wave, with
-    // opposite sectors paired and left/right hubs mirrored at every phase.
-    basis[1] += h * .60 * ring.direction * Math.sin(angle * 2);
+    // cos(2*angle - phase): every ring travels clockwise in source-image
+    // coordinates (Y points down), with no reversal or opposing fields.
+    basis[1] += h * .60 * Math.sin(angle * 2);
     basis[2] += h * .60 * Math.cos(angle * 2);
-    basis[3] += h * .10 * ring.direction * Math.sin(angle * 4);
+    basis[3] += h * .10 * Math.sin(angle * 4);
     basis[4] += h * .10 * Math.cos(angle * 4);
   });
   return basis;
