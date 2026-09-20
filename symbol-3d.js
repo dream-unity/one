@@ -1,5 +1,6 @@
 import * as THREE from './vendor/three/three.module.min.js';
-import { SURFACE_GLSL, SURFACE_SCALE, SURFACE_RINGS, sampleSurface, sampleSurfaceLife } from './symbol-surface.js?v=coherent-pace-20260920';
+import { SURFACE_GLSL, SURFACE_SCALE, SURFACE_RINGS, sampleSurface, sampleSurfaceBasis,
+  sampleSurfaceLife, advanceSurfaceTime } from './symbol-surface.js?v=fixed-proportions-20260920';
 
 const host = document.querySelector('.portal-artwork');
 const original = host.querySelector('.portal-image');
@@ -13,14 +14,45 @@ const own = resource => { disposables.add(resource); return resource; };
 const listen = (target, type, handler) => target.addEventListener(type, handler, { signal: events.signal });
 const relief = { value: 0 };
 const surfaceLife = { value: new THREE.Vector4() };
-const segments = 192;
+const segments = 128;
 let renderer, scene, camera, mechanism, surface, resizeObserver, panelObserver;
 let ready = false, contextLost = false, destroyed = false;
-let paused = motionPreference.matches, raf = 0, frameCount = 0, lastTime = 0;
+let paused = motionPreference.matches, raf = 0, frameCount = 0, lastTime = null;
 let elapsed = 0, width = 1, height = 1, life = sampleSurfaceLife(0);
 
-// The source drawing has eccentric, overlapping circles. Keeping it on one
-// connected mesh avoids cutting its strokes into independently tilted slices.
+// Precompute height and slope coefficients once, instead of evaluating the
+// complete deformation three times per vertex on every rendered frame.
+function addReliefAttributes(geometry) {
+  const positions = geometry.attributes.position;
+  const base = new Float32Array(positions.count * 3);
+  const wave = new Float32Array(positions.count * 4);
+  const dx = new Float32Array(positions.count * 4);
+  const dy = new Float32Array(positions.count * 4);
+  const epsilon = .5;
+  const divisor = 2 * epsilon * SURFACE_SCALE;
+  for (let i = 0; i < positions.count; i++) {
+    const x = positions.getX(i) / SURFACE_SCALE + 627;
+    const y = 627 - positions.getY(i) / SURFACE_SCALE;
+    const basis = sampleSurfaceBasis(x, y);
+    const left = sampleSurfaceBasis(x - epsilon, y);
+    const right = sampleSurfaceBasis(x + epsilon, y);
+    const top = sampleSurfaceBasis(x, y - epsilon);
+    const bottom = sampleSurfaceBasis(x, y + epsilon);
+    base.set([basis[0], (right[0] - left[0]) / divisor,
+      (top[0] - bottom[0]) / divisor], i * 3);
+    for (let j = 0; j < 4; j++) {
+      wave[i * 4 + j] = basis[j + 1];
+      dx[i * 4 + j] = (right[j + 1] - left[j + 1]) / divisor;
+      dy[i * 4 + j] = (top[j + 1] - bottom[j + 1]) / divisor;
+    }
+  }
+  geometry.setAttribute('reliefBase', new THREE.BufferAttribute(base, 3));
+  geometry.setAttribute('reliefWave', new THREE.BufferAttribute(wave, 4));
+  geometry.setAttribute('reliefDx', new THREE.BufferAttribute(dx, 4));
+  geometry.setAttribute('reliefDy', new THREE.BufferAttribute(dy, 4));
+}
+
+// One connected mesh preserves the drawing's original X/Y and UV coordinates.
 function build() {
   const texture = own(new THREE.Texture(original));
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -32,20 +64,18 @@ function build() {
   scene.add(mechanism);
 
   const geometry = own(new THREE.PlaneGeometry(10, 10, segments, segments));
+  addReliefAttributes(geometry);
   const material = own(new THREE.MeshStandardMaterial({ map: texture,
     roughness: 1, metalness: 0, toneMapped: false }));
   const uniforms = { uSurfaceLife: surfaceLife, uSurfaceRelief: relief };
   material.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = SURFACE_GLSL + shader.vertexShader;
-    // Normals follow the same live surface as the vertices, including the
-    // tangential motion. Shading must not pretend this is still a flat image.
+    // The live normals and vertices use the same precomputed spatial basis.
     shader.vertexShader = shader.vertexShader.replace('#include <beginnormal_vertex>', `
       #include <beginnormal_vertex>
       vec3 surfacePoint = livingSurface(position);
-      vec3 surfaceDx = livingSurface(position + vec3(0.008, 0.0, 0.0)) - surfacePoint;
-      vec3 surfaceDy = livingSurface(position + vec3(0.0, 0.008, 0.0)) - surfacePoint;
-      objectNormal = normalize(cross(surfaceDx, surfaceDy));
+      objectNormal = livingNormal();
     `);
     shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>',
       'vec3 transformed = surfacePoint;');
@@ -55,15 +85,15 @@ function build() {
     // Preserve the original RGB on flat paper. Only real surface inclination
     // and soft, geometry-matched shadows modulate the drawing's neutral tones.
     shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `
-      vec3 keyDirection = normalize(vec3(-3.0, 5.0, 8.0));
+      vec3 keyDirection = normalize(vec3(0.0, 5.0, 8.0));
       float facing = dot(normal, keyDirection);
-      float shade = clamp(1.0 + 0.75 * (facing - keyDirection.z), 0.52, 1.16);
-      float shadow = mix(1.0, getShadowMask(), 0.18 * uSurfaceRelief);
+      float shade = clamp(1.0 + 0.75 * (facing - keyDirection.z), 0.65, 1.12);
+      float shadow = mix(1.0, getShadowMask(), 0.10 * uSurfaceRelief);
       outgoingLight = diffuseColor.rgb * shade * shadow;
       #include <opaque_fragment>
     `);
   };
-  material.customProgramCacheKey = () => 'connected-ink-relief-1';
+  material.customProgramCacheKey = () => 'fixed-proportions-relief-1';
   surface = new THREE.Mesh(geometry, material);
   surface.castShadow = true;
   surface.receiveShadow = true;
@@ -77,7 +107,7 @@ function build() {
     shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>',
       'vec3 transformed = livingSurface(position);');
   };
-  depth.customProgramCacheKey = () => 'connected-ink-shadow-1';
+  depth.customProgramCacheKey = () => 'fixed-proportions-shadow-1';
   surface.customDepthMaterial = depth;
   mechanism.add(surface);
 }
@@ -87,7 +117,7 @@ function canRender() {
 }
 
 function wake() {
-  if (!raf && canRender()) { lastTime = 0; raf = requestAnimationFrame(tick); }
+  if (!raf && canRender()) { lastTime = null; raf = requestAnimationFrame(tick); }
 }
 
 function pause(value) {
@@ -101,12 +131,11 @@ function tick(time) {
   if (!canRender()) return;
   // One real-time rhythm coordinates all four regions. The body and camera
   // never translate, tilt or scale; motion stays inside the original contours.
-  const dt = lastTime ? Math.min((time - lastTime) / 1000, .25) : 0;
+  elapsed = advanceSurfaceTime(elapsed, lastTime, time, paused);
   lastTime = time;
-  if (!paused) elapsed += dt;
   life = sampleSurfaceLife(elapsed);
   relief.value = life.relief;
-  surfaceLife.value.set(life.flow, life.flex, life.crossFlex, 0);
+  surfaceLife.value.fromArray(life.wave);
   renderer.render(scene, camera);
   frameCount++;
   host.classList.add('is-3d');
@@ -123,9 +152,11 @@ function resize() {
   camera.top = 5;
   camera.bottom = -5;
   camera.updateProjectionMatrix();
-  // Use the same intrinsic pixel grid as <img>; CSS applies the same scaling
-  // to both surfaces, avoiding a blur/half-pixel shift during the handoff.
-  renderer.setSize(original.naturalWidth, original.naturalHeight, false);
+  // Match the displayed resolution without rendering a full desktop-sized
+  // buffer on every phone. UVs and the square projection remain unchanged.
+  const pixels = Math.max(1, Math.min(original.naturalWidth,
+    Math.ceil(width * Math.min(devicePixelRatio || 1, 2))));
+  renderer.setSize(pixels, pixels, false);
   wake();
 }
 
@@ -162,6 +193,7 @@ window.__DREAM_SYMBOL__ = {
       position: mechanism?.position.toArray(), scale: mechanism?.scale.toArray(),
       zoom: camera?.zoom ?? 1, meshCount: surface ? 1 : 0,
       vertexCount: surface?.geometry.attributes.position.count ?? 0,
+      bufferSize: renderer ? [renderer.domElement.width, renderer.domElement.height] : null,
       simulation: 'continuous-3d-relief',
       life: { ...life }, centroid: portalCenters[1], portalCenters,
       surfaceSamples: SURFACE_RINGS.flatMap(ring => {
@@ -196,9 +228,8 @@ async function start() {
     scene = new THREE.Scene();
     camera = new THREE.OrthographicCamera(-5, 5, 5, -5, .1, 30);
     camera.position.set(0, 0, 10);
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8271, 2));
     const light = new THREE.DirectionalLight(0xffffff, 2.8);
-    light.position.set(-3, 5, 8);
+    light.position.set(0, 5, 8);
     light.castShadow = true;
     light.shadow.mapSize.set(1024, 1024);
     Object.assign(light.shadow.camera, { left: -5.5, right: 5.5, top: 5.5, bottom: -5.5, near: 1, far: 25 });

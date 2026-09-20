@@ -118,38 +118,6 @@ body {
   white-space: nowrap;
   border: 0;
 }
-/* Enlarge only where the complete circle has room horizontally.
-   In the 1254px source, the outer guide spans y=43..1198 (1155px).
-   New circle height = (available height + previous circle height) / 2,
-   so its top and bottom clearances each become half their previous size. */
-@media (min-aspect-ratio: 11/10) {
-  .portal-page {
-    --available-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-    --available-width: calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
-    --previous-size: min(var(--available-width), var(--available-height), 1254px);
-    --expanded-size: min(var(--available-width), calc(var(--previous-size) * .5 + var(--available-height) * .5428571429));
-    position: relative;
-    display: block;
-    height: 100vh;
-    height: 100svh;
-    overflow: hidden;
-  }
-  @supports (height: 100svh) {
-    .portal-page {
-      --available-height: calc(100svh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-    }
-  }
-  .portal-artwork {
-    position: absolute;
-    width: var(--expanded-size);
-    left: calc(env(safe-area-inset-left, 0px) + var(--available-width) * .5);
-    top: calc(env(safe-area-inset-top, 0px) + var(--available-height) * .5 + (var(--expanded-size) - var(--previous-size) * .5) * .0051834131);
-    transform: translate(-50%, -50%);
-  }
-  .portal-title {
-    font-size: clamp(7px, calc(var(--expanded-size) * .0125), 18px);
-  }
-}
 @media (prefers-reduced-motion: reduce) {
   .portal { transition: none; }
 }
