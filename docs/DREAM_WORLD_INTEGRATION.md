@@ -14,6 +14,8 @@ The destination is the existing complete application, including its globe, aircr
 
 The integration audit checked the current production root, `/api/health`, `/api/capabilities` and `/build-info.json`. At inspection, the deployment served runtime commit `c2835decd275541225320848489e54e2691afe01` (subsequently updated by the rename-only release `42e809c2c573ba23f61c8ea3ad03578247ec23bc`), reported 21 provider plugins and 12 keyless capability groups. This is a point-in-time health observation, not proof that every third-party feed works continuously. Optional voice, traffic-flow, FIRMS, photorealistic imagery and other keyed services still require their own configuration; persistent AIS collection remains a separate backend requirement.
 
+The Dream World hub reuses the home’s original circular artwork, parchment texture, serif typography and ink-motion module. The Earth welcome/guide and Minds Eye placeholder use matching parchment styling. Narrow screens present the same two illustrated circular portals at readable sizes.
+
 Dream Machine and Dream Maker stay disabled in HTML and compatibility handlers. The original home artwork and animation modules are retained. The hidden legacy dialog remains for the existing renderer’s DOM contract; selecting Dream World no longer opens it.
 
 ## URL and fallback behavior

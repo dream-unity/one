@@ -3,31 +3,29 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#08141b" />
+  <meta name="theme-color" content="#ebe4d5" />
   <meta name="description" content="Dream World — God’s Earth View and God’s Minds Eye View." />
   <title>Dream World · Dream Unity</title>
-  <link rel="stylesheet" href="./entry.css?v=20260921-welcome" />
-  <link rel="stylesheet" href="./portals.css?v=20260921-portals" />
+  <link rel="preload" as="image" href="../assets/dream-unity-portals-refined.webp" type="image/webp" />
+  <link rel="stylesheet" href="../styles.css?v=portal-access-gods-eye-20260920" />
+  <link rel="stylesheet" href="./portals.css?v=20260921-parchment" />
   <script defer src="./hub.js?v=20260921-portals"></script>
 </head>
-<body>
-  <main class="world-hub" aria-labelledby="world-title">
-    <a class="return-link" href="../">← Dream Unity</a>
-    <h1 id="world-title">Dream World</h1>
-    <nav class="world-portals" aria-label="Dream World portals">
-      <a class="world-portal earth-portal" id="earth-portal" href="./gods-earth-view/" aria-labelledby="earth-title">
-        <span class="portal-ring" aria-hidden="true"></span>
-        <h2 id="earth-title">God’s Earth View</h2>
-        <p>Explore Earth, its places and live feeds.</p>
-        <span class="portal-action" aria-hidden="true">Enter portal <span>↗</span></span>
+<body class="dream-world-hub">
+  <main class="portal-page world-hub" aria-labelledby="world-title">
+    <nav class="portal-artwork world-artwork" aria-label="Dream World portals">
+      <a class="portal-title hub-return" href="../" aria-label="Return to Dream Unity">Dream Unity</a>
+      <img class="portal-image" src="../assets/dream-unity-portals-refined.webp" width="1254" height="1254" alt="" fetchpriority="high" draggable="false" />
+      <div class="world-center"><h1 id="world-title">Dream World</h1></div>
+      <a class="portal portal-card portal--machine earth-portal" id="earth-portal" href="./gods-earth-view/" aria-labelledby="earth-title">
+        <div class="portal-caption"><h2 id="earth-title">God’s Earth View</h2></div>
       </a>
-      <a class="world-portal minds-portal" id="minds-eye-portal" href="./gods-minds-eye-view/" aria-labelledby="minds-title">
-        <span class="portal-ring" aria-hidden="true"></span>
-        <h2 id="minds-title">God’s Minds Eye View</h2>
-        <p>Coming soon.</p>
-        <span class="portal-action" aria-hidden="true">Enter portal <span>↗</span></span>
+      <a class="portal portal-card portal--maker minds-portal" id="minds-eye-portal" href="./gods-minds-eye-view/" aria-labelledby="minds-title" aria-describedby="minds-note">
+        <div class="portal-caption"><h2 id="minds-title">God’s Minds Eye View</h2></div>
       </a>
+      <p id="minds-note" class="portal-status">Coming soon</p>
     </nav>
   </main>
+  <script type="module" src="../symbol-motion.js?v=visible-ink-20260920"></script>
 </body>
 </html>

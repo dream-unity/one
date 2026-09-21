@@ -96,7 +96,7 @@ test('initial HTML exposes exactly New User and Continue with the guide hidden a
     assert.match(html, new RegExp(`<a[^>]*id="${id}"[^>]*href="https://november-1st-sable\\.vercel\\.app/"[^>]*>Continue</a>`));
   }
   assert.match(html, /src="\.\.\/entry\.js\?v=20260921-welcome"/);
-  assert.match(html, /href="\.\.\/entry\.css\?v=20260921-welcome"/);
+  assert.match(html, /href="\.\.\/entry\.css\?v=20260921-parchment"/);
 });
 
 test('Dream World exposes both named native portals and Minds Eye has its own return route', () => {
