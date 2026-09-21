@@ -8,7 +8,7 @@
   <title>Dream World · Dream Unity</title>
   <link rel="preload" as="image" href="../assets/dream-unity-portals-refined.webp" type="image/webp" />
   <link rel="stylesheet" href="../styles.css?v=portal-access-gods-eye-20260920" />
-  <link rel="stylesheet" href="./portals.css?v=20260921-location" />
+  <link rel="stylesheet" href="./portals.css?v=20260921-world-seal" />
   <script defer src="./hub.js?v=20260921-portals"></script>
 </head>
 <body class="dream-world-hub">
@@ -20,7 +20,15 @@
         <span class="location-current" aria-current="page">Dream World</span>
       </nav>
       <img class="portal-image" src="../assets/dream-unity-portals-refined.webp" width="1254" height="1254" alt="" fetchpriority="high" draggable="false" />
-      <div class="world-center"><h1 id="world-title">Dream World</h1></div>
+      <div class="world-center">
+        <svg class="world-seal" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true" focusable="false">
+          <circle cx="16" cy="16" r="12" />
+          <ellipse cx="16" cy="16" rx="5.5" ry="12" />
+          <path d="M4 16h24M6.5 9a24 24 0 0 0 19 0M6.5 23a24 24 0 0 1 19 0M16 1v3m0 24v3M1 16h3m24 0h3" />
+        </svg>
+        <h1 id="world-title">Dream World</h1>
+        <span class="world-caption">Portals</span>
+      </div>
       <a class="portal portal-card portal--machine earth-portal" id="earth-portal" href="./gods-earth-view/" aria-labelledby="earth-title">
         <div class="portal-caption"><h2 id="earth-title">God’s Earth View</h2></div>
       </a>
