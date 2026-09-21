@@ -1,0 +1,26 @@
+.world-hub { width: min(100%, 960px); }
+.return-link { display: inline-block; padding: .35rem 0; margin-bottom: 1.25rem; font-size: 1rem; text-decoration: none; }
+.return-link:hover { text-decoration: underline; }
+.world-hub h1 { margin: 0 0 2rem; }
+.world-portals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.world-portal { --portal-accent: #9feaff; display: flex; flex-direction: column; align-items: flex-start; min-width: 0; padding: clamp(24px, 3vw, 36px); border: 1px solid #406372; border-radius: 16px; background: #102936; color: #e8f6fb; text-decoration: none; transition: border-color 160ms ease, background 160ms ease; }
+.minds-portal { --portal-accent: #dbbdff; border-color: #675378; background: #252337; }
+.world-portal:hover { border-color: var(--portal-accent); background: #183644; }
+.minds-portal:hover { background: #312b45; }
+.world-portal:focus-visible { outline-color: var(--portal-accent); }
+.portal-ring { display: block; width: 58px; height: 58px; margin-bottom: 1.75rem; border: 1px solid var(--portal-accent); border-radius: 50%; box-shadow: inset 0 0 0 7px #0d202b, inset 0 0 0 8px var(--portal-accent), 0 0 24px #9feaff12; }
+.minds-portal .portal-ring { box-shadow: inset 0 0 0 7px #252337, inset 0 0 0 8px var(--portal-accent), 0 0 24px #dbbdff12; }
+.world-portal h2 { margin: 0; font-size: clamp(1.65rem, 3vw, 2.2rem); line-height: 1.2; text-wrap: balance; }
+.world-portal p { color: #c2d6df; margin: 1rem 0 2rem; }
+.minds-portal p { color: #d3c9e2; }
+.portal-action { display: flex; justify-content: space-between; align-items: center; gap: 1rem; width: 100%; padding-top: 1.2rem; margin-top: auto; border-top: 1px solid #ffffff26; color: var(--portal-accent); font-weight: 600; }
+.portal-action span { font-size: 1.3rem; }
+.portal-empty h1 { font-size: clamp(2rem, 5vw, 3rem); }
+.portal-empty .lede { margin: 1.5rem 0 0; color: #d3c9e2; }
+@media (max-width: 640px) {
+  .world-portals { grid-template-columns: 1fr; }
+  .world-hub { padding: 24px; }
+  .world-portal h2 { font-size: 1.8rem; }
+  .portal-ring { width: 44px; height: 44px; margin-bottom: 1.25rem; }
+}
+@media (prefers-reduced-motion: reduce) { .world-portal { transition: none; } }

@@ -5,7 +5,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const repository = fileURLToPath(new URL('../', import.meta.url));
 export const PUBLIC_DIRECTORY = resolve(repository, '.public-site');
 
-// Explicitly publish the home experience and its God's Earth entry only. Keeping
+// Explicitly publish the home, Dream World hub and its two portals only. Keeping
 // an activity in source control must never expose its retired direct URL.
 export const PUBLIC_FILES = Object.freeze([
   '.nojekyll',
@@ -21,6 +21,10 @@ export const PUBLIC_FILES = Object.freeze([
   'dream-world/index.html',
   'dream-world/entry.js',
   'dream-world/entry.css',
+  'dream-world/hub.js',
+  'dream-world/portals.css',
+  'dream-world/gods-earth-view/index.html',
+  'dream-world/gods-minds-eye-view/index.html',
   'assets/dream-unity-portals-refined.webp',
   'assets/parchment-texture.svg',
   'vendor/three/three.module.min.js',

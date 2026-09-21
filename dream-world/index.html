@@ -4,39 +4,30 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#08141b" />
-  <meta name="description" content="Dream World — explore Earth through the complete God’s Earth View application." />
-  <meta name="referrer" content="strict-origin-when-cross-origin" />
-  <title>Dream World · God’s Earth View</title>
+  <meta name="description" content="Dream World — God’s Earth View and God’s Minds Eye View." />
+  <title>Dream World · Dream Unity</title>
   <link rel="stylesheet" href="./entry.css?v=20260921-welcome" />
-  <script defer src="./entry.js?v=20260921-welcome"></script>
+  <link rel="stylesheet" href="./portals.css?v=20260921-portals" />
+  <script defer src="./hub.js?v=20260921-portals"></script>
 </head>
 <body>
-  <main aria-labelledby="welcome-title">
-    <section id="welcome-start">
-      <p class="eyebrow">Dream World</p>
-      <h1 id="welcome-title">God’s Earth View</h1>
-      <div class="choices">
-        <button class="enter" id="new-user" type="button">New User</button>
-        <a class="enter secondary" id="open-world" href="https://november-1st-sable.vercel.app/">Continue</a>
-      </div>
-    </section>
-    <section id="welcome-guide" aria-labelledby="guide-title" hidden>
-      <p class="eyebrow">A quick introduction</p>
-      <h2 id="guide-title" tabindex="-1">Welcome to God’s Earth View</h2>
-      <p class="lede">Explore Earth on an interactive globe. Follow aircraft and satellites, listen to radio from other places, and watch public cameras. Choose what interests you and explore at your own pace.</p>
-      <ol class="guide-steps">
-        <li><h3>Start with a place</h3><p>Open <strong>LOCATION</strong>, search for a city or landmark, and choose a result. Drag the globe to look around. Scroll to zoom, or move with one finger and pinch with two on a touch screen.</p></li>
-        <li><h3>Add something to explore</h3><p>Open <strong>DATA LAYERS</strong> with its <strong>+</strong> button. Try one layer first, such as aircraft, satellites or earthquakes. Select a marker for more information.</p></li>
-        <li><h3>Listen, watch and check the roads</h3><p>Choose <strong>Live radio</strong>, <strong>CCTV cameras</strong> or <strong>Traffic reports</strong> near the top of the screen. Search or filter by place, then select a station, camera or report.</p></li>
-        <li><h3>Explore at your own pace</h3><p>Close panels when you have finished with them. Use the <strong>globe button</strong> to return to a view of Earth. Try <strong>VISUAL PRESETS</strong> or <strong>SCENES</strong> when you feel ready.</p></li>
-      </ol>
-      <p class="note">Coverage and update times vary by source; not every view is live. <strong>Data sources</strong> inside the app explains what is connected. Choose <strong>↖ Dream Unity</strong> to return home.</p>
-      <div class="choices">
-        <a class="enter" id="guide-continue" href="https://november-1st-sable.vercel.app/">Continue</a>
-        <button class="enter secondary" id="guide-back" type="button">Back</button>
-      </div>
-    </section>
-    <noscript><p class="note">Enable JavaScript to open the introduction and use the interactive globe. Continue opens God’s Earth View.</p></noscript>
+  <main class="world-hub" aria-labelledby="world-title">
+    <a class="return-link" href="../">← Dream Unity</a>
+    <h1 id="world-title">Dream World</h1>
+    <nav class="world-portals" aria-label="Dream World portals">
+      <a class="world-portal earth-portal" id="earth-portal" href="./gods-earth-view/" aria-labelledby="earth-title">
+        <span class="portal-ring" aria-hidden="true"></span>
+        <h2 id="earth-title">God’s Earth View</h2>
+        <p>Explore Earth, its places and live feeds.</p>
+        <span class="portal-action" aria-hidden="true">Enter portal <span>↗</span></span>
+      </a>
+      <a class="world-portal minds-portal" id="minds-eye-portal" href="./gods-minds-eye-view/" aria-labelledby="minds-title">
+        <span class="portal-ring" aria-hidden="true"></span>
+        <h2 id="minds-title">God’s Minds Eye View</h2>
+        <p>Coming soon.</p>
+        <span class="portal-action" aria-hidden="true">Enter portal <span>↗</span></span>
+      </a>
+    </nav>
   </main>
 </body>
 </html>
