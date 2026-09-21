@@ -16,7 +16,7 @@ const permitted = [
   'vendor/three/three.core.min.js', 'vendor/three/LICENSE',
 ].sort();
 
-test('publication contains only the home and God’s Eye entry dependencies and removes stale applications', async () => {
+test('publication contains only the home and God’s Earth entry dependencies and removes stale applications', async () => {
   assert.deepEqual([...PUBLIC_FILES].sort(), permitted);
   const stale = join(PUBLIC_DIRECTORY, 'portals/dream-world/index.html');
   await mkdir(dirname(stale), { recursive: true });
@@ -52,7 +52,7 @@ test('publication contains only the home and God’s Eye entry dependencies and 
   }
 });
 
-test('legacy branch publishing excludes every source file outside the home and God’s Eye entry', async () => {
+test('legacy branch publishing excludes every source file outside the home and God’s Earth entry', async () => {
   await assert.rejects(readFile(join(repository, '.nojekyll')), { code: 'ENOENT' },
     'root .nojekyll would bypass branch publication exclusions');
   const config = JSON.parse(await readFile(join(repository, '_config.yml'), 'utf8'));

@@ -61,7 +61,7 @@ test('community designs require a public source and never masquerade as founders
   assert.throws(()=>validateCommunity({version:1,worlds:[communityWorld,communityWorld]}));
   assert.equal(signature({...FOUNDERS[0],name:'Other name'}),signature(FOUNDERS[0]));
 });
-test('retained observatory assets resolve in source while the public Dream World entry selects God’s Eye',async()=>{
+test('retained observatory assets resolve in source while the public Dream World entry selects God’s Earth',async()=>{
   const root=new URL('../portals/dream-world/',import.meta.url),html=await readFile(new URL('index.html',root),'utf8'),app=await readFile(new URL('app.js',root),'utf8');
   for(const match of html.matchAll(/(?:href|src)="(\.{1,2}\/[^"#]+)"/g)) {
     const target=new URL(match[1].split(/[?#]/)[0],root);await access(target.pathname.endsWith('/')?new URL('index.html',target):target);

@@ -2,7 +2,7 @@
 
 The circular parchment front page for Dream Unity, using the original artwork and layout from the Breath Journal repository.
 
-**Public availability:** [Dream Unity](https://dreamunity.one/) opens the complete God’s Eye View application through **Dream World**. Dream Machine and Dream Maker remain restricted. The published site contains the animated home page, its required assets and the small `/dream-world/` entry route. The older activity descriptions below document retained repository source, which is excluded from publication.
+**Public availability:** [Dream Unity](https://dreamunity.one/) opens the complete God’s Earth View application through **Dream World**. Dream Machine and Dream Maker remain restricted. The published site contains the animated home page, its required assets and the small `/dream-world/` entry route. The older activity descriptions below document retained repository source, which is excluded from publication.
 
 Dream Unity models the circulation through which possibility becomes reality and returns transformed:
 
@@ -12,7 +12,7 @@ Dream Unity models the circulation through which possibility becomes reality and
 
 ## Experience
 
-Select **Dream World** inside the illustrated circle to see **New User** and **Continue**. New User opens a short guide; either Continue link opens the full God’s Eye View application in the same tab. Its globe, layers, tracking, camera and radio directories, visual modes and provider APIs remain together at [the November-1st deployment](https://november-1st-sable.vercel.app/). Browser Back returns to the welcome choices; the application’s “↖ Dream Unity” link returns home. Machine and Maker are visibly disabled.
+Select **Dream World** inside the illustrated circle to see **New User** and **Continue**. New User opens a short guide; either Continue link opens the full God’s Earth View application in the same tab. Its globe, layers, tracking, camera and radio directories, visual modes and provider APIs remain together at [the November-1st deployment](https://november-1st-sable.vercel.app/). Browser Back returns to the welcome choices; the application’s “↖ Dream Unity” link returns home. Machine and Maker are visibly disabled.
 
 The entry route preserves shared query and camera/hash state while fixing the destination to the complete application. It waits for an explicit Continue choice and uses normal browser navigation. No application subset, cross-origin iframe or secret credential is shipped by `one`. See [the integration notes](docs/DREAM_WORLD_INTEGRATION.md) for ownership, deployment and verification details. External data availability and optional provider credentials continue to determine which live services are available.
 
@@ -52,7 +52,7 @@ Timed practices pause when hidden and require deliberate resumption. Simulations
 
 ## Retained observatory: The World That Dreams Back
 
-The earlier shared observatory remains as unpublished source at [`portals/dream-world/`](portals/dream-world/). It is distinct from the new public `/dream-world/` route to God’s Eye. Its experiment lets participants enter two opposing network designs, trace their paths, predict the worst failure, and build a third world. All edge/vertex failure trials are enumerated from the actual design. A bounded local search can propose a one-bridge descendant from a completed test. Saved worlds, exact failed attempts, portable sharing links, notebook export/import and public GitHub submissions give an idea a history outside the current page.
+The earlier shared observatory remains as unpublished source at [`portals/dream-world/`](portals/dream-world/). It is distinct from the new public `/dream-world/` route to God’s Earth. Its experiment lets participants enter two opposing network designs, trace their paths, predict the worst failure, and build a third world. All edge/vertex failure trials are enumerated from the actual design. A bounded local search can propose a one-bridge descendant from a completed test. Saved worlds, exact failed attempts, portable sharing links, notebook export/import and public GitHub submissions give an idea a history outside the current page.
 
 The personal notebook is explicitly local to the device. The shared atlas is stored in the repository, with source issue attribution. Scheduled Astra review uses the connected GitHub app; it requires no public AI credential. See the [model notes](portals/dream-world/README.md) and [evolution procedure](portals/dream-world/EVOLUTION.md). The observatory does not collect private records from other Dream Unity activities or claim to measure human learning.
 
@@ -91,9 +91,9 @@ Legacy branch-based Pages publishing is also covered by `_config.yml`, which exc
 
 ## Controls
 
-- Tap or click Dream World, then choose New User for the guide or Continue to open God’s Eye View
+- Tap or click Dream World, then choose New User for the guide or Continue to open God’s Earth View
 - Tab and Enter activate the native Dream World link; modified clicks can open a new tab
-- Browser Back returns to the welcome choices; “↖ Dream Unity” inside God’s Eye returns home
+- Browser Back returns to the welcome choices; “↖ Dream Unity” inside God’s Earth returns home
 - Dream Machine and Dream Maker remain restricted
 
 ## License

@@ -5,7 +5,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const repository = fileURLToPath(new URL('../', import.meta.url));
 export const PUBLIC_DIRECTORY = resolve(repository, '.public-site');
 
-// Explicitly publish the home experience and its God's Eye entry only. Keeping
+// Explicitly publish the home experience and its God's Earth entry only. Keeping
 // an activity in source control must never expose its retired direct URL.
 export const PUBLIC_FILES = Object.freeze([
   '.nojekyll',

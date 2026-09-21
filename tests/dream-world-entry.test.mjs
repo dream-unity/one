@@ -139,7 +139,7 @@ test('native Dream World links retain browser navigation and legacy hooks cannot
   assert.equal(page.ids['world-panel'].attributes.get('aria-hidden'), 'true');
   assert.equal(page.machine.disabled, true);
   assert.equal(page.maker.disabled, true);
-  assert.deepEqual(page.assignments, [], 'loading the main screen must not open God’s Eye automatically');
+  assert.deepEqual(page.assignments, [], 'loading the main screen must not open God’s Earth automatically');
   for (const key of ['machine', 'maker', 'https://other.example/']) {
     assert.equal(page.window.__DREAM_UNITY_DOMAIN_NAV__.render(key), false);
     page.listeners.get('dreamunity:worldfocus')({ detail: { key } });

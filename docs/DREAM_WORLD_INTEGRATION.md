@@ -1,12 +1,12 @@
-# Dream World / God’s Eye integration
+# Dream World / God’s Earth integration
 
 ## Public route and source ownership
 
-The main screen at https://dreamunity.one/ belongs to `dream-unity/one`. Its Dream World circle is a native link to `./dream-world/`. That entry route always shows **New User** and **Continue** first. New User opens a short guide. Both Continue links navigate to https://november-1st-sable.vercel.app/, the complete God’s Eye application maintained in `dream-unity/November-1st`.
+The main screen at https://dreamunity.one/ belongs to `dream-unity/one`. Its Dream World circle is a native link to `./dream-world/`. That entry route always shows **New User** and **Continue** first. New User opens a short guide. Both Continue links navigate to https://november-1st-sable.vercel.app/, the complete God’s Earth application maintained in `dream-unity/November-1st`.
 
-`one` owns the home navigation, entry page and publication boundary. `November-1st` continues to own the entire God’s Eye frontend, server/provider endpoints, camera and radio directories, third-party attribution and deployment configuration. This integration does not fork or copy a reduced God’s Eye implementation into static hosting. Future app improvements become available through the same entry without a second app build in `one`.
+`one` owns the home navigation, entry page and publication boundary. `November-1st` continues to own the entire God’s Earth frontend, server/provider endpoints, camera and radio directories, third-party attribution and deployment configuration. This integration does not fork or copy a reduced God’s Earth implementation into static hosting. Future app improvements become available through the same entry without a second app build in `one`.
 
-Top-level navigation keeps the existing frontend and APIs on their intended origin. It preserves their current microphone, fullscreen, media, storage and share-link behavior without an iframe permission layer or a second cross-origin API configuration. Browser Back returns to the welcome page; restoring it from the back/forward cache resets the two choices. God’s Eye already supplies a “↖ Dream Unity” link to https://dreamunity.one/.
+Top-level navigation keeps the existing frontend and APIs on their intended origin. It preserves their current microphone, fullscreen, media, storage and share-link behavior without an iframe permission layer or a second cross-origin API configuration. Browser Back returns to the welcome page; restoring it from the back/forward cache resets the two choices. God’s Earth already supplies a “↖ Dream Unity” link to https://dreamunity.one/.
 
 ## Scope
 
@@ -21,7 +21,7 @@ Dream Machine and Dream Maker stay disabled in HTML and compatibility handlers. 
 - The main anchor is relative, so both a custom-domain root and a GitHub project subpath resolve correctly.
 - The entry appends the exact query string and hash to a fixed HTTPS application origin and root path. Shared feed, camera and target state survives the handoff. Parameters cannot choose another destination.
 - There is no automatic redirect, timer, remembered-user bypass or URL-based bypass. Ordinary clicks, keyboard activation and opening a new tab use native Continue anchors.
-- With JavaScript disabled Continue still works, and a visible notice explains that the guide and God’s Eye application require JavaScript.
+- With JavaScript disabled Continue still works, and a visible notice explains that the guide and God’s Earth application require JavaScript.
 - No provider keys, tokens or user configuration are included in the entry files.
 - The external application is an operational dependency: if its deployment is unavailable, the entry cannot restore its services. Change both Continue anchors and `entry.js` together if its production address changes, then update the destination regression tests.
 
