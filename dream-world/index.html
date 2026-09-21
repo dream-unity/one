@@ -8,13 +8,17 @@
   <title>Dream World · Dream Unity</title>
   <link rel="preload" as="image" href="../assets/dream-unity-portals-refined.webp" type="image/webp" />
   <link rel="stylesheet" href="../styles.css?v=portal-access-gods-eye-20260920" />
-  <link rel="stylesheet" href="./portals.css?v=20260921-parchment-2" />
+  <link rel="stylesheet" href="./portals.css?v=20260921-location" />
   <script defer src="./hub.js?v=20260921-portals"></script>
 </head>
 <body class="dream-world-hub">
   <main class="portal-page world-hub" aria-labelledby="world-title">
     <nav class="portal-artwork world-artwork" aria-label="Dream World portals">
-      <a class="portal-title hub-return" href="../" aria-label="Return to Dream Unity">Dream Unity</a>
+      <nav class="portal-title hub-location" aria-label="Breadcrumb">
+        <a class="hub-return" href="../" aria-label="Return to Dream Unity">Dream Unity</a>
+        <span class="location-divider" aria-hidden="true">›</span>
+        <span class="location-current" aria-current="page">Dream World</span>
+      </nav>
       <img class="portal-image" src="../assets/dream-unity-portals-refined.webp" width="1254" height="1254" alt="" fetchpriority="high" draggable="false" />
       <div class="world-center"><h1 id="world-title">Dream World</h1></div>
       <a class="portal portal-card portal--machine earth-portal" id="earth-portal" href="./gods-earth-view/" aria-labelledby="earth-title">

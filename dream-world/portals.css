@@ -1,14 +1,18 @@
 .world-hub { width: 100%; }
-.world-artwork .hub-return { pointer-events: auto; text-decoration: none; padding-block: .65em; }
+.world-artwork .hub-location { display: flex; align-items: center; gap: .7em; font-size: clamp(11px, 1.2cqw, 15px); letter-spacing: .18em; }
+.world-artwork .hub-return { pointer-events: auto; text-decoration: none; padding-block: .85em; color: #736853; font-weight: 400; }
+.location-divider { color: #8b795c; font-size: 1.2em; font-weight: 400; }
+.location-current { color: #302b23; }
 .hub-return:hover { text-decoration: underline; text-underline-offset: .4em; }
 .hub-return:focus-visible { outline: 1px solid #4c3c28; outline-offset: 5px; }
 .world-center {
   position: absolute; z-index: 3; left: 49.920255%; top: 50%;
   width: 16.905901%; aspect-ratio: 1; transform: translate(-50%, -50%);
   display: grid; place-items: center; border-radius: 50%;
-  background: #ebe4d5 url("../assets/parchment-texture.svg") repeat;
-  background-size: 21.37161cqw 21.37161cqw;
+  background: linear-gradient(rgb(151 128 83 / 6%), rgb(151 128 83 / 6%)), #ebe4d5 url("../assets/parchment-texture.svg") repeat;
+  background-size: auto, 21.37161cqw 21.37161cqw;
 }
+.world-center::before { content: ""; position: absolute; inset: 6%; border: 1px solid rgb(137 115 72 / 45%); border-radius: 50%; pointer-events: none; }
 .world-center #world-title { margin: 0; max-width: 6ch; font: 400 2.5cqw/1.15 Georgia, "Times New Roman", serif; text-align: center; }
 .world-artwork .portal-caption h2 { margin: 0; max-width: 5.8ch; font: inherit; font-size: 1.8cqw; line-height: 1.05; font-weight: 400; text-align: center; }
 .portal-status { position: absolute; z-index: 3; left: 71.69059%; top: 63%; transform: translateX(-50%); margin: 0; color: #615641; font-size: clamp(12px, 1.4cqw, 16px); letter-spacing: .05em; white-space: nowrap; }
@@ -21,8 +25,10 @@
   .world-hub { padding: 20px 16px 40px; }
   .world-artwork { width: 100%; max-width: 420px; aspect-ratio: auto; display: grid; justify-items: center; gap: 20px; }
   .world-artwork > .portal-image, .world-artwork > .symbol-ink { display: none; }
-  .world-artwork .hub-return { position: relative; left: auto; top: auto; transform: none; margin: 0; font-size: 14px; letter-spacing: .25em; }
+  .world-artwork .hub-location { position: relative; left: auto; top: auto; transform: none; margin: 0; font-size: 12px; letter-spacing: .12em; }
+  .hub-location::before, .hub-location::after { display: none; }
   .world-center { position: relative; left: auto; top: auto; transform: none; width: auto; aspect-ratio: auto; background: none; border-radius: 0; margin: 2px 0 6px; }
+  .world-center::before { display: none; }
   .world-center #world-title { max-width: none; font-size: 30px; }
   .world-artwork .portal { position: relative; left: auto; top: auto; transform: none; width: min(100%, 300px); height: auto; aspect-ratio: 1; clip-path: none; border-radius: 50%; }
   .world-artwork .portal::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background-image: url("../assets/dream-unity-portals-refined.webp"); background-size: 391.875%; background-position: 20.770878% 50%; -webkit-mask-image: radial-gradient(circle closest-side, #000 89%, transparent 100%); mask-image: radial-gradient(circle closest-side, #000 89%, transparent 100%); pointer-events: none; }
