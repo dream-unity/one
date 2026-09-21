@@ -8,67 +8,92 @@ const script = await readFile(new URL('../dream-world/entry.js', import.meta.url
 const html = await readFile(new URL('../dream-world/index.html', import.meta.url), 'utf8');
 const navigationScript = await readFile(new URL('../portal-subnav.js', import.meta.url), 'utf8');
 
-function openEntry(source, { missingLink = false, blockedNavigation = false } = {}) {
+function openEntry(source) {
   const location = new URL(source);
-  const link = { href: production };
-  const status = { textContent: '' };
   const navigations = [];
-  location.replace = destination => {
-    navigations.push(destination);
-    if (blockedNavigation) throw new Error('Navigation blocked by browser');
-  };
-  vm.runInNewContext(script, {
-    URL,
-    window: { location },
-    document: {
-      getElementById: id => id === 'open-world' ? (missingLink ? null : link) :
-        id === 'entry-status' ? status : null,
-    },
+  location.replace = destination => navigations.push(destination);
+  location.assign = destination => navigations.push(destination);
+  const events = new Map();
+  let focused;
+  const element = id => ({
+    id, hidden: id === 'welcome-guide', href: production,
+    attributes: new Map(), listeners: new Map(),
+    setAttribute(name, value) { this.attributes.set(name, value); },
+    addEventListener(name, listener) { this.listeners.set(name, listener); },
+    focus() { focused = id; },
+    click() { this.listeners.get('click')?.(); },
   });
-  return { link, status, navigations };
+  const nodes = Object.fromEntries(['welcome-start', 'welcome-guide', 'new-user',
+    'guide-back', 'guide-title', 'open-world', 'guide-continue', 'main'].map(id => [id, element(id)]));
+  const window = { location, addEventListener(name, listener) { events.set(name, listener); } };
+  for (const key of ['localStorage', 'sessionStorage']) Object.defineProperty(window, key, {
+    get() { throw new Error('Stored preferences must not bypass welcome'); },
+  });
+  vm.runInNewContext(script, {
+    URL, window,
+    document: { getElementById: id => nodes[id], querySelector: () => nodes.main },
+    setTimeout() { throw new Error('Entry must not schedule automatic navigation'); },
+  });
+  return { nodes, navigations, events, focused: () => focused };
 }
 
-test('Dream World entry opens the complete hosted application from root and project subpaths', () => {
+test('opening or reopening Dream World always waits at the two-choice welcome screen', () => {
   for (const base of ['https://dreamunity.example/dream-world/', 'https://dream-unity.github.io/one/dream-world/']) {
-    const { link, navigations } = openEntry(base);
-    assert.deepEqual(navigations, [production]);
-    assert.equal(link.href, production);
+    const page = openEntry(base + '?welcome=0&returning=true');
+    assert.deepEqual(page.navigations, []);
+    assert.equal(page.nodes['welcome-start'].hidden, false);
+    assert.equal(page.nodes['welcome-guide'].hidden, true);
+    page.nodes['new-user'].click();
+    page.events.get('pageshow')({ persisted: true });
+    assert.equal(page.nodes['welcome-start'].hidden, false);
+    assert.equal(page.nodes['welcome-guide'].hidden, true);
+    assert.deepEqual(page.navigations, []);
   }
 });
 
-test('Dream World preserves exact feed, camera and target state without accepting another destination', () => {
+test('New User opens instructions; Back restores the choices without starting the app', () => {
+  const page = openEntry('https://dreamunity.example/dream-world/');
+  page.nodes['new-user'].click();
+  assert.equal(page.nodes['welcome-start'].hidden, true);
+  assert.equal(page.nodes['welcome-guide'].hidden, false);
+  assert.equal(page.focused(), 'guide-title');
+  assert.equal(page.nodes.main.attributes.get('aria-labelledby'), 'guide-title');
+  page.nodes['guide-back'].click();
+  assert.equal(page.nodes['welcome-start'].hidden, false);
+  assert.equal(page.nodes['welcome-guide'].hidden, true);
+  assert.equal(page.focused(), 'new-user');
+  assert.equal(page.nodes.main.attributes.get('aria-labelledby'), 'welcome-title');
+  assert.deepEqual(page.navigations, []);
+});
+
+test('both Continue links open the same full app, preserving exact state and a fixed destination', () => {
   for (const suffix of [
+    '',
     '?feed=cctv&country=AU&city=melbourne#camera=au-spotswood',
     '?feed=radio&query=ABC%20Melbourne&tag=a%2Bb&tag=a+b#target=%2F%3F%23',
     '?url=https%3A%2F%2Fevil.example&redirect=javascript%3Aalert(1)&return=//evil.example#//evil.example',
   ]) {
-    const source = `https://dream-unity.github.io/one/dream-world/${suffix}`;
-    const { link, navigations } = openEntry(source);
-    assert.deepEqual(navigations, [`${production}${suffix}`]);
-    assert.equal(link.href, `${production}${suffix}`);
-    const target = new URL(navigations[0]);
-    assert.equal(target.origin, new URL(production).origin);
-    assert.equal(target.pathname, '/');
+    const page = openEntry(`https://dream-unity.github.io/one/dream-world/${suffix}`);
+    for (const id of ['open-world', 'guide-continue']) {
+      assert.equal(page.nodes[id].href, `${production}${suffix}`);
+      assert.equal(new URL(page.nodes[id].href).origin, new URL(production).origin);
+      assert.equal(page.nodes[id].listeners.has('click'), false, 'Continue must retain native link behavior');
+    }
+    assert.deepEqual(page.navigations, []);
   }
 });
 
-test('automatic entry works without its fallback link and blocked navigation leaves a useful fallback', () => {
-  const source = 'https://dream-unity.github.io/one/dream-world/?feed=radio#station';
-  const expected = `${production}?feed=radio#station`;
-  assert.deepEqual(openEntry(source, { missingLink: true }).navigations, [expected]);
-  const blocked = openEntry(source, { blockedNavigation: true });
-  assert.equal(blocked.link.href, expected);
-  assert.ok(blocked.status.textContent.trim(), 'a blocked redirect must leave readable guidance');
-});
-
-test('the public entry provides a real link without scripts and does not embed a reduced application', () => {
-  const fallback = [...html.matchAll(/<a\b[^>]*>/g)].map(match => match[0])
-    .find(anchor => /id="open-world"/.test(anchor));
-  assert.ok(fallback, 'script-free users need a visible native entry link');
-  assert.match(fallback, /href="https:\/\/november-1st-sable\.vercel\.app\/"/);
-  assert.doesNotMatch(html, /<iframe\b|gods-eye-view-live\.vercel\.app/i);
-  assert.match(html, /src="\.\/entry\.js(?:\?[^\"]*)?"/);
-  assert.match(html, /href="\.\/entry\.css(?:\?[^\"]*)?"/);
+test('initial HTML exposes exactly New User and Continue with the guide hidden and no redirect', () => {
+  const start = html.split('<section id="welcome-start">')[1].split('</section>')[0];
+  const choices = [...start.matchAll(/<(button|a)\b[^>]*>([^<]+)<\/\1>/g)].map(match => match[2]);
+  assert.deepEqual(choices, ['New User', 'Continue']);
+  assert.match(html, /<section[^>]*id="welcome-guide"[^>]*hidden/);
+  assert.doesNotMatch(html, /http-equiv="refresh"|<iframe\b/i);
+  for (const id of ['open-world', 'guide-continue']) {
+    assert.match(html, new RegExp(`<a[^>]*id="${id}"[^>]*href="https://november-1st-sable\\.vercel\\.app/"[^>]*>Continue</a>`));
+  }
+  assert.match(html, /src="\.\/entry\.js\?v=20260921-welcome"/);
+  assert.match(html, /href="\.\/entry\.css\?v=20260921-welcome"/);
 });
 
 function homeNavigation({ worldTag = 'A' } = {}) {

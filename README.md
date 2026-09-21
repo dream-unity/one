@@ -12,9 +12,9 @@ Dream Unity models the circulation through which possibility becomes reality and
 
 ## Experience
 
-Select **Dream World** inside the illustrated circle to open the full God’s Eye View application in the same tab. Its globe, layers, tracking, camera and radio directories, visual modes and provider APIs remain together at [the November-1st deployment](https://november-1st-sable.vercel.app/). Browser Back or the application’s “↖ Dream Unity” link returns home. Machine and Maker are visibly disabled.
+Select **Dream World** inside the illustrated circle to see **New User** and **Continue**. New User opens a short guide; either Continue link opens the full God’s Eye View application in the same tab. Its globe, layers, tracking, camera and radio directories, visual modes and provider APIs remain together at [the November-1st deployment](https://november-1st-sable.vercel.app/). Browser Back returns to the welcome choices; the application’s “↖ Dream Unity” link returns home. Machine and Maker are visibly disabled.
 
-The entry route preserves shared query and camera/hash state while fixing the destination to the complete application. It uses normal browser navigation, with a visible fallback link. No application subset, cross-origin iframe or secret credential is shipped by `one`. See [the integration notes](docs/DREAM_WORLD_INTEGRATION.md) for ownership, deployment and verification details. External data availability and optional provider credentials continue to determine which live services are available.
+The entry route preserves shared query and camera/hash state while fixing the destination to the complete application. It waits for an explicit Continue choice and uses normal browser navigation. No application subset, cross-origin iframe or secret credential is shipped by `one`. See [the integration notes](docs/DREAM_WORLD_INTEGRATION.md) for ownership, deployment and verification details. External data availability and optional provider credentials continue to determine which live services are available.
 
 The original artwork forms a living 3D surface with clearly moving ink details. Bands of the original drawing turn clockwise at four degrees per second, while every ring keeps its original centre and radius. The outer construction guides, connecting spine, labels and portal positions stay fixed. Shallow relief and soft cast shadows preserve the ink-and-parchment style. There is no zoom, movement of the whole body, dragging, or control strip.
 
@@ -91,9 +91,9 @@ Legacy branch-based Pages publishing is also covered by `_config.yml`, which exc
 
 ## Controls
 
-- Tap or click Dream World to open God’s Eye View
+- Tap or click Dream World, then choose New User for the guide or Continue to open God’s Eye View
 - Tab and Enter activate the native Dream World link; modified clicks can open a new tab
-- Browser Back or “↖ Dream Unity” inside God’s Eye returns home
+- Browser Back returns to the welcome choices; “↖ Dream Unity” inside God’s Eye returns home
 - Dream Machine and Dream Maker remain restricted
 
 ## License

@@ -2,11 +2,11 @@
 
 ## Public route and source ownership
 
-The main screen at https://dreamunity.one/ belongs to `dream-unity/one`. Its Dream World circle is a native link to `./dream-world/`. That entry route replaces itself in browser history with https://november-1st-sable.vercel.app/, the complete God’s Eye application maintained in `dream-unity/November-1st`.
+The main screen at https://dreamunity.one/ belongs to `dream-unity/one`. Its Dream World circle is a native link to `./dream-world/`. That entry route always shows **New User** and **Continue** first. New User opens a short guide. Both Continue links navigate to https://november-1st-sable.vercel.app/, the complete God’s Eye application maintained in `dream-unity/November-1st`.
 
 `one` owns the home navigation, entry page and publication boundary. `November-1st` continues to own the entire God’s Eye frontend, server/provider endpoints, camera and radio directories, third-party attribution and deployment configuration. This integration does not fork or copy a reduced God’s Eye implementation into static hosting. Future app improvements become available through the same entry without a second app build in `one`.
 
-Top-level navigation keeps the existing frontend and APIs on their intended origin. It preserves their current microphone, fullscreen, media, storage and share-link behavior without an iframe permission layer or a second cross-origin API configuration. Browser Back returns to the home screen without reopening the entry redirect. God’s Eye already supplies a “↖ Dream Unity” link to https://dreamunity.one/.
+Top-level navigation keeps the existing frontend and APIs on their intended origin. It preserves their current microphone, fullscreen, media, storage and share-link behavior without an iframe permission layer or a second cross-origin API configuration. Browser Back returns to the welcome page; restoring it from the back/forward cache resets the two choices. God’s Eye already supplies a “↖ Dream Unity” link to https://dreamunity.one/.
 
 ## Scope
 
@@ -20,10 +20,10 @@ Dream Machine and Dream Maker stay disabled in HTML and compatibility handlers. 
 
 - The main anchor is relative, so both a custom-domain root and a GitHub project subpath resolve correctly.
 - The entry appends the exact query string and hash to a fixed HTTPS application origin and root path. Shared feed, camera and target state survives the handoff. Parameters cannot choose another destination.
-- `location.replace` avoids an extra redirect entry on Back. Ordinary clicks, keyboard activation and opening a new tab use native anchor behavior.
-- A visible link remains available if automatic navigation fails. With JavaScript disabled the link still works, but the God’s Eye application itself requires JavaScript.
+- There is no automatic redirect, timer, remembered-user bypass or URL-based bypass. Ordinary clicks, keyboard activation and opening a new tab use native Continue anchors.
+- With JavaScript disabled Continue still works, and a visible notice explains that the guide and God’s Eye application require JavaScript.
 - No provider keys, tokens or user configuration are included in the entry files.
-- The external application is an operational dependency: if its deployment is unavailable, the entry cannot restore its services. Change both the fallback anchor and `entry.js` together if its production address changes, then update the destination regression tests.
+- The external application is an operational dependency: if its deployment is unavailable, the entry cannot restore its services. Change both Continue anchors and `entry.js` together if its production address changes, then update the destination regression tests.
 
 ## Publication boundary
 
@@ -37,6 +37,8 @@ The old `portals/dream-world` observatory, all other retained portals, exercises
 
 ## Verification
 
-The repository’s full Node test suite passes (134 tests), including publication closure, retained numerical models, home structure and artwork/renderer integrity. New integration tests exercise the fixed destination, root and project paths, exact query/hash preservation, hostile destination-like parameters, blocked navigation fallback, missing fallback element, native anchor behavior, cached old buttons and restricted compatibility hooks.
+Entry regression tests exercise the two initial choices, no automatic navigation, guide/back behavior and focus, browser-history restoration, both native Continue paths, exact query/hash preservation, fixed-origin enforcement, cached old home buttons and restricted compatibility hooks. Publication tests retain the existing file boundary.
 
-Release verification additionally checks the actual GitHub Pages deployment, selects Dream World on the live main screen, confirms arrival at the complete application, and follows its return-home link. A successful navigation is distinct from verifying every optional upstream feature or every external live stream.
+The welcome page is owned by `one` and applies to Dream Unity portal entry. Direct bookmarks to the Vercel app bypass this outer page. The pending welcome implementation in `November-1st` must be coordinated with this entry before a later Vercel deployment to avoid two consecutive welcome screens.
+
+Release verification must select Dream World from the live main screen, check both welcome routes and follow Continue to the existing complete app. This is distinct from verifying every optional upstream feature or external live stream.
