@@ -13,6 +13,7 @@ const permitted = [
   'symbol-surface.js', 'assets/dream-unity-portals-refined.webp',
   ...Array.from({ length: 4 }, (_, i) => `assets/symbol-ring-${i}.webp`),
   ...Array.from({ length: 4 }, (_, i) => `assets/symbol-mask-${i}.png`),
+  'manifesto/index.html', 'manifesto/manifesto.css',
   'dream-world/index.html', 'dream-world/entry.js', 'dream-world/entry.css',
   'dream-world/hub.js', 'dream-world/portals.css',
   'dream-world/gods-earth-view/index.html', 'dream-world/gods-minds-eye-view/index.html',
@@ -20,7 +21,7 @@ const permitted = [
   'vendor/three/three.core.min.js', 'vendor/three/LICENSE',
 ].sort();
 
-test('publication contains only the home and Dream World portal dependencies and removes stale applications', async () => {
+test('publication contains only the home, manifesto and Dream World portal dependencies and removes stale applications', async () => {
   assert.deepEqual([...PUBLIC_FILES].sort(), permitted);
   const stale = join(PUBLIC_DIRECTORY, 'portals/dream-world/index.html');
   await mkdir(dirname(stale), { recursive: true });
@@ -56,7 +57,7 @@ test('publication contains only the home and Dream World portal dependencies and
   }
 });
 
-test('legacy branch publishing excludes every source file outside the home and Dream World portals', async () => {
+test('legacy branch publishing excludes every source file outside the home, manifesto and Dream World portals', async () => {
   await assert.rejects(readFile(join(repository, '.nojekyll')), { code: 'ENOENT' },
     'root .nojekyll would bypass branch publication exclusions');
   const config = JSON.parse(await readFile(join(repository, '_config.yml'), 'utf8'));

@@ -2,7 +2,7 @@
 
 The circular parchment front page for Dream Unity, using the original artwork and layout from the Breath Journal repository.
 
-**Public availability:** [Dream Unity](https://dreamunity.one/) opens **Dream World**, a hub containing **God’s Earth View** and **God’s Minds Eye View**. Dream Machine and Dream Maker remain restricted. The published site contains the animated home page, its required assets and the `/dream-world/` hub and its two nested portals. The older activity descriptions below document retained repository source, which is excluded from publication.
+**Public availability:** [Dream Unity](https://dreamunity.one/) opens **Dream World**, a hub containing **God’s Earth View** and **God’s Minds Eye View**. Dream Machine and Dream Maker remain restricted. The published site contains the animated home page, the `/manifesto/` reading page, its required assets and the `/dream-world/` hub and its two nested portals. The older activity descriptions below document retained repository source, which is excluded from publication.
 
 Dream Unity models the circulation through which possibility becomes reality and returns transformed:
 
@@ -11,6 +11,8 @@ Dream Unity models the circulation through which possibility becomes reality and
 - **Dream World** — Matter · Structure · Emerge
 
 ## Experience
+
+Select the **Dream Unity** title to read [the manifesto](https://dreamunity.one/manifesto/). This native link works with keyboard, touch and JavaScript disabled. The dedicated parchment reading page includes six chapter links, twelve principles, source notes and return-home navigation. Its text defines psi as a philosophical account of whole-being participation; it does not present proposed anomalous effects as established science.
 
 Select **Dream World** inside the illustrated circle to choose **God’s Earth View** or **God’s Minds Eye View**. God’s Earth View opens `/dream-world/gods-earth-view/`, where **New User** and **Continue** appear first. New User opens a short guide; either Continue link opens the full God’s Earth View application in the same tab. Its globe, layers, tracking, camera and radio directories, visual modes and provider APIs remain together at [the November-1st deployment](https://november-1st-sable.vercel.app/). Browser Back returns to the welcome choices; the application’s “↖ Dream Unity” link returns home. God’s Minds Eye View opens its own page at `/dream-world/gods-minds-eye-view/`, currently marked Coming soon. Its return link leads to the hub. Machine and Maker are visibly disabled.
 
@@ -91,6 +93,7 @@ Legacy branch-based Pages publishing is also covered by `_config.yml`, which exc
 
 ## Controls
 
+- Tap or click the Dream Unity title to read the manifesto; use its return link to come home
 - Tap or click Dream World, then choose God’s Earth View or God’s Minds Eye View
 - Within God’s Earth View, choose New User for the guide or Continue for the complete app
 - Tab and Enter activate the native Dream World link; modified clicks can open a new tab

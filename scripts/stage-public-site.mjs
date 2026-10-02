@@ -5,7 +5,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const repository = fileURLToPath(new URL('../', import.meta.url));
 export const PUBLIC_DIRECTORY = resolve(repository, '.public-site');
 
-// Explicitly publish the home, Dream World hub and its two portals only. Keeping
+// Explicitly publish the home, manifesto, Dream World hub and its two portals. Keeping
 // an activity in source control must never expose its retired direct URL.
 export const PUBLIC_FILES = Object.freeze([
   '.nojekyll',
@@ -18,6 +18,8 @@ export const PUBLIC_FILES = Object.freeze([
   'symbol-motion.js',
   'symbol-3d.js',
   'symbol-surface.js',
+  'manifesto/index.html',
+  'manifesto/manifesto.css',
   'dream-world/index.html',
   'dream-world/entry.js',
   'dream-world/entry.css',

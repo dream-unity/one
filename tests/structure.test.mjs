@@ -32,7 +32,7 @@ test("the front page exposes Dream World and labels the two restricted portals",
   }
   assert.equal((html.match(/data-world=/g) || []).length, 3);
   assert.match(html, /<dialog[^>]+id="world-panel"[^>]+aria-labelledby="world-title"/);
-  assert.match(html, /<h1 class="portal-title">Dream Unity<\/h1>/);
+  assert.match(html, /<h1 class="portal-title"><a class="portal-manifesto" href="\.\/manifesto\/"[^>]*aria-label="Dream Unity — read the manifesto"[^>]*>Dream Unity<\/a><\/h1>/);
   assert.match(html, /portal-subnav\.js\?v=portal-access-/);
 });
 
