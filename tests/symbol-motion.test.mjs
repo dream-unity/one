@@ -130,73 +130,181 @@ test('neighbouring hub contours are protected in both source and destination spa
   }
 });
 
-test('animation starts independently of Three and remains active with reduced motion', async () => {
-  // Exercise the fallback entry point without creating or importing WebGL.
-  // Browser verification separately checks actual SVG rendering and playback.
+test('decoded bitmap consumers follow the independent clock through compositor and page suspension', async () => {
+  // Exercise the real asynchronous fallback entry point without importing Three.
   const source = await readFile(new URL('../symbol-motion.js', import.meta.url), 'utf8');
   assert.doesNotMatch(source, /^\s*import\s/m, 'Fallback must not depend on Three startup');
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   assert.match(html, /<script[^>]*type="module"[^>]*src="\.\/symbol-motion\.js\?/);
-  const tracked = [], listeners = {};
+  const tracked = [], decodes = [], listeners = {}, windowListeners = {};
+  let now = 1000;
   const makeElement = name => ({
-    name, children: [], attrs: {}, style: {}, classList: { add() {} },
+    name, children: [], attrs: {}, style: {}, dataset: {}, className: '',
     setAttribute(key, value) { this.attrs[key] = String(value); },
     getAttribute(key) { return this.attrs[key] ?? null; },
     append(child) { this.children.push(child); },
+    querySelectorAll(selector) {
+      const className = selector.slice(1);
+      return this.children.flatMap(child => [
+        ...(child.className === className ? [child] : []),
+        ...child.querySelectorAll(selector),
+      ]);
+    },
+    decode() {
+      return new Promise(resolve => decodes.push({ image: this, resolve }));
+    },
     animate(keyframes, options) {
       const animation = { keyframes, options, currentTime: 0, playState: 'running', playbackRate: 1,
-        updatePlaybackRate(value) { this.playbackRate = value; },
         play() { this.playState = 'running'; }, pause() { this.playState = 'paused'; } };
       tracked.push(animation);
       return animation;
     },
   });
-  const image = makeElement('image'); image.setAttribute('src', './art.webp');
-  const host = makeElement('host'); host.querySelector = () => image;
+  const image = makeElement('img'); image.src = './art.webp';
+  const host = makeElement('host');
+  host.querySelector = selector => selector === '.portal-image' ? image : null;
   const panel = makeElement('panel'); panel.setAttribute('aria-hidden', 'true');
   const preference = { matches: true, addEventListener(name, listener) { listeners.preference = listener; } };
-  const document = { hidden: false, timeline: { currentTime: 1234 },
-    querySelector(selector) { return selector === '.portal-artwork' ? host : panel; },
-    createElementNS(ns, name) { return makeElement(name); },
+  const document = { hidden: false, timeline: { currentTime: now },
+    querySelector(selector) {
+      return selector === '.portal-artwork' ? host : selector === '#world-panel' ? panel : null;
+    },
+    createElement(name) { return makeElement(name); },
     addEventListener(name, listener) { listeners[name] = listener; },
   };
-  const replacements = { document, window: { addEventListener() {} }, matchMedia: () => preference,
+  const replacements = { document,
+    window: { addEventListener(name, listener) { windowListeners[name] = listener; } },
+    performance: { now: () => now },
+    Image: class { constructor() { return makeElement('mask-image'); } },
+    matchMedia: () => preference,
     MutationObserver: class { constructor(listener) { listeners.panel = listener; } observe() {} },
   };
+  const advance = milliseconds => { now += milliseconds; document.timeline.currentTime = now; };
+  const flush = () => new Promise(resolve => setImmediate(resolve));
+  const assertPlaying = expected => assert.ok(tracked.every(animation =>
+    animation.playState === (expected ? 'running' : 'paused')));
   const originals = Object.fromEntries(Object.keys(replacements).map(key => [key,
     Object.getOwnPropertyDescriptor(globalThis, key)]));
   try {
     for (const [key, value] of Object.entries(replacements))
       Object.defineProperty(globalThis, key, { value, configurable: true, writable: true });
     const motion = await import(`../symbol-motion.js?fallback-test=${Date.now()}`);
+    assert.equal(decodes.length, INK_RINGS.length * 2, 'Both source images and destination masks must decode');
+    assert.equal(host.children.length, 0, 'Undecoded layers must never cover the artwork');
+    assert.equal(tracked.length, 0);
+    assert.equal(motion.getInkMotion().active, false);
+    for (let i = 0; i < INK_RINGS.length; i++) {
+      assert.match(decodes[i * 2].image.src, new RegExp(`/assets/symbol-mask-${i}\\.png$`));
+      assert.match(decodes[i * 2 + 1].image.src, new RegExp(`/assets/symbol-ring-${i}\\.webp$`));
+      assert.equal(decodes[i * 2 + 1].image.width, INK_RINGS[i].outer * 2);
+      assert.equal(decodes[i * 2 + 1].image.height, INK_RINGS[i].outer * 2);
+    }
+    decodes.slice(0, -1).forEach(decode => decode.resolve());
+    await flush();
+    assert.equal(host.children.length, 0, 'A single pending mask or source keeps the complete layer hidden');
+    advance(5000);
+    decodes.at(-1).resolve();
+    await flush();
+    assert.equal(host.children.length, 1);
+    const layer = host.children[0];
+    assert.equal(layer.className, 'symbol-ink');
+    assert.equal(layer.getAttribute('aria-hidden'), 'true');
+    for (let i = 0; i < INK_RINGS.length; i++) {
+      const band = layer.children[i];
+      const ring = INK_RINGS[i];
+      assert.equal(band.className, 'symbol-ink-band');
+      near(parseFloat(band.style.left), (ring.cx - ring.outer) / 1254 * 100);
+      near(parseFloat(band.style.top), (ring.cy - ring.outer) / 1254 * 100);
+      near(parseFloat(band.style.width), ring.outer * 2 / 1254 * 100);
+      assert.equal(band.style.width, band.style.height);
+      assert.equal(band.style.maskImage, band.style.webkitMaskImage);
+      assert.ok(band.style.maskImage.includes(`/assets/symbol-mask-${i}.png`));
+      assert.equal(band.children[0].dataset.inkRing, i);
+    }
     assert.equal(tracked.length, INK_RINGS.length);
     for (const animation of tracked) {
       assert.equal(animation.playState, 'running');
       assert.equal(animation.playbackRate, .5);
-      assert.equal(animation.startTime, 1234);
+      near(animation.currentTime, 2500);
+      near(animation.startTime, 1000);
       assert.deepEqual(animation.keyframes, [{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }]);
       assert.equal(animation.options.duration, INK_CYCLE * 1000);
       assert.equal(animation.options.easing, 'linear');
+      assert.equal(animation.options.iterations, Infinity);
     }
     assert.equal(motion.getInkMotion().active, true);
     assert.equal(motion.getInkMotion().reduced, true);
     assert.equal(motion.getInkMotion().paused, false);
-    tracked.forEach(animation => { animation.currentTime = 2500; });
-    near(motion.getInkMotion().angle, 10 * Math.PI / 180);
+    // A stalled or reset DOM animation cannot change the primary clock.
+    tracked.forEach(animation => { animation.currentTime = 0; });
+    advance(500);
+    near(motion.getInkMotion().seconds, 2.75);
+    near(motion.getInkMotion().angle, 11 * Math.PI / 180);
+    motion.setInkCompositorHidden(true);
+    assertPlaying(false);
+    assert.equal(motion.getInkMotion().paused, false);
+    advance(10000);
+    near(motion.getInkMotion().seconds, 7.75);
+    motion.setInkCompositorHidden(false);
+    assertPlaying(true);
+    assert.ok(tracked.every(animation => animation.currentTime === 7750));
+    assert.ok(tracked.every(animation => animation.startTime === now - 7750 / .5));
     listeners.preference({ matches: false });
-    assert.ok(tracked.every(animation => animation.playbackRate === 1 && animation.playState === 'running'));
+    assert.equal(motion.getInkMotion().reduced, false);
+    assert.ok(tracked.every(animation => animation.playbackRate === 1));
+    assertPlaying(true);
+    near(motion.getInkMotion().seconds, 7.75);
+    advance(2000);
+    near(motion.getInkMotion().seconds, 9.75);
+
     document.hidden = true; listeners.visibilitychange();
-    assert.ok(tracked.every(animation => animation.playState === 'paused'));
+    assertPlaying(false);
+    assert.equal(motion.getInkMotion().paused, true);
+    advance(120000);
+    near(motion.getInkMotion().seconds, 9.75);
     document.hidden = false; listeners.visibilitychange();
-    assert.ok(tracked.every(animation => animation.playState === 'running'));
+    assertPlaying(true);
+    assert.equal(motion.getInkMotion().paused, false);
+    advance(1000);
+    near(motion.getInkMotion().seconds, 10.75);
+
     panel.setAttribute('aria-hidden', 'false'); listeners.panel();
-    assert.ok(tracked.every(animation => animation.playState === 'paused'));
+    assertPlaying(false);
+    advance(30000);
+    near(motion.getInkMotion().seconds, 10.75);
     panel.setAttribute('aria-hidden', 'true'); listeners.panel();
-    assert.ok(tracked.every(animation => animation.playState === 'running'));
+    assertPlaying(true);
     motion.pauseInkMotion(true);
-    assert.ok(tracked.every(animation => animation.playState === 'paused'));
+    assertPlaying(false);
+    advance(30000);
+    near(motion.getInkMotion().seconds, 10.75);
     motion.pauseInkMotion(false);
-    assert.ok(tracked.every(animation => animation.playState === 'running'));
+    assertPlaying(true);
+
+    // BFCache suspension is explicit even if visibilitychange never fires.
+    windowListeners.pagehide({ persisted: true });
+    assertPlaying(false);
+    assert.equal(motion.getInkMotion().paused, true);
+    advance(240000);
+    near(motion.getInkMotion().seconds, 10.75);
+    windowListeners.pageshow({ persisted: true });
+    assertPlaying(true);
+    assert.equal(motion.getInkMotion().paused, false);
+    assert.ok(tracked.every(animation => animation.currentTime === 10750));
+    advance(1000);
+    near(motion.getInkMotion().seconds, 11.75);
+
+    // Lifecycle recovery cannot unhide consumers selected off by WebGL.
+    motion.setInkCompositorHidden(true);
+    windowListeners.pagehide({ persisted: true });
+    advance(1000);
+    windowListeners.pageshow({ persisted: true });
+    assertPlaying(false);
+    advance(1000);
+    near(motion.getInkMotion().seconds, 12.75);
+    motion.setInkCompositorHidden(false);
+    assertPlaying(true);
+    assert.ok(tracked.every(animation => animation.currentTime === 12750));
   } finally {
     for (const [key, descriptor] of Object.entries(originals)) {
       if (descriptor) Object.defineProperty(globalThis, key, descriptor); else delete globalThis[key];

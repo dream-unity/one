@@ -1,6 +1,6 @@
-// The same original ink bands turn in WebGL and in the SVG fallback.
+// The same original ink bands turn in WebGL and in compositor image layers.
 // Whole circles rotate rigidly: their centres, radii and the connecting spine
-// never move. A shared browser animation clock prevents a fallback pose jump.
+// never move. An independent elapsed-time clock prevents a fallback pose jump.
 export const INK_CYCLE = 90;
 export const INK_RINGS = [
   { cx: 627, cy: 627, inner: 386, outer: 542, feather: 16 },
@@ -63,80 +63,117 @@ export const INK_GLSL = `
   }
 `;
 
-let animations = [], reduced = false, manuallyPaused = false;
+// The visible renderer must never take its phase from an invisible DOM layer.
+// This clock accounts for elapsed time, including delayed/dropped frames, and
+// changes speed or suspension state without restarting at angle zero.
+export function createInkClock(now = () => performance.now()) {
+  let anchor = now(), seconds = 0, paused = false, rate = 1;
+  const advance = () => {
+    const time = now();
+    if (!paused) seconds += Math.max(0, time - anchor) * rate / 1000;
+    anchor = time;
+  };
+  return {
+    read() {
+      advance();
+      return { seconds, angle: (seconds % INK_CYCLE) * Math.PI * 2 / INK_CYCLE, paused, rate };
+    },
+    setPaused(value) { advance(); paused = Boolean(value); },
+    setRate(value) {
+      if (!Number.isFinite(value) || value <= 0) throw new RangeError('Ink rate must be positive.');
+      advance(); rate = value;
+    },
+  };
+}
+
+const clock = createInkClock();
+let animations = [], reduced = false, manuallyPaused = false, pageHidden = false;
+let compositorHidden = false;
 export function getInkMotion() {
-  const seconds = (Number(animations[0]?.currentTime) || 0) / 1000;
-  return { seconds, angle: seconds * Math.PI * 2 / INK_CYCLE,
-    paused: animations[0]?.playState === 'paused', reduced,
-    active: animations.length > 0 };
+  return { ...clock.read(), reduced, active: animations.length > 0 };
 }
 export function pauseInkMotion(value) {
   manuallyPaused = Boolean(value);
   syncMotion();
 }
+// Stop invisible compositor layers while WebGL is healthy. They are disposable
+// consumers of the clock, so exposing them later cannot freeze or reset WebGL.
+export function setInkCompositorHidden(value) {
+  if (compositorHidden === Boolean(value)) return;
+  compositorHidden = Boolean(value);
+  syncMotion();
+}
 function syncMotion() {
   if (typeof document === 'undefined') return;
-  const hidden = document.hidden || document.querySelector('#world-panel')?.getAttribute('aria-hidden') === 'false';
+  const suspended = pageHidden || document.hidden
+    || document.querySelector('#world-panel')?.getAttribute('aria-hidden') === 'false'
+    || manuallyPaused;
+  clock.setRate(reduced ? .5 : 1);
+  clock.setPaused(suspended);
+  const motion = clock.read();
+  // One seek per lifecycle change, never once per animation frame. The browser
+  // composites the decoded images without JS, SVG filters, or a shadow pass.
   for (const animation of animations) {
-    animation.updatePlaybackRate(reduced ? .5 : 1);
-    if (hidden || manuallyPaused) animation.pause(); else animation.play();
+    animation.pause();
+    animation.playbackRate = motion.rate;
+    animation.currentTime = motion.seconds * 1000;
+  }
+  if (!suspended && !compositorHidden) {
+    const timeline = document.timeline.currentTime;
+    for (const animation of animations) {
+      animation.play();
+      if (timeline !== null) animation.startTime = timeline - motion.seconds * 1000 / motion.rate;
+    }
   }
 }
 
-function startInkMotion() {
+async function startInkMotion() {
   const host = document.querySelector('.portal-artwork');
-  const image = host?.querySelector('.portal-image');
-  if (!host || !image) return;
-  const ns = 'http://www.w3.org/2000/svg';
-  const svg = document.createElementNS(ns, 'svg');
-  svg.setAttribute('viewBox', '0 0 1254 1254');
-  svg.setAttribute('aria-hidden', 'true');
-  svg.setAttribute('focusable', 'false');
-  svg.classList.add('symbol-ink');
-  const defs = document.createElementNS(ns, 'defs');
-  svg.append(defs);
-  const make = (name, attrs, parent) => {
-    const el = document.createElementNS(ns, name);
-    for (const [key, value] of Object.entries(attrs)) el.setAttribute(key, value);
-    parent.append(el);
-    return el;
-  };
-  // Feather only masks, never the drawing itself. Source and destination
-  // masks both protect the spine so it cannot rotate into a moving spoke.
-  const blur = make('filter', { id: 'ink-feather', x: '-10%', y: '-10%', width: '120%', height: '120%' }, defs);
-  make('feGaussianBlur', { stdDeviation: 2 }, blur);
-  INK_RINGS.forEach((ring, i) => {
-    const mask = make('mask', { id: `ink-band-${i}`, maskUnits: 'userSpaceOnUse', x: 0, y: 0, width: 1254, height: 1254 }, defs);
-    const feathered = make('g', { filter: 'url(#ink-feather)' }, mask);
-    make('circle', { cx: ring.cx, cy: ring.cy, r: (ring.inner + ring.outer) / 2,
-      fill: 'none', stroke: 'white', 'stroke-width': ring.outer - ring.inner - ring.feather }, feathered);
-    make('rect', { x: 0, y: 609, width: 1254, height: 36, fill: 'black' }, feathered);
-    for (const [cx, radius] of [[354, 75], [626, 139], [899, 75]])
-      make('circle', { cx, cy: 627, r: radius, fill: 'black' }, feathered);
-    for (const hub of HUB_GUARDS)
-      if (hub.cx !== ring.cx || hub.cy !== ring.cy)
-        make('circle', { cx: hub.cx, cy: hub.cy, r: hub.radius + 6, fill: 'black' }, feathered);
-    const fixed = make('g', { mask: `url(#ink-band-${i})` }, svg);
-    const turning = make('g', { 'data-ink-ring': i }, fixed);
-    turning.style.transformBox = 'view-box';
-    turning.style.transformOrigin = `${ring.cx}px ${ring.cy}px`;
-    make('image', { href: image.getAttribute('src'), x: 0, y: 0, width: 1254, height: 1254,
-      mask: `url(#ink-band-${i})` }, turning);
-    const animation = turning.animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }],
-      { duration: INK_CYCLE * 1000, iterations: Infinity, easing: 'linear' });
-    animations.push(animation);
-  });
-  host.append(svg);
-  // Start every ring on exactly the same timeline, including on slow devices.
-  const startTime = document.timeline.currentTime;
-  animations.forEach(animation => { animation.startTime = startTime; });
+  if (!host?.querySelector('.portal-image')) return;
   const preference = matchMedia('(prefers-reduced-motion: reduce)');
   reduced = preference.matches;
   preference.addEventListener('change', event => { reduced = event.matches; syncMotion(); });
   document.addEventListener('visibilitychange', syncMotion);
   const panel = document.querySelector('#world-panel');
   if (panel) new MutationObserver(syncMotion).observe(panel, { attributes: true, attributeFilter: ['aria-hidden'] });
-  window.addEventListener('pageshow', syncMotion);
+  window.addEventListener('pagehide', () => { pageHidden = true; syncMotion(); });
+  window.addEventListener('pageshow', () => { pageHidden = false; syncMotion(); });
+  syncMotion();
+
+  const layer = document.createElement('div');
+  layer.className = 'symbol-ink';
+  layer.setAttribute('aria-hidden', 'true');
+  const ready = [];
+  INK_RINGS.forEach((ring, i) => {
+    const fixed = document.createElement('div');
+    fixed.className = 'symbol-ink-band';
+    fixed.style.left = `${(ring.cx - ring.outer) / 1254 * 100}%`;
+    fixed.style.top = `${(ring.cy - ring.outer) / 1254 * 100}%`;
+    fixed.style.width = fixed.style.height = `${ring.outer * 2 / 1254 * 100}%`;
+    const maskUrl = new URL(`./assets/symbol-mask-${i}.png`, import.meta.url).href;
+    fixed.style.maskImage = fixed.style.webkitMaskImage = `url("${maskUrl}")`;
+    const mask = new Image();
+    mask.src = maskUrl;
+    ready.push(mask.decode());
+    const turning = document.createElement('img');
+    turning.className = 'symbol-ink-turn';
+    turning.dataset.inkRing = i;
+    turning.alt = '';
+    turning.draggable = false;
+    turning.width = turning.height = ring.outer * 2;
+    turning.src = new URL(`./assets/symbol-ring-${i}.webp`, import.meta.url).href;
+    ready.push(turning.decode());
+    fixed.append(turning);
+    layer.append(fixed);
+  });
+  // Do not expose half-decoded rings, or an animation at a different phase.
+  await Promise.all(ready);
+  host.append(layer);
+  animations = [...layer.querySelectorAll('.symbol-ink-turn')].map(turning =>
+    turning.animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }],
+      { duration: INK_CYCLE * 1000, iterations: Infinity, easing: 'linear' }));
   syncMotion();
 }
-if (typeof document !== 'undefined') startInkMotion();
+if (typeof document !== 'undefined') startInkMotion().catch(error => {
+  console.warn('Dream Unity: ink layers could not load.', error.message);
+});

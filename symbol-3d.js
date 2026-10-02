@@ -1,7 +1,6 @@
-import * as THREE from './vendor/three/three.module.min.js';
 import { SURFACE_GLSL, SURFACE_SCALE, SURFACE_RINGS, sampleSurface, sampleSurfaceBasis,
   sampleSurfaceLife, advanceSurfaceTime } from './symbol-surface.js?v=clockwise-20260920';
-import { INK_GLSL, INK_RINGS, getInkMotion, pauseInkMotion } from './symbol-motion.js?v=visible-ink-20260920';
+import { INK_GLSL, INK_RINGS, getInkMotion, pauseInkMotion, setInkCompositorHidden } from './symbol-motion.js?v=steady-rotation-20261002';
 
 const host = document.querySelector('.portal-artwork');
 const original = host.querySelector('.portal-image');
@@ -14,13 +13,14 @@ const disposables = new Set();
 const own = resource => { disposables.add(resource); return resource; };
 const listen = (target, type, handler) => target.addEventListener(type, handler, { signal: events.signal });
 const relief = { value: 0 };
-const surfaceLife = { value: new THREE.Vector4() };
-const inkTurn = { value: new THREE.Vector2(1, 0) };
-const segments = 128;
-let renderer, scene, camera, mechanism, surface, resizeObserver, panelObserver;
+const surfaceLife = { value: null };
+const inkTurn = { value: null };
+const segments = 64;
+let THREE, renderer, scene, camera, mechanism, surface, resizeObserver, panelObserver;
 let ready = false, contextLost = false, destroyed = false;
 let paused = false, raf = 0, frameCount = 0, lastTime = null;
 let elapsed = 0, width = 1, height = 1, life = sampleSurfaceLife(0);
+let slowFrames = 0;
 
 // Precompute height and slope coefficients once, instead of evaluating the
 // complete deformation three times per vertex on every rendered frame.
@@ -142,6 +142,12 @@ function pause(value) {
 function tick(time) {
   raf = 0;
   if (!canRender()) return;
+  // Sustained frame delays indicate this device cannot afford the relief.
+  // Switch once to compositor rotation, preserving phase rather than repeatedly
+  // losing/restoring a context or showing a stalled final canvas frame.
+  if (lastTime !== null && time - lastTime > 50) slowFrames++;
+  else slowFrames = Math.max(0, slowFrames - 1);
+  if (slowFrames >= 12) { destroy(); return; }
   // One real-time rhythm coordinates all four regions. The body and camera
   // never translate, tilt or scale; motion stays inside the original contours.
   elapsed = advanceSurfaceTime(elapsed, lastTime, time, paused);
@@ -151,9 +157,18 @@ function tick(time) {
   inkTurn.value.set(Math.cos(ink.angle), Math.sin(ink.angle));
   relief.value = life.relief * (motionPreference.matches ? .45 : 1);
   surfaceLife.value.fromArray(life.wave);
-  renderer.render(scene, camera);
+  try {
+    renderer.render(scene, camera);
+  } catch (error) {
+    console.info('Dream Unity: continuing with compositor rotation.', error.message);
+    destroy();
+    return;
+  }
   frameCount++;
-  host.classList.add('is-3d');
+  if (!host.classList.contains('is-3d')) {
+    host.classList.add('is-3d');
+    setInkCompositorHidden(true);
+  }
   if (!paused) raf = requestAnimationFrame(tick);
 }
 
@@ -171,7 +186,8 @@ function resize() {
   // buffer on every phone. UVs and the square projection remain unchanged.
   const pixels = Math.max(1, Math.min(original.naturalWidth,
     Math.ceil(width * Math.min(devicePixelRatio || 1, 2))));
-  renderer.setSize(pixels, pixels, false);
+  if (renderer.domElement.width !== pixels || renderer.domElement.height !== pixels)
+    renderer.setSize(pixels, pixels, false);
   wake();
 }
 
@@ -180,6 +196,7 @@ function fallback(message) {
   cancelAnimationFrame(raf);
   raf = 0;
   host.classList.remove('is-3d');
+  setInkCompositorHidden(false);
   if (message) status.textContent = message;
 }
 
@@ -229,7 +246,14 @@ window.__DREAM_SYMBOL__ = {
 };
 
 async function start() {
+  // Touch devices use the same original ink and phase, composed directly by the
+  // browser. Avoid a continuously rendered 3D mesh and shadow map on phones.
+  if (matchMedia('(pointer: coarse)').matches || matchMedia('(max-width: 800px)').matches) return;
   try {
+    // The mobile compositor path does not download the unused 3D engine.
+    THREE = await import('./vendor/three/three.module.min.js');
+    surfaceLife.value = new THREE.Vector4();
+    inkTurn.value = new THREE.Vector2(1, 0);
     if (!original.complete || !original.naturalWidth) await original.decode();
     if (destroyed) return;
     renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: 'low-power' });
@@ -248,7 +272,7 @@ async function start() {
     const light = new THREE.DirectionalLight(0xffffff, 2.8);
     light.position.set(0, 5, 8);
     light.castShadow = true;
-    light.shadow.mapSize.set(1024, 1024);
+    light.shadow.mapSize.set(512, 512);
     Object.assign(light.shadow.camera, { left: -5.5, right: 5.5, top: 5.5, bottom: -5.5, near: 1, far: 25 });
     light.shadow.bias = -.0001;
     light.shadow.normalBias = .015;
@@ -273,14 +297,14 @@ async function start() {
     listen(renderer.domElement, 'webglcontextlost', event => {
       event.preventDefault();
       contextLost = true;
-      fallback('Clockwise animation continues.');
+      // A stable fallback is preferable to automatic renderer flapping. It
+      // follows the independent clock and keeps running for this page visit.
+      destroy();
     });
-    listen(renderer.domElement, 'webglcontextrestored', () => {
-      contextLost = false;
-      ready = true;
-      elapsed = 0;
+    listen(window, 'pageshow', () => {
+      cancelAnimationFrame(raf);
+      raf = 0;
       wake();
-      status.textContent = 'Symbol animation restored.';
     });
     listen(motionPreference, 'change', wake);
     listen(window, 'pagehide', event => { if (!event.persisted) destroy(); });

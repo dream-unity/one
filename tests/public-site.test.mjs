@@ -11,6 +11,8 @@ const permitted = [
   '.nojekyll', 'CNAME', '404.html', 'index.html', 'styles.css',
   'portal-subnav.js', 'home-dialog.js', 'symbol-motion.js', 'symbol-3d.js',
   'symbol-surface.js', 'assets/dream-unity-portals-refined.webp',
+  ...Array.from({ length: 4 }, (_, i) => `assets/symbol-ring-${i}.webp`),
+  ...Array.from({ length: 4 }, (_, i) => `assets/symbol-mask-${i}.png`),
   'dream-world/index.html', 'dream-world/entry.js', 'dream-world/entry.css',
   'dream-world/hub.js', 'dream-world/portals.css',
   'dream-world/gods-earth-view/index.html', 'dream-world/gods-minds-eye-view/index.html',
