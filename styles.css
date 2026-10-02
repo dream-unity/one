@@ -205,6 +205,9 @@ body {
 .is-3d .symbol-ink { visibility: hidden; }
 .symbol-ink-band {
   position: absolute;
+  /* Rotated transparent corners must not enlarge the document or trigger
+     scrollbar/viewport changes while the circular ink stays in its track. */
+  overflow: hidden;
   /* A static bitmap mask protects the spine and neighbouring hubs. No live
      SVG filter, canvas redraw, or layout work is needed during rotation. */
   -webkit-mask-size: 100% 100%;
