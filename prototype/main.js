@@ -12,6 +12,7 @@ const requestedDestination = new URL(location.href).searchParams.get('view') || 
 let state = initialState(requestedDestination);
 const localSessionId = crypto.randomUUID();
 let memory = null, memoryView = null, memoryController = null;
+let memoryChanging = false;
 let sharedContext = [], selectedIds = [], serviceStatus = null, conversation = null;
 let routeController = null, navigationGeneration = 0, manifestoLoaded = false;
 let providerContextRevision = 0, exiting = false, textPhase = 'idle', submissionGeneration = 0;
@@ -91,7 +92,7 @@ function render() {
   $('voice-label').textContent = state.microphone === 'speaking' ? 'Speaking' : voiceActive ? 'Listening' : state.mode === 'media' ? 'Resume' : 'Speak';
   $('voice-start').setAttribute('aria-pressed', String(voiceActive));
   const descriptions = { idle: 'Write an intention, or choose Speak.', listening: 'Listening. Stop releases your microphone.',
-    speaking: 'Speaking. You can interrupt or press Stop.', connecting: 'Connecting your conversation…', permission: 'Waiting for microphone permission…', thinking: 'Considering your question…',
+    speaking: 'Speaking. You can interrupt or press Stop.', checking: 'Checking voice availability…', recovering: 'Voice connection interrupted. Trying to recover… Press Stop to end it.', connecting: 'Connecting your conversation…', permission: 'Waiting for microphone permission…', thinking: 'Considering your question…',
     ready: 'Your conversation is ready.', connected: 'Listening. Stop releases your microphone.',
     paused: 'Microphone paused. Choose Resume when ready.', stopped: 'Microphone stopped. You can still write.',
     expired: 'Voice ended. Text and navigation remain available.', failed: 'Voice is unavailable. You can still write.', closed: 'Microphone stopped. You can still write.' };
@@ -186,7 +187,7 @@ const executor = createActionExecutor({ getState: () => state, navigate, focus,
     const dataset = await memory.load();
     const ownsProposal = () => !signal.aborted && request.routeEpoch === state.routeEpoch && request.consentEpoch === state.consentEpoch && request.memoryRevision === state.memoryRevision;
     if (!ownsProposal()) throw Object.assign(new Error('Memory proposal cancelled.'), { code: 'CANCELLED' });
-    if (!dataset.consent.storageEnabled) throw new Error('Enable remembering before saving a proposed note.');
+    if (!memory.getStatus().savingEnabled) throw new Error('Choose For this visit or Remember on this device before saving a proposed note.');
     if (proposal.operation !== 'create_node' && !dataset.consent.conversationUseEnabled) throw new Error('Share the selected saved records before asking the AI to propose their changes.');
     const pending = await memoryController.propose(proposal, { turnId: request.turnId, sharedIds: sharedContext.map(r => r.id),
       consentEpoch: request.consentEpoch, revision: request.memoryRevision, signal });
@@ -222,6 +223,7 @@ conversation = createConversation({ baseUrl: EARTH_ORIGIN,
   },
   onState(value) {
     textPhase = value.text;
+    if (value.service) renderService(value.service);
     dispatch({ type: 'voice', status: value.voice }); dispatch({ type: 'mode', mode: value.mode });
     scene.setSpeaking(value.voice === 'speaking' ? 0.7 : 0);
   },
@@ -242,12 +244,37 @@ function navigateFromUser(destination, options) {
   pauseForUserControl(); return navigate(destination, options);
 }
 function revealAccess() {
-  $('access-panel').hidden = false; $('access-status').textContent = serviceStatus?.ready ? 'Enter your private invitation to connect.' : 'Conversation is awaiting private service configuration.';
-  if (serviceStatus?.ready) $('access-invite').focus();
+  if (!conversation.getState().service?.ready) {
+    $('access-panel').hidden = true;
+    announce(conversation.getState().service?.message || 'Checking conversation availability.');
+    return;
+  }
+  $('access-panel').hidden = false; $('access-status').textContent = 'Enter your private invitation to connect.';
+  $('access-invite').focus();
+}
+function renderService(service) {
+  $('service-status').dataset.phase = service.phase;
+  $('service-status').dataset.code = service.code || '';
+  const checking = service.phase === 'checking';
+  $('service-retry').disabled = checking;
+  $('service-retry').textContent = checking ? 'Checking conversation…' : 'Check conversation again';
+  $('service-status').textContent = service.ready
+    ? 'Private conversation available. Grounded in the published Dream Unity manifesto.'
+    : service.message || 'Checking conversation availability…';
+  if (!service.ready) $('access-panel').hidden = true;
+  dispatch({ type: 'service', status: service.ready ? 'available' : 'unavailable' });
+}
+async function refreshService() {
+  try { serviceStatus = await conversation.getStatus(); return serviceStatus; }
+  catch { renderService(conversation.getState().service); return null; }
 }
 async function startVoice() {
-  if (!serviceStatus?.ready) { revealAccess(); announce('Voice is awaiting private service configuration. Navigation and notes remain available.'); return; }
-  if (!conversation.getState().authorized) { revealAccess(); return; }
+  if (!conversation.getState().authorized) {
+    const owner = navigationGeneration;
+    await refreshService();
+    if (owner === navigationGeneration && !exiting && state.visible) revealAccess();
+    return;
+  }
   if (state.mode === 'media') await conversation.resumeVoice(); else await conversation.startVoice();
 }
 async function refreshSelection(ids = selectedIds) {
@@ -270,10 +297,24 @@ async function refreshSelection(ids = selectedIds) {
   } catch (error) { if (version !== providerContextRevision) return; sharedContext = []; showError(error); }
 }
 function renderMemory(dataset) {
+  const retention = memory.getStatus();
+  const saving = retention.savingEnabled, visit = retention.mode === 'session';
   $('memory-consent').checked = dataset.consent.storageEnabled;
+  $('memory-consent').disabled = memoryChanging || !retention.deviceAvailable;
+  $('memory-session-mode').setAttribute('aria-pressed', String(visit));
+  $('memory-session-mode').disabled = memoryChanging || visit;
   $('memory-share-consent').checked = dataset.consent.conversationUseEnabled;
-  $('memory-share-consent').disabled = !dataset.consent.storageEnabled;
-  $('memory-status').textContent = dataset.consent.storageEnabled ? `${dataset.nodes.length} saved notes and ${dataset.edges.length} connections on this device. ${dataset.consent.conversationUseEnabled ? 'Choose which notes to share with the AI.' : 'Saved notes are not included in conversation.'}` : 'Remembering is off. You can explore without saving.';
+  $('memory-share-consent').disabled = memoryChanging || !saving;
+  $('memory-revoke').disabled = memoryChanging || !saving;
+  $('memory-revoke').textContent = visit ? 'End session memory' : 'Turn remembering off';
+  $('memory-clear').disabled = memoryChanging || !saving;
+  $('memory-clear').textContent = visit ? 'Delete visit notes' : 'Delete saved notes';
+  $('memory-forget-device').hidden = !visit || !retention.deviceAvailable;
+  $('memory-forget-device').disabled = memoryChanging;
+  const scope = visit ? 'For this visit' : 'On this device';
+  $('memory-status').textContent = saving
+    ? `${scope}: ${dataset.nodes.length} saved notes and ${dataset.edges.length} connections. ${visit ? 'These notes disappear when you reload this page or choose Exit. Device notes are kept separately. ' : ''}${dataset.consent.conversationUseEnabled ? 'Choose which notes to share with the AI.' : 'Saved notes are not included in conversation.'}`
+    : retention.mode === 'unavailable' ? 'Device storage is unavailable. Choose For this visit to keep temporary notes in this tab.' : 'Remembering is off. Choose For this visit or Remember on this device to begin.';
   const geometry = $('constellation-geometry'); geometry.replaceChildren();
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 640 260'); svg.setAttribute('focusable', 'false');
   const positions = new Map();
@@ -318,17 +359,35 @@ async function setupMemory() {
       proposalsContainer: $('memory-proposals'), onSelectionChange: ids => refreshSelection(ids) });
     await memoryView.refresh();
   } catch (error) {
-    memory = null; $('memory-status').textContent = 'This browser could not open device storage. Nothing will be saved.';
-    for (const id of ['memory-consent', 'memory-share-consent', 'memory-revoke', 'memory-clear']) $(id).disabled = true;
+    memory = null; $('memory-status').textContent = 'Memory could not start in this browser. Try reloading this page.';
+    for (const id of ['memory-session-mode', 'memory-consent', 'memory-share-consent', 'memory-revoke', 'memory-clear', 'memory-forget-device']) $(id).disabled = true;
   }
 }
 async function changeConsent() {
   if (!memory) return;
+  const sharing = $('memory-share-consent').checked;
   const current = await memory.load();
-  const storageEnabled = $('memory-consent').checked;
-  if (!storageEnabled && current.nodes.length && !window.confirm('Turn remembering off and delete the notes stored on this device?')) { renderMemory(current); return; }
-  const next = await memory.setConsent({ storageEnabled, conversationUseEnabled: storageEnabled && $('memory-share-consent').checked }, { consentEpoch: current.consentEpoch, revision: current.revision });
+  const next = await memory.setConsent({ storageEnabled: current.consent.storageEnabled, conversationUseEnabled: sharing }, { consentEpoch: current.consentEpoch, revision: current.revision });
   renderMemory(next); await refreshSelection();
+}
+async function changeMemoryMode(mode) {
+  if (!memory || memoryChanging) return;
+  const current = await memory.load();
+  const retention = memory.getStatus();
+  if (mode === retention.mode && (mode !== 'device' || retention.savingEnabled)) { renderMemory(current); return; }
+  const question = retention.mode === 'session' && current.nodes.length
+    ? 'End this visit’s constellation? Its temporary notes will disappear. Device notes are kept separately.'
+    : mode === 'off' && current.nodes.length ? 'Turn remembering off and delete the notes stored on this device?' : null;
+  if (question && !window.confirm(question)) { renderMemory(current); return; }
+  memoryChanging = true; renderMemory(current);
+  try {
+    interruptLocalWork();
+    await memory.setMode(mode, { consentEpoch: current.consentEpoch, revision: current.revision });
+    selectedIds = []; sharedContext = []; await memoryView?.refresh(); await refreshSelection();
+  } finally {
+    memoryChanging = false;
+    try { renderMemory(await memory.load()); } catch { /* The caller presents the original storage error. */ }
+  }
 }
 document.addEventListener('click', event => {
   const element = event.target.closest?.('[data-navigate]');
@@ -376,19 +435,22 @@ $('intention-form').addEventListener('submit', guarded(async event => {
     try {
       const dataset = await memory.load();
       if (saving.signal.aborted) return;
-      if (dataset.consent.storageEnabled) {
+      if (memory.getStatus().savingEnabled) {
         const text = directMemory[1].trim();
         if ([...text].length > 1200) { showError(new Error('A saved note can contain up to 1,200 characters.')); return; }
         await memory.commitProposal({ operation: 'create_node', kind: 'insight', title: [...text].slice(0, 120).join(''), text },
           { consentEpoch: dataset.consentEpoch, revision: dataset.revision, authorship: 'user', signal: saving.signal });
         clearSubmittedDraft();
-        transcript({ id: crypto.randomUUID(), role: 'user', text: message }); notice('Saved your exact note on this device.'); return;
+        transcript({ id: crypto.randomUUID(), role: 'user', text: message }); notice(memory.getStatus().mode === 'session' ? 'Kept your exact note for this visit. It disappears when you reload this page or choose Exit.' : 'Saved your exact note on this device.'); return;
       }
     } catch (error) { if (!saving.signal.aborted) showError(error); return; }
     finally { directSaveControllers.delete(saving); }
   }
-  if (!serviceStatus?.ready || !conversation.getState().authorized) {
-    revealAccess(); announce('AI conversation needs a private invitation and an available service. You can use the visible navigation, or write “Open Earth”.'); return;
+  if (!conversation.getState().authorized) {
+    const owner = navigationGeneration;
+    await refreshService();
+    if (submission === submissionGeneration && owner === navigationGeneration && !exiting && state.visible) revealAccess();
+    return;
   }
   clearSubmittedDraft();
   try {
@@ -401,10 +463,20 @@ $('access-form').addEventListener('submit', async event => {
   try { await conversation.access(invite); $('access-panel').hidden = true; notice('Private conversation is ready. Choose Speak or write your question.'); }
   catch (error) { $('access-status').textContent = error.message; }
 });
-for (const id of ['memory-consent', 'memory-share-consent']) $(id).addEventListener('change', () => changeConsent().catch(showError));
-$('memory-revoke').addEventListener('click', guarded(async () => { $('memory-consent').checked = false; $('memory-share-consent').checked = false; await changeConsent(); }));
+$('memory-consent').addEventListener('change', () => changeMemoryMode($('memory-consent').checked ? 'device' : 'off').catch(showError));
+$('memory-session-mode').addEventListener('click', guarded(() => changeMemoryMode('session')));
+$('memory-share-consent').addEventListener('change', () => changeConsent().catch(showError));
+$('memory-revoke').addEventListener('click', guarded(() => changeMemoryMode('off')));
+$('memory-forget-device').addEventListener('click', guarded(async () => {
+  if (!memory || !window.confirm('Delete all device notes and connections? Temporary notes for this visit will remain.')) return;
+  interruptLocalWork(); await memory.clearDevice(); await memoryView.refresh();
+  notice('Device notes and connections deleted.');
+}));
 $('memory-clear').addEventListener('click', guarded(async () => {
-  if (!memory || !window.confirm('Delete all saved notes and connections on this device? This cannot be undone.')) return;
+  if (!memory) return;
+  const beforeClear = await memory.load();
+  const place = memory.getStatus().mode === 'session' ? 'from this visit' : 'on this device';
+  if (!window.confirm(`Delete all saved notes and connections ${place}? This cannot be undone.`)) return;
   memoryController?.invalidate(); executor.cancel();
   // This confirmed command means all records, including a concurrently completed old-epoch write.
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -440,7 +512,7 @@ document.addEventListener('visibilitychange', async () => {
     await Promise.allSettled([conversation.stop(), earth.cancelActions(), earth.quiet()]);
   } else if (state.destination === 'earth' && !earth.getState().active) navigate('earth', { replace: true }).catch(showError);
 });
-window.addEventListener('pagehide', () => { interruptLocalWork(); conversation.exit().catch(() => {}); earth.close(); memory?.close(); scene.dispose(); });
+window.addEventListener('pagehide', () => { interruptLocalWork(); conversation.exit().catch(() => {}); earth.close(); memoryView?.close(); memory?.close(); scene.dispose(); });
 window.addEventListener('pageshow', event => {
   if (!event.persisted) return;
   // pagehide disposed all owners. Recreate them rather than revive a closed call/database.
@@ -459,12 +531,6 @@ if (requestedDestination !== state.destination) {
   setUrl(state.destination, true);
   notice('That destination is not available in this prototype. You are back at the centre.');
 }
-conversation.getStatus().then(status => {
-  serviceStatus = status;
-  dispatch({ type: 'service', status: status.ready ? 'available' : 'unavailable' });
-  $('service-status').textContent = status.ready ? 'Private conversation available. Grounded in the published Dream Unity manifesto.' : 'AI conversation is awaiting private service configuration. Explore the views and your own saved notes now.';
-}).catch(() => {
-  dispatch({ type: 'service', status: 'unavailable' });
-  $('service-status').textContent = 'AI conversation could not connect. Explore the views and your own saved notes now.';
-});
+$('service-retry').addEventListener('click', guarded(refreshService));
+refreshService();
 if (['earth', 'manifesto'].includes(state.destination)) navigate(state.destination, { replace: true }).catch(showError);

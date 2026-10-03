@@ -113,7 +113,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: stage4-browser-${{ github.run_id }}
-          path: output/stage4-browser
+          name: stage5-browser-${{ github.run_id }}
+          path: output/stage5-browser
           if-no-files-found: ignore
           retention-days: 7

@@ -1,4 +1,4 @@
-/** Confirmed, device-only memory. No conversation or application activity is ingested. */
+/** Confirmed memory with explicitly separate device and this-visit scopes. */
 export const NODE_KINDS = Object.freeze(['goal', 'insight', 'project', 'possibility', 'question']);
 export const NODE_STATUSES = Object.freeze(['active', 'paused', 'resolved', 'archived']);
 export const EDGE_RELATIONS = Object.freeze(['relates_to', 'supports', 'challenges', 'depends_on']);
@@ -80,16 +80,17 @@ export function validateProposal(proposal) {
   return clone(proposal);
 }
 
-export function validateDataset(state) {
+function validateState(state, sessionOnly = false) {
   keys(state, ['schemaVersion', 'revision', 'consentEpoch', 'consent', 'nodes', 'edges']);
   if (state.schemaVersion !== 1) fail('UNSUPPORTED_SCHEMA', 'This memory version is not supported.');
   integer(state.revision, 'Dataset revision'); integer(state.consentEpoch, 'Consent epoch');
   keys(state.consent, ['policyVersion', 'storageEnabled', 'conversationUseEnabled', 'updatedAt']);
   if (state.consent.policyVersion !== 'constellation-1' || typeof state.consent.storageEnabled !== 'boolean' || typeof state.consent.conversationUseEnabled !== 'boolean') fail('INVALID_INPUT', 'Memory consent is invalid.');
   date(state.consent.updatedAt);
-  if (state.consent.conversationUseEnabled && !state.consent.storageEnabled) fail('INVALID_INPUT', 'Sharing requires device storage consent.');
+  if (sessionOnly && state.consent.storageEnabled) fail('INVALID_INPUT', 'Session notes cannot claim device storage consent.');
+  if (!sessionOnly && state.consent.conversationUseEnabled && !state.consent.storageEnabled) fail('INVALID_INPUT', 'Sharing requires device storage consent.');
   if (!Array.isArray(state.nodes) || !Array.isArray(state.edges) || state.nodes.length > MEMORY_LIMITS.nodes || state.edges.length > MEMORY_LIMITS.edges) fail('MEMORY_LIMIT', 'The constellation exceeds its record limit.');
-  if (!state.consent.storageEnabled && (state.nodes.length || state.edges.length)) fail('INVALID_INPUT', 'Notes cannot remain without storage consent.');
+  if (!sessionOnly && !state.consent.storageEnabled && (state.nodes.length || state.edges.length)) fail('INVALID_INPUT', 'Notes cannot remain without storage consent.');
   const identifiers = new Set();
   for (const node of state.nodes) {
     keys(node, ['id', 'kind', 'title', 'text', 'status', 'authorship', 'createdAt', 'updatedAt', 'revision']);
@@ -110,6 +111,10 @@ export function validateDataset(state) {
   }
   return state;
 }
+
+/** Persisted v1 validation stays strict; volatile state is validated separately. */
+export function validateDataset(state) { return validateState(state); }
+export function validateSessionDataset(state) { return validateState(state, true); }
 
 function initialState(now) {
   return { schemaVersion: 1, revision: 0, consentEpoch: 0, consent: { policyVersion: 'constellation-1', storageEnabled: false, conversationUseEnabled: false, updatedAt: new Date(now()).toISOString() }, nodes: [], edges: [] };
@@ -193,55 +198,105 @@ export function createIndexedDBPersistence({ indexedDB = globalThis.indexedDB, d
   };
 }
 
+/** Serialized private graph, destroyed when this store closes. */
+function createSessionPersistence(state) {
+  let graph = clone(state), closed = false, generation = 0, queue = Promise.resolve();
+  return {
+    transact(transform, { signal } = {}) {
+      const captured = generation;
+      const task = queue.then(() => {
+        if (closed) fail('STORE_CLOSED', 'This visit has ended.');
+        if (captured !== generation) fail('STALE_STATE', 'The visit changed before saving.');
+        if (signal?.aborted) fail('STALE_PROPOSAL', 'The confirmed suggestion was cancelled.');
+        const output = transform(clone(graph));
+        if (!output || typeof output !== 'object' || output.then) fail('INVALID_TRANSACTION', 'Memory transactions must be synchronous.');
+        if (closed || captured !== generation || signal?.aborted) fail('STALE_STATE', 'The visit changed before saving.');
+        if (output.write) graph = clone(output.state);
+        return clone(output.result);
+      });
+      queue = task.catch(() => {}); return task;
+    },
+    abortPending() { generation++; },
+    close() { closed = true; generation++; graph = undefined; }
+  };
+}
+
 export function createMemoryStore({ onChange = () => {}, onRevoke = () => {}, indexedDB, BroadcastChannel = globalThis.BroadcastChannel, persistence, dbName = DB_NAME, now = Date.now, uuid = () => globalThis.crypto.randomUUID() } = {}) {
   const database = persistence || createIndexedDBPersistence({ indexedDB, dbName });
-  const subscribers = new Set();
-  const invalidators = new Set();
-  let cached, closed = false, generation = 0, channel;
-  try { if (BroadcastChannel) channel = new BroadcastChannel(`${dbName}:revisions`); } catch { /* Persisted transaction checks remain authoritative. */ }
+  const subscribers = new Set(), invalidators = new Set();
+  let cached, closed = false, generation = 0, channel, sessionDatabase;
+  let mode = 'device', deviceAvailable = true, deviceError = null, switching = false, switchOwner;
+  try { if (BroadcastChannel) channel = new BroadcastChannel(`${dbName}:revisions`); } catch { /* Transaction checks remain authoritative. */ }
+  function getStatus() { return { mode, deviceAvailable, deviceError, switching, savingEnabled: !closed && !switching && (mode === 'session' || (mode === 'device' && deviceAvailable && Boolean(cached?.consent.storageEnabled))) }; }
+  function announce(state) { try { channel?.postMessage({ schemaVersion: 1, revision: state.revision, consentEpoch: state.consentEpoch }); } catch { /* Device authority remains transactional. */ } }
   function notify(state, reason, external = false) {
-    if (closed || (cached && state.revision < cached.revision)) return;
-    const previous = cached;
-    cached = clone(state);
-    const changed = !previous || previous.revision !== state.revision || previous.consentEpoch !== state.consentEpoch;
-    if (!changed) return;
+    if (closed || (cached && state.revision < cached.revision)) return false;
+    const previous = cached; cached = clone(state);
+    if (previous && previous.revision === state.revision && previous.consentEpoch === state.consentEpoch) return true;
     const revoked = previous && state.consentEpoch !== previous.consentEpoch;
-    if (revoked) { generation++; try { onRevoke({ consentEpoch: state.consentEpoch, revision: state.revision, reason }); } catch { /* Callback failures cannot undo persistence. */ } }
+    if (revoked) generation++;
+    const publication = cached, publicationGeneration = generation, publicationMode = mode;
+    const current = () => !closed && !switching && cached === publication && generation === publicationGeneration && mode === publicationMode;
+    if (revoked) { try { onRevoke({ consentEpoch: state.consentEpoch, revision: state.revision, reason }); } catch { /* Persistence is already authoritative. */ } }
+    if (!current()) return false;
     const detail = { reason, external, initial: !previous, consentEpoch: state.consentEpoch, revision: state.revision };
-    try { onChange(clone(state), detail); } catch { /* UI owns its own error boundary. */ }
-    for (const listener of subscribers) { try { listener(clone(state), detail); } catch { /* Other subscribers still run. */ } }
+    try { onChange(clone(state), detail); } catch { /* UI owns its error boundary. */ }
+    if (!current()) return false;
+    for (const listener of subscribers) {
+      try { listener(clone(state), detail); } catch { /* Other subscribers still run. */ }
+      if (!current()) return false;
+    }
+    return true;
   }
   function ensureOpen() { if (closed) fail('STORE_CLOSED', 'Memory storage is closed.'); }
+  function ensureAvailable() { ensureOpen(); if (switching) fail('MODE_SWITCH_PENDING', 'Wait for the memory choice to finish.'); }
   function invalidateWrites(reason) {
-    generation++; database.abortPending?.();
-    for (const invalidate of invalidators) { try { invalidate(); } catch { /* Every pending controller still invalidates. */ } }
-    if (reason) { try { onRevoke({ pending: true, reason, consentEpoch: cached?.consentEpoch ?? 0, revision: cached?.revision ?? 0 }); } catch { /* Persistence still performs the requested operation. */ } }
+    generation++; database.abortPending?.(); sessionDatabase?.abortPending();
+    for (const invalidate of invalidators) { try { invalidate(); } catch { /* Every controller still invalidates. */ } }
+    if (reason) { try { onRevoke({ pending: true, reason, consentEpoch: cached?.consentEpoch ?? 0, revision: cached?.revision ?? 0 }); } catch { /* Requested operation still runs. */ } }
   }
-  async function transaction(reason, transform, { announce = false, capturedGeneration = generation, signal } = {}) {
-    ensureOpen();
-    const output = await database.transact(raw => {
+  async function transaction(reason, transform, { announce: broadcast = false, capturedGeneration = generation, signal } = {}) {
+    ensureAvailable(); const capturedMode = mode;
+    if (capturedMode === 'unavailable') fail('STORAGE_UNAVAILABLE', 'Device storage is unavailable. Choose Only for this visit to save notes in memory.');
+    const backend = ['session', 'off'].includes(capturedMode) ? sessionDatabase : database;
+    const validate = ['session', 'off'].includes(capturedMode) ? validateSessionDataset : validateDataset;
+    const output = await backend.transact(raw => {
       ensureOpen();
-      if (capturedGeneration !== generation) fail('STALE_STATE', 'Memory consent changed before this operation completed.');
-      const state = raw === undefined ? initialState(now) : validateDataset(raw);
-      const result = transform(state);
-      validateDataset(result.state);
-      return { state: result.state, write: raw === undefined || result.changed, result: { dataset: result.state, ...(result.result || {}), changed: Boolean(result.changed) } };
+      if (capturedGeneration !== generation || capturedMode !== mode || switching) fail('STALE_STATE', 'Memory consent changed before this operation completed.');
+      const state = raw === undefined ? initialState(now) : validate(raw), result = transform(state);
+      validate(result.state);
+      return { state: result.state, write: Boolean(result.changed), result: { dataset: result.state, ...(result.result || {}), changed: Boolean(result.changed) } };
     }, { signal });
     ensureOpen();
-    notify(output.dataset, reason, reason === 'external-change');
-    if (announce && output.changed) { try { channel?.postMessage({ schemaVersion: 1, revision: output.dataset.revision, consentEpoch: output.dataset.consentEpoch }); } catch { /* IDB still contains the authoritative version. */ } }
+    // Completion from an old backend must never replace the graph in the new scope.
+    if (capturedGeneration !== generation || capturedMode !== mode || switching) fail('STALE_STATE', 'Memory changed while this operation completed.');
+    if (!notify(output.dataset, reason, reason === 'external-change')) fail('STALE_STATE', 'Memory changed while this operation was published.');
+    if (broadcast && output.changed && capturedMode === 'device') announce(output.dataset);
     if (cached && (cached.revision > output.dataset.revision || cached.consentEpoch > output.dataset.consentEpoch)) fail('STALE_STATE', 'Memory changed while this operation completed.');
     return clone(output);
   }
-  async function load() { return (await transaction('load', state => ({ state, changed: false }))).dataset; }
+  async function load(attempt = 0) {
+    const capturedMode = mode;
+    ensureAvailable(); if (mode === 'unavailable') return clone(cached);
+    try { return (await transaction('load', state => ({ state, changed: false }))).dataset; }
+    catch (error) {
+      // Read-only retries can recover a concurrent authoritative revocation, never a scope switch.
+      if (attempt < 2 && error.code === 'STALE_STATE' && mode === capturedMode && !switching && !closed) return load(attempt + 1);
+      // Empty availability fallback never enables saving or reports a failed save as successful.
+      if (!cached && mode === 'device' && !switching && ['STORAGE_UNAVAILABLE', 'STORAGE_BLOCKED', 'STORAGE_ERROR'].includes(error.code)) {
+        deviceAvailable = false; deviceError = error.code; mode = 'unavailable'; notify(initialState(now), 'storage-unavailable'); return clone(cached);
+      }
+      throw error;
+    }
+  }
   if (channel) channel.onmessage = event => {
     const message = event.data;
     try {
       keys(message, ['schemaVersion', 'revision', 'consentEpoch']); integer(message.revision, 'Revision'); integer(message.consentEpoch, 'Consent epoch');
-      if (message.schemaVersion !== 1 || closed || (cached && message.revision <= cached.revision && message.consentEpoch <= cached.consentEpoch)) return;
-      // The broadcast is a hint only. Never import payload or accept its epoch as authority.
+      if (message.schemaVersion !== 1 || closed || switching || mode !== 'device' || (cached && message.revision <= cached.revision && message.consentEpoch <= cached.consentEpoch)) return;
+      // No payload is imported. Session scope ignores device hints and rereads on device return.
       transaction('external-change', state => ({ state, changed: false })).catch(() => {});
-    } catch { /* Reject malformed/untrusted hints. */ }
+    } catch { /* Untrusted hints cannot mutate consent or records. */ }
   };
   function newId(state) {
     const identifier = uuid(); id(identifier);
@@ -249,11 +304,11 @@ export function createMemoryStore({ onChange = () => {}, onRevoke = () => {}, in
     return identifier;
   }
   function applyProposal(state, proposal, owner) {
-    if (!state.consent.storageEnabled) fail('STORAGE_DISABLED', 'Choose Remember on this device before saving.');
+    if (mode !== 'session' && !state.consent.storageEnabled) fail('STORAGE_DISABLED', 'Choose Only for this visit or Remember on this device before saving.');
     const updatedAt = timestamp(state, now);
     let record, before = null;
     if (proposal.operation === 'create_node') {
-      if (state.nodes.length >= MEMORY_LIMITS.nodes) fail('MEMORY_LIMIT', 'This device has reached 128 saved notes. Delete a note before adding another.');
+      if (state.nodes.length >= MEMORY_LIMITS.nodes) fail('MEMORY_LIMIT', 'This constellation has reached 128 saved notes. Delete a note before adding another.');
       record = { id: newId(state), kind: proposal.kind, title: proposal.title, text: proposal.text, status: 'active', authorship: owner, createdAt: updatedAt, updatedAt, revision: 1 };
       state.nodes.push(record);
     } else if (proposal.operation === 'update_node') {
@@ -263,7 +318,7 @@ export function createMemoryStore({ onChange = () => {}, onRevoke = () => {}, in
       findRecord(state.nodes, proposal.from, proposal.fromRevision); findRecord(state.nodes, proposal.to, proposal.toRevision);
       const duplicate = state.edges.find(edge => edge.from === proposal.from && edge.to === proposal.to && edge.relation === proposal.relation);
       if (duplicate) return { state, changed: false, result: { record: duplicate, before: duplicate, duplicate: true } };
-      if (state.edges.length >= MEMORY_LIMITS.edges) fail('MEMORY_LIMIT', 'This device has reached 256 relationships. Delete one before adding another.');
+      if (state.edges.length >= MEMORY_LIMITS.edges) fail('MEMORY_LIMIT', 'This constellation has reached 256 relationships. Delete one before adding another.');
       record = { id: newId(state), from: proposal.from, to: proposal.to, relation: proposal.relation, label: proposal.label, authorship: owner, createdAt: updatedAt, updatedAt, revision: 1 };
       state.edges.push(record);
     } else {
@@ -277,9 +332,45 @@ export function createMemoryStore({ onChange = () => {}, onRevoke = () => {}, in
   }
   const api = {
     load,
+    getStatus,
+    async setMode(nextMode, expected) {
+      enumValue(nextMode, ['session', 'device', 'off'], 'Memory mode'); ensureAvailable();
+      if (!cached) fail('STALE_STATE', 'Load the constellation before choosing how to save.');
+      preconditions(cached, expected); if (nextMode === mode && (nextMode !== 'device' || cached.consent.storageEnabled)) return load();
+      const owner = {}; switchOwner = owner; switching = true; invalidateWrites('mode-switch');
+      const capturedGeneration = generation, current = clone(cached);
+      try {
+        let next;
+        if (nextMode === 'session' || (nextMode === 'off' && mode !== 'device')) {
+          next = initialState(now); next.revision = nextInteger(current.revision); next.consentEpoch = nextInteger(current.consentEpoch); next.consent.updatedAt = timestamp(current, now); validateSessionDataset(next);
+        } else {
+          next = await database.transact(raw => {
+            ensureOpen(); if (capturedGeneration !== generation) fail('STALE_STATE', 'The memory choice was cancelled.');
+            const state = raw === undefined ? initialState(now) : validateDataset(raw);
+            state.revision = nextInteger(Math.max(current.revision, state.revision)); state.consentEpoch = nextInteger(Math.max(current.consentEpoch, state.consentEpoch));
+            const updatedAt = timestamp(state, now);
+            if (nextMode === 'off') { state.nodes = []; state.edges = []; }
+            state.consent = { policyVersion: 'constellation-1', storageEnabled: nextMode === 'device', conversationUseEnabled: false, updatedAt }; validateDataset(state);
+            return { state, write: true, result: state };
+          });
+          ensureOpen(); if (capturedGeneration !== generation) fail('STALE_STATE', 'The memory choice was cancelled.');
+        }
+        sessionDatabase?.close(); sessionDatabase = nextMode !== 'device' ? createSessionPersistence(next) : undefined;
+        mode = nextMode; if (nextMode === 'device') { deviceAvailable = true; deviceError = null; }
+        switching = false; if (!notify(next, 'mode-switch')) fail('STALE_STATE', 'The memory choice changed before publication completed.'); if (nextMode === 'device' || (nextMode === 'off' && current.consent.storageEnabled)) announce(next); return clone(next);
+      } catch (error) {
+        if (['STORAGE_UNAVAILABLE', 'STORAGE_BLOCKED', 'STORAGE_ERROR'].includes(error.code)) { deviceAvailable = false; deviceError = error.code; } throw error;
+      } finally { if (switchOwner === owner) { switching = false; switchOwner = undefined; } }
+    },
     async setConsent(consent, expected) {
       keys(consent, ['storageEnabled', 'conversationUseEnabled']);
-      if (typeof consent.storageEnabled !== 'boolean' || typeof consent.conversationUseEnabled !== 'boolean' || (consent.conversationUseEnabled && !consent.storageEnabled)) fail('INVALID_INPUT', 'Sharing requires device storage consent.');
+      ensureAvailable();
+      if (typeof consent.storageEnabled !== 'boolean' || typeof consent.conversationUseEnabled !== 'boolean' || (mode !== 'session' && consent.conversationUseEnabled && !consent.storageEnabled)) fail('INVALID_INPUT', 'Choose a saving mode before enabling conversation sharing.');
+      if (mode === 'session' && consent.storageEnabled) fail('MODE_CONFIRMATION_REQUIRED', 'Choose Remember on this device explicitly. Session notes are not transferred.');
+      if (consent.storageEnabled && ['off', 'unavailable'].includes(mode)) {
+        const next = await api.setMode('device', expected);
+        return consent.conversationUseEnabled ? api.setConsent(consent, { consentEpoch: next.consentEpoch, revision: next.revision }) : next;
+      }
       const destructive = !consent.storageEnabled || !consent.conversationUseEnabled;
       if (destructive) invalidateWrites('consent');
       const result = await transaction('consent', state => {
@@ -287,7 +378,7 @@ export function createMemoryStore({ onChange = () => {}, onRevoke = () => {}, in
         if (state.consent.storageEnabled === consent.storageEnabled && state.consent.conversationUseEnabled === consent.conversationUseEnabled) return { state, changed: false };
         state.consentEpoch = nextInteger(state.consentEpoch); state.revision = nextInteger(state.revision);
         state.consent = { policyVersion: 'constellation-1', ...consent, updatedAt: timestamp(state, now) };
-        if (!consent.storageEnabled) { state.nodes = []; state.edges = []; }
+        if (mode !== 'session' && !consent.storageEnabled) { state.nodes = []; state.edges = []; }
         return { state, changed: true };
       }, { announce: true });
       return result.dataset;
@@ -339,10 +430,25 @@ export function createMemoryStore({ onChange = () => {}, onRevoke = () => {}, in
         return { state, changed: true };
       }, { announce: true })).dataset;
     },
+    async clearDevice() {
+      ensureAvailable(); invalidateWrites('clear-device');
+      const capturedGeneration = generation, capturedMode = mode;
+      const output = await database.transact(raw => {
+        ensureOpen(); if (capturedGeneration !== generation || capturedMode !== mode || switching) fail('STALE_STATE', 'Memory changed before deleting device notes.');
+        const state = raw === undefined ? initialState(now) : validateDataset(raw), updatedAt = timestamp(state, now);
+        state.nodes = []; state.edges = []; state.consent = { policyVersion: 'constellation-1', storageEnabled: false, conversationUseEnabled: false, updatedAt };
+        state.consentEpoch = nextInteger(Math.max(state.consentEpoch, cached?.consentEpoch ?? 0)); state.revision = nextInteger(Math.max(state.revision, cached?.revision ?? 0)); validateDataset(state);
+        return { state, write: true, result: state };
+      });
+      ensureOpen(); if (capturedGeneration !== generation || capturedMode !== mode || switching) fail('STALE_STATE', 'Memory changed while deleting device notes.');
+      if (mode === 'device' && !notify(output, 'clear-device')) fail('STALE_STATE', 'Memory changed while deletion was published.'); announce(output); return clone(output);
+    },
     async selectContext(identifiers) {
       if (!Array.isArray(identifiers) || identifiers.length > MEMORY_LIMITS.selected || new Set(identifiers).size !== identifiers.length) fail('CONTEXT_LIMIT', 'Select at most six distinct notes or relationships.');
       identifiers.forEach(id);
+      const capturedGeneration = generation, capturedMode = mode;
       const state = await load();
+      if (capturedGeneration !== generation || capturedMode !== mode || switching) fail('STALE_STATE', 'Memory changed while selected context was prepared.');
       if (!state.consent.conversationUseEnabled) {
         if (identifiers.length) fail('SHARING_DISABLED', 'Choose permission to use selected notes in conversation first.');
         return { consentEpoch: state.consentEpoch, revision: state.revision, records: [] };
@@ -359,7 +465,7 @@ export function createMemoryStore({ onChange = () => {}, onRevoke = () => {}, in
       return { consentEpoch: state.consentEpoch, revision: state.revision, records };
     },
     subscribe(listener) { ensureOpen(); subscribers.add(listener); return () => subscribers.delete(listener); },
-    close() { closed = true; invalidateWrites(); subscribers.clear(); invalidators.clear(); channel?.close(); database.close?.(); }
+    close() { closed = true; invalidateWrites(); sessionDatabase?.close(); sessionDatabase = undefined; cached = undefined; subscribers.clear(); invalidators.clear(); channel?.close(); database.close?.(); }
   };
   internals.set(api, { uuid, subscribeInvalidation: listener => { invalidators.add(listener); return () => invalidators.delete(listener); }, issueReceipt: details => { const token = Object.freeze({}); receipts.set(token, { ...details, store: api, used: false }); return token; } });
   return Object.freeze(api);
@@ -390,7 +496,7 @@ export function createMemoryController({ store, onPendingChange = () => {} }) {
       const start = generation, state = await store.load();
       if (start !== generation || signal?.aborted) fail('STALE_PROPOSAL', 'The conversation changed while the suggestion was prepared.');
       preconditions(state, { consentEpoch, revision });
-      if (!state.consent.storageEnabled) fail('STORAGE_DISABLED', 'Choose Remember on this device before saving.');
+      if (!store.getStatus().savingEnabled) fail('STORAGE_DISABLED', 'Choose Only for this visit or Remember on this device before saving.');
       checkSharedTargets(state, proposal, sharedIds);
       let before = null, duplicate = false;
       if (proposal.operation === 'update_node') before = clone(findRecord(state.nodes, proposal.nodeId, proposal.expectedRevision));

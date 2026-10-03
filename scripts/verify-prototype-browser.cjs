@@ -5,17 +5,24 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const LIVE = 'https://dreamunity.one/prototype/';
+const ORIGIN = new URL(LIVE).origin;
+const BUDGET_MS = 180000;
 const NOTE = 'Dream Unity browser verification note.';
 const EDITED_NOTE = 'Dream Unity browser verification note, deliberately revised.';
 const SECOND_NOTE = 'A second authored note for relationship verification.';
+const DEVICE_NOTE = 'The existing device note stays on this device.';
+const VISIT_NOTE = 'This deliberately temporary constellation note belongs only to this visit.';
+const EDITED_VISIT_NOTE = 'This deliberately temporary constellation note was revised during this visit.';
+const SECOND_VISIT_NOTE = 'A second temporary note for the visit relationship.';
 const started = Date.now();
-const deadline = started + 110000;
-const directory = path.resolve('output/stage4-browser');
+const deadline = started + BUDGET_MS - 10000;
+const directory = path.resolve('output/stage5-browser');
 fs.mkdirSync(directory, { recursive: true });
 const evidence = { liveUrl: LIVE, expectedCommit: process.env.DREAMUNITY_EXPECTED_COMMIT || '',
   status: 'running', checks: [], gateErrors: [], deployment: [], responses: [], failedRequests: [], pageErrors: [],
   consoleErrors: [], forbiddenRequests: [], screenshots: [], pageShows: [], historyRecovery: null,
-  publicationChecks: [], checkTimings: [], memoryEvidence: {}, scope: 'Real deployed UI and IndexedDB; no provider, microphone, mock response, or injected application state.' };
+  publicationChecks: [], checkTimings: [], memoryEvidence: {}, visitEvidence: {}, voiceEvidence: {},
+  capabilityProbes: [], scope: 'Real deployed UI and IndexedDB with passive native storage/microphone observation. One isolated context deliberately denies IndexedDB.open to verify the unavailable-storage path. No mocked HTTP responses, provider calls, microphone permission grants, or injected application state.' };
 let browser, page, secondPage;
 
 function remaining(maximum = 8000) {
@@ -24,14 +31,14 @@ function remaining(maximum = 8000) {
   return Math.max(1, Math.min(maximum, value));
 }
 function prototypeUrl(value) {
-  try { const url = new URL(value); return url.origin === 'https://dreamunity.one' && url.pathname.startsWith('/prototype/'); }
+  try { const url = new URL(value); return url.origin === ORIGIN && url.pathname.startsWith(new URL(LIVE).pathname); }
   catch { return false; }
 }
 function summary() {
   const result = { status: evidence.status, liveUrl: LIVE, expectedCommit: evidence.expectedCommit,
     durationMs: Date.now() - started, checks: evidence.checks, gateErrors: evidence.gateErrors, screenshots: evidence.screenshots,
     pageShows: evidence.pageShows, historyRecovery: evidence.historyRecovery,
-    artifact: 'output/stage4-browser/verification.json' };
+    artifact: 'output/stage5-browser/verification.json' };
   if (evidence.error) Object.assign(result, { error: evidence.error, prototypeHttp: evidence.responses,
     deployment: evidence.deployment, failedRequests: evidence.failedRequests,
     pageErrors: evidence.pageErrors, consoleErrors: evidence.consoleErrors });
@@ -42,9 +49,9 @@ function writeEvidence() {
   fs.writeFileSync(path.join(directory, 'verification.json'), `${JSON.stringify(evidence, null, 2)}\n`);
 }
 const hardDeadline = setTimeout(() => {
-  evidence.status = 'failed'; evidence.error = 'Browser verification exceeded its hard 120-second deadline.';
+  evidence.status = 'failed'; evidence.error = `Browser verification exceeded its hard ${BUDGET_MS / 1000}-second deadline.`;
   writeEvidence(); console.error(JSON.stringify(summary())); process.exit(1);
-}, 120000);
+}, BUDGET_MS);
 
 async function check(name, action) {
   remaining(); const checkStarted = Date.now();
@@ -60,23 +67,28 @@ async function boot(target = page) {
     { timeout: remaining(12000) });
   assert.equal(await target.locator('body').getAttribute('data-boot'), 'ready', 'the actual application module must start');
 }
-// This is a read-only observation of the browser's actual committed record. All writes use visible UI.
+// Read actual committed storage without creating a database in a session-only visit.
 async function readMemory(target = page) {
-  return target.evaluate(() => new Promise((resolve, reject) => {
-    let database; const timer = setTimeout(() => finish(new Error('Reading actual IndexedDB timed out.')), 2500);
-    function finish(error, value) { clearTimeout(timer); database?.close(); error ? reject(error) : resolve(value); }
-    const opening = indexedDB.open('dream-unity-constellation-v1', 1);
-    opening.onerror = () => finish(new Error('The actual constellation database could not be read.'));
-    opening.onblocked = () => finish(new Error('The actual constellation database is blocked.'));
-    opening.onsuccess = () => {
-      database = opening.result;
-      try {
-        const request = database.transaction('records', 'readonly').objectStore('records').get('constellation');
-        request.onerror = () => finish(new Error('The actual constellation record could not be read.'));
-        request.onsuccess = () => finish(null, request.result);
-      } catch (error) { finish(error); }
-    };
-  }));
+  return target.evaluate(async () => {
+    const databases = await indexedDB.databases();
+    if (!databases.some(item => item.name === 'dream-unity-constellation-v1')) return undefined;
+    return new Promise((resolve, reject) => {
+      let database; const timer = setTimeout(() => finish(new Error('Reading actual IndexedDB timed out.')), 2500);
+      function finish(error, value) { clearTimeout(timer); database?.close(); error ? reject(error) : resolve(value); }
+      const opening = indexedDB.open('dream-unity-constellation-v1', 1);
+      opening.onerror = () => finish(new Error('The actual constellation database could not be read.'));
+      opening.onblocked = () => finish(new Error('The actual constellation database is blocked.'));
+      opening.onsuccess = () => {
+        database = opening.result;
+        if (!database.objectStoreNames.contains('records')) return finish(null, undefined);
+        try {
+          const request = database.transaction('records', 'readonly').objectStore('records').get('constellation');
+          request.onerror = () => finish(new Error('The actual constellation record could not be read.'));
+          request.onsuccess = () => finish(null, request.result);
+        } catch (error) { finish(error); }
+      };
+    });
+  });
 }
 async function viewIs(destination, target = page) {
   await target.waitForFunction(value => document.body.dataset.view === value, destination, { timeout: remaining() });
@@ -104,6 +116,61 @@ async function confirmDialog(action, expectedText) {
 async function rememberingIs(enabled, target = page) {
   await target.waitForFunction(value => document.getElementById('memory-consent').checked === value &&
     document.getElementById('memory-status').textContent.includes(value ? 'saved notes' : 'Remembering is off'), enabled, { timeout: remaining() });
+}
+async function waitForAccessOrUnreadyService(target = page) {
+  await target.waitForFunction(() => !document.getElementById('access-panel').hidden ||
+    document.getElementById('service-status').dataset.phase === 'unavailable', null, { timeout: remaining() });
+}
+async function visitIs(enabled, target = page) {
+  await target.waitForFunction(value => document.getElementById('memory-session-mode').getAttribute('aria-pressed') === String(value) &&
+    (!value || document.getElementById('memory-status').textContent.includes('For this visit')), enabled, { timeout: remaining() });
+}
+// Native methods keep their original receiver, arguments, return values and errors.
+// The counters observe attempted browser writes, without changing application state.
+function observeBrowserCapabilities() {
+  const observation = { indexedDBWrites: [], webStorageWrites: [], microphoneRequests: 0 };
+  Object.defineProperty(globalThis, '__dreamUnityBrowserObservation', { value: observation });
+  for (const method of ['add', 'put', 'delete', 'clear']) {
+    const native = IDBObjectStore.prototype[method];
+    IDBObjectStore.prototype[method] = function (...args) {
+      observation.indexedDBWrites.push({ database: this.transaction.db.name, store: this.name, method });
+      return Reflect.apply(native, this, args);
+    };
+  }
+  const nativeSetItem = Storage.prototype.setItem;
+  Storage.prototype.setItem = function (...args) {
+    let area = 'unknown';
+    try { area = this === globalThis.localStorage ? 'localStorage' : this === globalThis.sessionStorage ? 'sessionStorage' : area; } catch { /* Native call below retains the browser's actual behavior. */ }
+    observation.webStorageWrites.push({ area, key: typeof args[0] === 'string' ? args[0] : '[non-string key]' });
+    return Reflect.apply(nativeSetItem, this, args);
+  };
+  const nativeGetUserMedia = navigator.mediaDevices?.getUserMedia;
+  if (nativeGetUserMedia) {
+    navigator.mediaDevices.getUserMedia = function (...args) {
+      observation.microphoneRequests += 1;
+      globalThis.__dreamUnityObserveMicrophone?.().catch(() => {});
+      return Reflect.apply(nativeGetUserMedia, this, args);
+    };
+  }
+}
+async function browserObservation(target = page) {
+  return target.evaluate(() => structuredClone(globalThis.__dreamUnityBrowserObservation));
+}
+async function assertNoVisitStorage(before, target = page) {
+  const after = await browserObservation(target);
+  assert.deepEqual(after.indexedDBWrites, before.indexedDBWrites, 'visit notes and relationships must make no IndexedDB writes');
+  assert.deepEqual(after.webStorageWrites, before.webStorageWrites, 'visit notes and relationships must make no localStorage/sessionStorage writes');
+  const leaked = await target.evaluate(fragments => {
+    for (const storage of [localStorage, sessionStorage]) {
+      for (let index = 0; index < storage.length; index++) {
+        const value = storage.getItem(storage.key(index)) || '';
+        if (fragments.some(fragment => value.includes(fragment))) return true;
+      }
+    }
+    return false;
+  }, [VISIT_NOTE, EDITED_VISIT_NOTE, SECOND_VISIT_NOTE]);
+  assert.equal(leaked, false, 'temporary note text must never be copied into browser Web Storage');
+  return after;
 }
 async function deploymentIsCurrent(context) {
   function gateError(code, message) { return Object.assign(new Error(message), { deploymentGate: true, code }); }
@@ -136,6 +203,9 @@ async function deploymentIsCurrent(context) {
     browser = await chromium.launch({ headless: true, timeout: remaining(10000) });
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, permissions: [] });
     await context.clearPermissions();
+    evidence.voiceEvidence.microphoneRequests = 0;
+    await context.exposeBinding('__dreamUnityObserveMicrophone', () => { evidence.voiceEvidence.microphoneRequests += 1; });
+    await context.addInitScript(observeBrowserCapabilities);
     try { await check('published-commit', () => deploymentIsCurrent(context)); }
     catch (error) {
       if (!error.deploymentGate) throw error;
@@ -158,6 +228,10 @@ async function deploymentIsCurrent(context) {
     context.on('response', response => {
       if (prototypeUrl(response.url()) || sharedPrototypeRequests.has(response.request())) evidence.responses.push({ url: response.url(), status: response.status(),
         contentType: response.headers()['content-type'] || '', resourceType: response.request().resourceType() });
+      if (new URL(response.url()).pathname === '/api/unity/status') {
+        evidence.voiceEvidence.statusResponses ||= [];
+        evidence.voiceEvidence.statusResponses.push({ url: response.url(), status: response.status(), contentType: response.headers()['content-type'] || '' });
+      }
     });
     context.on('requestfailed', request => {
       if (prototypeUrl(request.url())) evidence.failedRequests.push({ url: request.url(), error: request.failure()?.errorText || 'unknown' });
@@ -166,7 +240,7 @@ async function deploymentIsCurrent(context) {
     page.on('console', message => { if (prototypeUrl(page.url()) && message.type() === 'error') evidence.consoleErrors.push(message.text()); });
     context.on('request', request => {
       const url = new URL(request.url());
-      if (url.origin === 'https://dreamunity.one' && url.pathname === '/symbol-motion.js') {
+      if (url.origin === ORIGIN && url.pathname === '/symbol-motion.js') {
         // Bind provenance when requested: a late old-home response can arrive after Back.
         try { if (prototypeUrl(request.frame().url())) sharedPrototypeRequests.add(request); } catch { /* No document frame owns this request. */ }
       }
@@ -198,6 +272,47 @@ async function deploymentIsCurrent(context) {
       assert.equal(await page.locator('#transcript').getAttribute('role'), 'log');
       assert.equal(await page.locator('#announcement').getAttribute('aria-live'), 'polite');
       assert.equal(await page.getByRole('link', { name: 'Exit', exact: true }).isVisible(), true);
+    });
+    await check('service-readiness-and-safe-retry-never-request-microphone', async () => {
+      await page.waitForFunction(() => ['available', 'unavailable'].includes(document.getElementById('service-status').dataset.phase),
+        null, { timeout: remaining(12000) });
+      const initialPhase = await page.locator('#service-status').getAttribute('data-phase');
+      const initialCode = await page.locator('#service-status').getAttribute('data-code');
+      const previousCount = evidence.voiceEvidence.statusResponses?.length || 0;
+      const retryResponse = page.waitForResponse(response => new URL(response.url()).pathname === '/api/unity/status' &&
+        response.request().method() === 'GET', { timeout: remaining(12000) });
+      await page.locator('#service-retry').click({ timeout: remaining() });
+      const response = await retryResponse;
+      await page.waitForFunction(() => ['available', 'unavailable'].includes(document.getElementById('service-status').dataset.phase) &&
+        !document.getElementById('service-retry').disabled, null, { timeout: remaining(12000) });
+      assert.ok((evidence.voiceEvidence.statusResponses?.length || 0) > previousCount, 'retry must fetch the actual service status again');
+      const phase = await page.locator('#service-status').getAttribute('data-phase');
+      const code = await page.locator('#service-status').getAttribute('data-code');
+      const message = await page.locator('#service-status').textContent();
+      if (response.status() === 404) {
+        assert.equal(phase, 'unavailable'); assert.equal(code, 'SERVICE_DEPLOYMENT_MISSING');
+        assert.match(message, /deploy|route|not installed/i);
+        assert.doesNotMatch(message, /microphone.*(?:denied|blocked)|permission.*(?:denied|blocked)/i);
+      } else if (response.status() === 200) {
+        const status = await response.json();
+        assert.equal(typeof status.ready, 'boolean');
+        assert.equal(phase, status.ready ? 'available' : 'unavailable');
+        if (!status.ready) assert.equal(code, 'SERVICE_NOT_READY');
+        evidence.voiceEvidence.publicReadiness = { ready: status.ready, reasonCodes: status.reasonCodes || [] };
+      }
+      const speakResponse = page.waitForResponse(value => new URL(value.url()).pathname === '/api/unity/status' &&
+        value.request().method() === 'GET', { timeout: remaining(12000) });
+      await page.locator('#voice-start').click({ timeout: remaining() }); await speakResponse;
+      await page.waitForFunction(() => ['available', 'unavailable'].includes(document.getElementById('service-status').dataset.phase),
+        null, { timeout: remaining(12000) });
+      assert.equal((await browserObservation()).microphoneRequests, 0);
+      assert.equal(evidence.voiceEvidence.microphoneRequests, 0);
+      assert.equal(await page.locator('#voice-start').getAttribute('aria-pressed'), 'false');
+      if (await page.locator('#service-status').getAttribute('data-phase') === 'unavailable') {
+        assert.equal(await page.locator('#access-panel').isVisible(), false, 'an unavailable service must not show a misleading invitation prompt');
+      } else assert.equal(await page.locator('#access-panel').isVisible(), true, 'a ready private service must require an invitation before microphone capture');
+      evidence.voiceEvidence.readinessRetry = { initialPhase, initialCode, retryHttp: response.status(), phase, code,
+        microphoneRequests: 0, unauthorizedSpeakBlocked: true, unavailableBranch: phase === 'unavailable' ? 'exercised' : 'unexercised' };
     });
     await check('public-world-history-and-restricted-semantic-focus', async () => {
       await page.locator('.quiet-navigation [data-navigate="dream-world"]').focus(); await page.keyboard.press('Enter');
@@ -236,7 +351,7 @@ async function deploymentIsCurrent(context) {
       await rememberingIs(false);
       const message = 'Remember that this unconsented browser note must remain unsaved.';
       await send(message);
-      await page.locator('#access-panel').waitFor({ state: 'visible', timeout: remaining() });
+      await waitForAccessOrUnreadyService();
       assert.equal(await page.locator('#intention-input').inputValue(), message);
       const unconsented = await readMemory();
       assert.deepEqual(unconsented?.nodes || [], []); assert.deepEqual(unconsented?.edges || [], []);
@@ -248,7 +363,7 @@ async function deploymentIsCurrent(context) {
       assert.deepEqual(reloaded?.nodes || [], []); assert.deepEqual(reloaded?.edges || [], []);
       for (const message of ['"Open the manifesto"', 'What would happen if I said open the manifesto?', 'Open the manifesto and open Dream World', 'Open Empire Dawn']) {
         await send(message);
-        await page.locator('#access-panel').waitFor({ state: 'visible', timeout: remaining() });
+        await waitForAccessOrUnreadyService();
         assert.equal(await page.locator('#intention-input').inputValue(), message);
         assert.equal(await page.locator('body').getAttribute('data-view'), 'constellation');
       }
@@ -382,7 +497,7 @@ async function deploymentIsCurrent(context) {
       await secondPage.bringToFront();
       const attempt = 'Remember that an old tab cannot silently restore revoked remembering.';
       await send(attempt, secondPage);
-      await secondPage.locator('#access-panel').waitFor({ state: 'visible', timeout: remaining() });
+      await waitForAccessOrUnreadyService(secondPage);
       assert.equal(await secondPage.locator('#intention-input').inputValue(), attempt);
       const revoked = await readMemory(secondPage); assert.deepEqual(revoked.nodes, []); assert.deepEqual(revoked.edges, []);
       assert.equal(revoked.consent.storageEnabled, false); assert.equal(revoked.consent.conversationUseEnabled, false);
@@ -399,6 +514,146 @@ async function deploymentIsCurrent(context) {
       const cleared = await readMemory(); assert.deepEqual(cleared.nodes, []); assert.deepEqual(cleared.edges, []);
       assert.equal(cleared.consent.storageEnabled, false); assert.equal(cleared.consent.conversationUseEnabled, false);
       assert.equal(await page.locator('article.memory-card').count(), 0);
+    });
+    let deviceBaseline, visitObservation;
+    await check('explicit-visit-mode-keeps-device-record-and-separate-sharing', async () => {
+      await page.locator('#memory-consent').check({ timeout: remaining() }); await rememberingIs(true);
+      await send(`Remember that ${DEVICE_NOTE}`); await waitForNote(DEVICE_NOTE);
+      deviceBaseline = await readMemory();
+      visitObservation = await browserObservation();
+      await page.locator('#memory-session-mode').click({ timeout: remaining() }); await visitIs(true);
+      assert.equal(await page.locator('#memory-consent').isChecked(), false);
+      assert.equal(await page.locator('#memory-share-consent').isDisabled(), false);
+      assert.equal(await page.locator('#memory-share-consent').isChecked(), false);
+      assert.match(await page.locator('#memory-status').textContent(), /reload|refresh/i);
+      assert.match(await page.locator('#memory-status').textContent(), /exit/i);
+      assert.equal(await noteCard(DEVICE_NOTE).count(), 0, 'device notes must not be copied into the temporary graph');
+      assert.deepEqual(await readMemory(), deviceBaseline, 'choosing visit mode must preserve the prior device record');
+      await assertNoVisitStorage(visitObservation);
+      evidence.visitEvidence.explicitMode = { deviceGraphPreserved: true, deviceNotesNotCopied: true, sharingOffByDefault: true };
+    });
+    await check('visit-note-edit-and-relationship-use-no-browser-storage', async () => {
+      await send(`Remember that ${VISIT_NOTE}`); await waitForNote(VISIT_NOTE);
+      await page.getByRole('button', { name: `Edit ${VISIT_NOTE}`, exact: true }).click({ timeout: remaining() });
+      await page.getByRole('textbox', { name: 'Note', exact: true }).fill(EDITED_VISIT_NOTE);
+      await page.getByRole('button', { name: 'Save changes', exact: true }).click({ timeout: remaining() });
+      await page.locator('.memory-editor').waitFor({ state: 'hidden', timeout: remaining() });
+      assert.equal(await noteCard(VISIT_NOTE).getByText(EDITED_VISIT_NOTE, { exact: true }).isVisible(), true);
+      await send(`Remember that ${SECOND_VISIT_NOTE}`); await waitForNote(SECOND_VISIT_NOTE);
+      const relations = page.locator('.memory-relations');
+      await relations.locator('summary').click({ timeout: remaining() });
+      await relations.getByLabel('From', { exact: true }).selectOption({ label: VISIT_NOTE });
+      await relations.getByLabel('To', { exact: true }).selectOption({ label: SECOND_VISIT_NOTE });
+      await relations.getByLabel('Relationship', { exact: true }).selectOption('supports');
+      await relations.getByLabel('Optional label', { exact: true }).fill('A relationship authored only during this visit.');
+      await relations.getByRole('button', { name: 'Save this relationship', exact: true }).click({ timeout: remaining() });
+      await page.locator('article.memory-edge').waitFor({ state: 'visible', timeout: remaining() });
+      assert.equal(await page.locator('article.memory-edge').count(), 1);
+      await page.getByRole('button', { name: `Edit the relationship from ${VISIT_NOTE} to ${SECOND_VISIT_NOTE}`, exact: true }).click({ timeout: remaining() });
+      const edgeEditor = page.locator('.memory-edge-editor');
+      const revisedLabel = 'This temporary relationship was deliberately revised.';
+      await edgeEditor.getByLabel('Optional label', { exact: true }).fill(revisedLabel);
+      await edgeEditor.getByRole('button', { name: 'Save relationship changes', exact: true }).click({ timeout: remaining() });
+      await edgeEditor.waitFor({ state: 'hidden', timeout: remaining() });
+      assert.equal(await page.locator('article.memory-edge').getByText(revisedLabel, { exact: true }).isVisible(), true);
+      await page.locator('#memory-share-consent').check({ timeout: remaining() });
+      await page.waitForFunction(() => document.getElementById('memory-status').textContent.includes('Choose which notes'), null, { timeout: remaining() });
+      await noteCard(VISIT_NOTE).getByRole('checkbox').check({ timeout: remaining() });
+      await waitForMemoryMessage('Only these selected');
+      await assertNoVisitStorage(visitObservation);
+      assert.deepEqual(await readMemory(), deviceBaseline);
+      await screenshot('constellation-visit-desktop.png');
+      evidence.visitEvidence.editRelationship = { noteEditVisible: true, relationshipEditVisible: true, explicitSharingUsable: true, indexedDBWrites: 0, webStorageWrites: 0 };
+    });
+    await check('visit-navigation-retains-notes-and-relationships-in-same-document', async () => {
+      const documentIdentity = await page.evaluate(() => performance.timeOrigin);
+      await page.locator('.quiet-navigation [data-navigate="dream-world"]').click({ timeout: remaining() }); await viewIs('dream-world');
+      await page.locator('.quiet-navigation [data-navigate="constellation"]').click({ timeout: remaining() }); await viewIs('constellation');
+      await visitIs(true); await waitForNote(VISIT_NOTE); await waitForNote(SECOND_VISIT_NOTE);
+      assert.equal(await noteCard(VISIT_NOTE).getByText(EDITED_VISIT_NOTE, { exact: true }).isVisible(), true);
+      assert.equal(await page.locator('article.memory-edge').count(), 1);
+      assert.equal(await page.evaluate(() => performance.timeOrigin), documentIdentity);
+      await assertNoVisitStorage(visitObservation);
+      evidence.visitEvidence.navigation = { sameDocument: true, notesAndRelationshipsRetained: true };
+    });
+    await check('visit-to-device-switch-does-not-promote-temporary-notes', async () => {
+      await confirmDialog(() => page.locator('#memory-consent').check({ timeout: remaining() }), /visit|temporary|session/i);
+      await rememberingIs(true); await visitIs(false); await waitForNote(DEVICE_NOTE);
+      const restored = await readMemory();
+      assert.deepEqual(restored.nodes, deviceBaseline.nodes); assert.deepEqual(restored.edges, deviceBaseline.edges);
+      assert.equal(await noteCard(VISIT_NOTE).count(), 0); assert.equal(await noteCard(SECOND_VISIT_NOTE).count(), 0);
+      assert.equal(await page.locator('#memory-share-consent').isChecked(), false);
+      evidence.visitEvidence.modeSwitch = { priorDeviceNotesRestored: true, temporaryNotesPromoted: false, sharingOffByDefault: true };
+      deviceBaseline = restored;
+    });
+    await check('ending-visit-memory-clears-only-the-active-temporary-graph', async () => {
+      const before = await browserObservation();
+      await page.locator('#memory-session-mode').click({ timeout: remaining() }); await visitIs(true);
+      await send(`Remember that ${VISIT_NOTE}`); await waitForNote(VISIT_NOTE);
+      assert.equal(await page.locator('#memory-revoke').textContent(), 'End session memory');
+      await confirmDialog(() => page.locator('#memory-revoke').click({ timeout: remaining() }), /visit|temporary|session/i);
+      await rememberingIs(false); await visitIs(false);
+      assert.equal(await noteCard(VISIT_NOTE).count(), 0);
+      assert.deepEqual(await readMemory(), deviceBaseline);
+      await assertNoVisitStorage(before);
+      await page.locator('#memory-consent').check({ timeout: remaining() }); await rememberingIs(true); await waitForNote(DEVICE_NOTE);
+      const restored = await readMemory(); assert.deepEqual(restored.nodes, deviceBaseline.nodes); assert.deepEqual(restored.edges, deviceBaseline.edges);
+      deviceBaseline = restored;
+      evidence.visitEvidence.endSession = { temporaryGraphCleared: true, deviceGraphPreserved: true, indexedDBWrites: 0, webStorageWrites: 0 };
+    });
+    await check('visit-reload-clears-temporary-graph-and-preserves-device-notes', async () => {
+      await page.locator('#memory-session-mode').click({ timeout: remaining() }); await visitIs(true);
+      await send(`Remember that ${VISIT_NOTE}`); await waitForNote(VISIT_NOTE);
+      await page.reload({ waitUntil: 'domcontentloaded', timeout: remaining(12000) }); await boot();
+      await viewIs('constellation'); await visitIs(false); await waitForNote(DEVICE_NOTE);
+      assert.equal(await noteCard(VISIT_NOTE).count(), 0); assert.equal(await page.locator('article.memory-edge').count(), 0);
+      assert.deepEqual(await readMemory(), deviceBaseline);
+      assert.doesNotMatch(await page.locator('#transcript').textContent(), /temporary constellation note/);
+      evidence.visitEvidence.reload = { temporaryGraphCleared: true, deviceGraphPreserved: true };
+    });
+    await check('visit-exit-and-native-back-clear-temporary-memory', async () => {
+      await page.locator('#memory-session-mode').click({ timeout: remaining() }); await visitIs(true);
+      await send(`Remember that ${VISIT_NOTE}`); await waitForNote(VISIT_NOTE);
+      assert.equal(await page.locator('#intention-input').inputValue(), '');
+      const oldDocument = await page.evaluate(() => performance.timeOrigin);
+      await page.locator('#exit-link').click({ timeout: remaining(6000) });
+      await page.waitForURL(new URL('/', LIVE).href, { waitUntil: 'domcontentloaded', timeout: remaining(6000) });
+      await page.goBack({ waitUntil: 'domcontentloaded', timeout: remaining(7000) });
+      await page.waitForFunction(previous => document.body.dataset.boot === 'ready' && performance.timeOrigin !== previous,
+        oldDocument, { timeout: remaining(8000) });
+      await boot(); await visitIs(false); await waitForNote(DEVICE_NOTE);
+      assert.equal(await noteCard(VISIT_NOTE).count(), 0); assert.equal(await page.locator('article.memory-edge').count(), 0);
+      assert.deepEqual(await readMemory(), deviceBaseline);
+      assert.equal(await page.locator('#voice-start').getAttribute('aria-pressed'), 'false');
+      evidence.visitEvidence.exit = { temporaryGraphClearedAfterBack: true, deviceGraphPreserved: true, voiceOff: true };
+      await confirmDialog(() => page.locator('#memory-clear').click({ timeout: remaining() }), /Delete all saved notes and connections/);
+      await rememberingIs(false);
+    });
+    await check('unavailable-indexeddb-allows-explicit-visit-mode', async () => {
+      const restricted = await browser.newContext({ viewport: { width: 1280, height: 900 }, permissions: [] });
+      await restricted.clearPermissions(); await restricted.addInitScript(observeBrowserCapabilities);
+      await restricted.addInitScript(() => {
+        IDBFactory.prototype.open = function () { throw new DOMException('Device storage is disabled for this acceptance probe.', 'SecurityError'); };
+      });
+      evidence.capabilityProbes.push({ capability: 'IndexedDB.open', intervention: 'Throws SecurityError in an isolated context; deployed HTTP responses and application state are unchanged.' });
+      const restrictedPage = await restricted.newPage(); restrictedPage.setDefaultTimeout(8000);
+      restrictedPage.on('pageerror', error => evidence.pageErrors.push({ page: 'unavailable-indexeddb', message: error.message }));
+      await restrictedPage.goto(`${LIVE}?view=constellation`, { waitUntil: 'domcontentloaded', timeout: remaining(12000) }); await boot(restrictedPage);
+      await restrictedPage.waitForFunction(() => document.getElementById('memory-consent').disabled, null, { timeout: remaining() });
+      assert.equal(await restrictedPage.locator('#memory-session-mode').isEnabled(), true);
+      assert.match(await restrictedPage.locator('#memory-status').textContent(), /storage|device/i);
+      assert.equal(await restrictedPage.locator('#memory-session-mode').getAttribute('aria-pressed'), 'false');
+      const before = await browserObservation(restrictedPage);
+      await restrictedPage.locator('#memory-session-mode').click({ timeout: remaining() }); await visitIs(true, restrictedPage);
+      assert.equal(await restrictedPage.locator('#memory-share-consent').isChecked(), false);
+      await send(`Remember that ${VISIT_NOTE}`, restrictedPage); await waitForNote(VISIT_NOTE, restrictedPage);
+      await assertNoVisitStorage(before, restrictedPage);
+      await restrictedPage.reload({ waitUntil: 'domcontentloaded', timeout: remaining(12000) }); await boot(restrictedPage);
+      await restrictedPage.waitForFunction(() => document.getElementById('memory-consent').disabled, null, { timeout: remaining() });
+      assert.equal(await noteCard(VISIT_NOTE, restrictedPage).count(), 0); await visitIs(false, restrictedPage);
+      assert.equal((await browserObservation(restrictedPage)).microphoneRequests, 0);
+      evidence.visitEvidence.unavailableIndexedDB = { explicitChoiceRequired: true, noteUsable: true, indexedDBWrites: 0, webStorageWrites: 0, reloadClears: true };
+      await restricted.close();
     });
     await check('unknown-route-normalizes-with-readable-recovery', async () => {
       await page.goto(`${LIVE}?view=unpublished-browser-check`, { waitUntil: 'domcontentloaded', timeout: remaining(12000) }); await boot(); await viewIs('unity');
@@ -442,7 +697,7 @@ async function deploymentIsCurrent(context) {
         const oldDocument = await page.evaluate(() => performance.timeOrigin);
         const eventsBeforeExit = evidence.pageShows.length;
         await page.locator('#exit-link').click({ timeout: remaining(6000) });
-        await page.waitForURL('https://dreamunity.one/', { waitUntil: 'domcontentloaded', timeout: remaining(6000) });
+        await page.waitForURL(new URL('/', LIVE).href, { waitUntil: 'domcontentloaded', timeout: remaining(6000) });
         await page.goBack({ waitUntil: 'domcontentloaded', timeout: remaining(7000) });
         await page.waitForFunction(previous => document.body.dataset.boot === 'ready' &&
           performance.timeOrigin !== previous, oldDocument, { timeout: remaining(8000) });
@@ -465,6 +720,7 @@ async function deploymentIsCurrent(context) {
     });
     await check('no-provider-writes-or-runtime-errors', async () => {
       assert.deepEqual(evidence.forbiddenRequests, []); assert.deepEqual(evidence.pageErrors, []);
+      assert.equal(evidence.voiceEvidence.microphoneRequests, 0, 'unauthorized verification must never request microphone access');
       assert.deepEqual(evidence.failedRequests, []);
       assert.ok(evidence.responses.every(item => item.status < 400), 'a prototype resource returned an HTTP failure');
       const modules = evidence.responses.filter(item => item.resourceType === 'script');

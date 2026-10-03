@@ -96,6 +96,10 @@ body:not([data-view='unity']) .compact-worlds { display:flex; }
 .earth-view:fullscreen .earth-frame-host { flex:1; height:auto; min-height:0; }
 .memory-permissions { margin:26px 0 15px; border:1px solid var(--line); padding:20px 23px; }
 .memory-permissions legend { padding:0 8px; color:var(--muted); font-size:15px; }
+.visit-memory-choice { margin-bottom:12px; }
+.visit-memory-choice p { margin:8px 0 16px; color:var(--muted); font:13px/1.45 Arial,sans-serif; }
+#memory-session-mode { min-height:44px; padding:10px 16px; border:1px solid var(--line); background:transparent; color:inherit; cursor:pointer; }
+#memory-session-mode[aria-pressed="true"] { border-color:var(--accent); background:rgba(69,94,78,.08); }
 .memory-permissions label { display:flex; align-items:flex-start; gap:13px; padding:9px 0; }
 .memory-permissions input { width:20px; height:20px; margin:3px 0 0; flex:0 0 20px; accent-color:var(--accent); }
 .memory-permissions strong { display:block; font-size:17px; font-weight:400; }

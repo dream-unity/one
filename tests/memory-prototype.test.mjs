@@ -62,9 +62,12 @@ test('device memory starts with independent opt-ins and refuses unavailable pers
   assert.equal(fresh.consent.conversationUseEnabled, false);
   await assert.rejects(store.commitProposal(node(), expected(fresh)), { code: 'STORAGE_DISABLED' });
   await assert.rejects(store.setConsent({ storageEnabled: false, conversationUseEnabled: true }, expected(fresh)), { code: 'INVALID_INPUT' });
-  assert.equal(persistence.state.nodes.length, 0);
+  assert.equal(persistence.state, undefined); // Reading/declining consent never creates a durable record.
   const unavailable = createMemoryStore({ indexedDB: null, BroadcastChannel: null });
-  await assert.rejects(unavailable.load(), { code: 'STORAGE_UNAVAILABLE' });
+  const empty = await unavailable.load();
+  assert.equal(empty.nodes.length, 0); assert.equal(unavailable.getStatus().mode, 'unavailable');
+  assert.equal(unavailable.getStatus().savingEnabled, false);
+  await assert.rejects(unavailable.commitProposal(node(), expected(empty)), { code: 'STORAGE_UNAVAILABLE' });
   store.close(); unavailable.close();
 });
 
@@ -491,4 +494,182 @@ test('failed AI confirmation keeps exact readable relationship review and keyboa
     assert.equal(controller.getPending(), null); assert.equal(document.activeElement.dataset.focusKey, 'add-note');
     assert.equal((await store.load()).edges[0].label, 'Original wording');
   });
+});
+
+async function visit(store) { const state = await store.load(); return store.setMode('session', expected(state)); }
+
+test('explicit visit notes, relationships and sharing use only the private graph', async () => {
+  let deviceCalls = 0, forbidden = false;
+  const persistence = new TransactionalMemory(), transact = persistence.transact.bind(persistence);
+  persistence.transact = (...args) => { deviceCalls++; assert.equal(forbidden, false, 'visit operations must not access device persistence'); return transact(...args); };
+  const { store } = fixture({ persistence });
+  const first = await visit(store); forbidden = true; const calls = deviceCalls;
+  assert.equal(store.getStatus().mode, 'session'); assert.equal(first.consent.storageEnabled, false);
+  const a = await save(store, node('Visit A')), b = await save(store, node('Visit B'));
+  const edge = await save(store, { operation: 'create_edge', from: a.record.id, fromRevision: 1, to: b.record.id, toRevision: 1, relation: 'supports', label: 'A chosen visit relationship' });
+  await assert.rejects(store.selectContext([a.record.id]), { code: 'SHARING_DISABLED' });
+  const sharing = await store.setConsent({ storageEnabled: false, conversationUseEnabled: true }, expected(edge.dataset));
+  assert.equal(sharing.nodes.length, 2); assert.equal(sharing.consent.storageEnabled, false);
+  const context = await store.selectContext([a.record.id, edge.record.id]);
+  assert.deepEqual(context.records.map(record => record.id), [a.record.id, edge.record.id]);
+  assert.equal(context.records.some(record => record.id === b.record.id), false);
+  const paused = await store.commitProposal({ operation: 'update_node', nodeId: a.record.id, expectedRevision: 1, kind: 'goal', title: a.record.title, text: a.record.text, status: 'paused' }, expected(sharing));
+  const revoked = await store.setConsent({ storageEnabled: false, conversationUseEnabled: false }, expected(paused.dataset));
+  assert.equal(revoked.nodes[0].status, 'paused'); assert.equal(revoked.edges.length, 1);
+  const deleted = await store.deleteNode(a.record.id, { ...expected(revoked), expectedRevision: 2 });
+  assert.equal(deleted.edges.length, 0); assert.equal(deviceCalls, calls); assert.equal(persistence.state, undefined);
+  const cleared = await store.clear(expected(deleted)); assert.equal(cleared.nodes.length, 0); assert.equal(store.getStatus().savingEnabled, true);
+  store.close();
+});
+
+test('device unavailable remains honestly empty until a visit is explicitly chosen', async () => {
+  let openings = 0;
+  const store = createMemoryStore({ indexedDB: { open() { openings++; throw new Error('Denied'); } }, BroadcastChannel: null, now: () => 10, uuid });
+  const fresh = await store.load();
+  assert.equal(openings, 1); assert.equal(store.getStatus().mode, 'unavailable'); assert.equal(store.getStatus().deviceAvailable, false);
+  await assert.rejects(store.commitProposal(node('Not authorized yet'), expected(fresh)), { code: 'STORAGE_UNAVAILABLE' });
+  const selected = await store.setMode('session', expected(fresh));
+  await save(store, node('A real visit note'));
+  assert.equal(openings, 1); assert.equal(selected.consent.storageEnabled, false); assert.equal((await store.load()).nodes.length, 1);
+  store.close();
+  const reopened = createMemoryStore({ indexedDB: null, BroadcastChannel: null, now: () => 10, uuid });
+  assert.equal((await reopened.load()).nodes.length, 0); assert.equal(reopened.getStatus().savingEnabled, false); reopened.close();
+});
+
+test('scope changes preserve prior device records and never promote visit records or sharing', async () => {
+  const { store, persistence } = fixture(); const initial = await store.load();
+  const enabled = await store.setMode('device', expected(initial)); assert.equal(enabled.consent.storageEnabled, true);
+  const durable = await save(store, node('Durable original')); const before = structuredClone(persistence.state);
+  const firstVisit = await store.setMode('session', expected(durable.dataset));
+  assert.equal(firstVisit.nodes.length, 0); assert.deepEqual(persistence.state, before);
+  const temporary = await save(store, node('Never promote'));
+  const shared = await store.setConsent({ storageEnabled: false, conversationUseEnabled: true }, expected(temporary.dataset));
+  await assert.rejects(store.setConsent({ storageEnabled: true, conversationUseEnabled: true }, expected(shared)), { code: 'MODE_CONFIRMATION_REQUIRED' });
+  const recalled = await store.setMode('device', expected(shared));
+  assert.deepEqual(recalled.nodes, before.nodes); assert.equal(recalled.consent.conversationUseEnabled, false);
+  assert.ok(recalled.revision > shared.revision); assert.ok(recalled.consentEpoch > shared.consentEpoch);
+  assert.equal(persistence.state.nodes.some(record => record.id === temporary.record.id), false);
+  await assert.rejects(store.commitProposal(node('Old tuple'), expected(shared)), { code: 'STALE_STATE' });
+  const secondVisit = await store.setMode('session', expected(recalled));
+  assert.equal(secondVisit.nodes.length, 0); assert.ok(secondVisit.revision > recalled.revision); assert.ok(secondVisit.consentEpoch > recalled.consentEpoch);
+  store.close();
+});
+
+test('failed device choice preserves exact visit notes and does not repair corrupt durable records', async () => {
+  const { store, persistence } = fixture(); await visit(store); const saved = await save(store, node('Keep my visit'));
+  persistence.failure = Object.assign(new Error('Device commit denied'), { code: 'STORAGE_ERROR' });
+  await assert.rejects(store.setMode('device', expected(saved.dataset)), { code: 'STORAGE_ERROR' });
+  assert.equal(store.getStatus().mode, 'session'); assert.deepEqual((await store.load()).nodes, saved.dataset.nodes);
+  persistence.failure = null;
+  const corrupt = { schemaVersion: 999 }; persistence.state = structuredClone(corrupt);
+  await assert.rejects(store.setMode('device', expected(saved.dataset)), { code: 'INVALID_INPUT' });
+  assert.deepEqual(persistence.state, corrupt); assert.deepEqual((await store.load()).nodes, saved.dataset.nodes); store.close();
+});
+
+test('visit to device rereads cross-tab changes and revocation without resurrecting either graph', async () => {
+  const persistence = new TransactionalMemory();
+  const a = fixture({ persistence, BroadcastChannel: LocalBroadcast }).store, b = fixture({ persistence, BroadcastChannel: LocalBroadcast }).store;
+  await enable(a); const durable = await save(a, node('Existing device note')); await b.load();
+  await a.setMode('session', expected(durable.dataset)); const temporary = await save(a, node('Private visit note'));
+  const bSaved = await save(b, node('Another tab device note')); await new Promise(resolve => setImmediate(resolve));
+  assert.equal((await a.load()).nodes[0].title, 'Private visit note');
+  const recalled = await a.setMode('device', expected(temporary.dataset));
+  assert.deepEqual(recalled.nodes.map(record => record.title), ['Existing device note', 'Another tab device note']);
+  const nextVisit = await a.setMode('session', expected(recalled)); await b.load();
+  const oldB = await b.load(); await b.clear(expected(oldB));
+  const afterRevoke = await a.setMode('device', expected(nextVisit));
+  assert.equal(afterRevoke.nodes.length, 0); assert.equal(afterRevoke.consent.conversationUseEnabled, false);
+  await assert.rejects(b.commitProposal(node('Old tab attempt'), expected(bSaved.dataset)), { code: 'STALE_STATE' });
+  a.close(); b.close();
+});
+
+test('clearDevice from a visit deletes authoritative durable content and leaves visit content alone', async () => {
+  const { store, persistence } = fixture(); await enable(store); const device = await save(store, node('Forget device only'));
+  await store.setMode('session', expected(device.dataset)); const temporary = await save(store, node('Keep visit only'));
+  const cleared = await store.clearDevice();
+  assert.equal(cleared.nodes.length, 0); assert.equal(cleared.consent.storageEnabled, false);
+  assert.deepEqual(persistence.state, cleared); assert.deepEqual((await store.load()).nodes, temporary.dataset.nodes);
+  assert.equal(store.getStatus().mode, 'session');
+  const recalled = await store.setMode('device', expected(temporary.dataset)); assert.equal(recalled.nodes.length, 0); store.close();
+});
+
+test('visit confirmation is exact and volatile, and ending the visit cancels queued writes', async () => {
+  const { store, persistence } = fixture(); const state = await visit(store), controller = createMemoryController({ store }), turnId = uuid();
+  const candidate = await controller.propose(node('An exact visit suggestion'), { ...expected(state), turnId });
+  assert.equal(persistence.state, undefined); assert.equal((await store.load()).nodes.length, 0);
+  const confirmed = await controller.confirm(candidate.proposalId, { turnId }); assert.equal(confirmed.record.authorship, 'ai-confirmed');
+  const next = await controller.propose(node('Must expire'), { ...expected(confirmed.dataset), turnId });
+  const pendingWrite = store.commitProposal(node('Queued visit write'), expected(confirmed.dataset));
+  const ended = await store.setMode('off', expected(confirmed.dataset));
+  await assert.rejects(pendingWrite, { code: 'STORE_CLOSED' });
+  await assert.rejects(controller.confirm(next.proposalId, { turnId }), { code: 'STALE_PROPOSAL' });
+  assert.equal(ended.nodes.length, 0); assert.equal(store.getStatus().savingEnabled, false);
+  await assert.rejects(store.commitProposal(node(), expected(ended)), { code: 'STORAGE_DISABLED' });
+  assert.equal(persistence.state, undefined); controller.close(); store.close();
+});
+
+test('close and reload discard visit records, proposals and consent without changing device records', async () => {
+  const { store, persistence } = fixture(); await enable(store); const original = await save(store, node('Survive on device'));
+  const deviceState = structuredClone(persistence.state); await store.setMode('session', expected(original.dataset));
+  const temporary = await save(store, node('Expire on Exit')); const controller = createMemoryController({ store });
+  await controller.propose(node('Expire unconfirmed'), { ...expected(temporary.dataset), turnId: uuid() });
+  const pending = store.commitProposal(node('Expire pending save'), expected(temporary.dataset)); store.close();
+  await assert.rejects(pending, { code: 'STORE_CLOSED' }); await assert.rejects(store.load(), { code: 'STORE_CLOSED' });
+  assert.equal(controller.getPending(), null); assert.equal(store.getStatus().savingEnabled, false); assert.deepEqual(persistence.state, deviceState);
+  const reloaded = fixture({ persistence }).store; assert.deepEqual((await reloaded.load()).nodes, deviceState.nodes);
+  assert.equal(reloaded.getStatus().mode, 'device'); controller.close(); reloaded.close();
+});
+
+test('completion of an already committed device operation cannot publish into the new visit', async () => {
+  const persistence = new TransactionalMemory(); let release, committed, hold = false;
+  const waitForCommit = new Promise(resolve => { committed = resolve; });
+  const completion = new Promise(resolve => { release = resolve; });
+  const transact = persistence.transact.bind(persistence);
+  persistence.transact = async (...args) => { const result = await transact(...args); if (hold) { hold = false; committed(); await completion; } return result; };
+  const events = []; const { store } = fixture({ persistence, onChange: (state, detail) => events.push({ title: state.nodes[0]?.title, reason: detail.reason }) });
+  const state = await enable(store); hold = true;
+  const pending = store.commitProposal(node('Committed old scope'), expected(state)); await waitForCommit;
+  const fresh = await store.setMode('session', expected(state)); release();
+  await assert.rejects(pending, { code: 'STALE_STATE' });
+  assert.equal((await store.load()).nodes.length, 0); assert.equal(fresh.nodes.length, 0);
+  assert.equal(events.at(-1).reason, 'mode-switch'); assert.equal(events.some(event => event.title === 'Committed old scope'), false); store.close();
+});
+
+test('reentrant scope changes cannot publish a device snapshot after the new visit snapshot', async () => {
+  let store, switching; const publications = [];
+  ({ store } = fixture({ onChange(state, detail) { if (detail.reason === 'save') switching = store.setMode('session', expected(state)); } }));
+  await enable(store); store.subscribe((state, detail) => publications.push({ reason: detail.reason, notes: state.nodes.length, mode: store.getStatus().mode }));
+  const state = await store.load(); await assert.rejects(store.commitProposal(node('Old scope'), expected(state)), { code: 'STALE_STATE' }); await switching;
+  assert.deepEqual(publications, [{ reason: 'mode-switch', notes: 0, mode: 'session' }]); store.close();
+});
+
+test('legacy durable v1 is read unchanged and never rewritten by visit work', async () => {
+  const original = fixture(); await enable(original.store); await save(original.store, node('Legacy v1')); const legacy = structuredClone(original.persistence.state); original.store.close();
+  const { store, persistence } = fixture({ persistence: original.persistence });
+  assert.deepEqual(await store.load(), legacy); assert.deepEqual(persistence.state, legacy);
+  await visit(store); const temporary = await save(store, node('Volatile v1')); await store.clear(expected(temporary.dataset));
+  assert.deepEqual(persistence.state, legacy); store.close();
+});
+
+test('changing memory scope drops open visit editor drafts and record selections', async () => {
+  await withMemoryView(async ({ store, container, view }) => {
+    await visit(store); byText(container, 'Add a note').click();
+    const title = container.querySelector('[data-focus-key="title"]'); title.value = 'Private unsaved visit draft'; title.listeners.input();
+    const current = await store.load(); await store.setMode('device', expected(current));
+    assert.equal(container.querySelector('[data-focus-key="title"]'), null); assert.deepEqual(view.getSelection(), []);
+    byText(container, 'Add a note').click(); assert.equal(container.querySelector('[data-focus-key="title"]').value, '');
+  });
+});
+
+test('a nested device choice retains its operation lock until its own transaction completes', async () => {
+  const persistence = new TransactionalMemory(); let store, nested, shouldNest = false, release;
+  ({ store } = fixture({ persistence, onChange(state, detail) {
+    if (shouldNest && detail.reason === 'mode-switch' && store.getStatus().mode === 'session') { shouldNest = false; nested = store.setMode('device', expected(state)); }
+  } }));
+  const state = await enable(store); persistence.pause = new Promise(resolve => { release = resolve; }); shouldNest = true;
+  await assert.rejects(store.setMode('session', expected(state)), { code: 'STALE_STATE' });
+  assert.equal(store.getStatus().switching, true); assert.equal(store.getStatus().savingEnabled, false);
+  await assert.rejects(store.load(), { code: 'MODE_SWITCH_PENDING' });
+  release(); persistence.pause = null; const recalled = await nested;
+  assert.equal(recalled.consent.storageEnabled, true); assert.equal(store.getStatus().switching, false); store.close();
 });

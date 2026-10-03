@@ -20,7 +20,7 @@ export function mountMemoryView(container, { store, controller, proposalsContain
   let editorOpen = false, editing = null, editExpected = null;
   let draft = { kind: 'goal', title: '', text: '', status: 'active' };
   let relationDraft = { from: '', to: '', relation: 'relates_to', label: '' };
-  let relationsOpen = false;
+  let relationsOpen = false, stateMode = null;
   let edgeEditing = null, edgeDraft = null, edgeExpected = null;
   const prefix = `memory-${globalThis.crypto.randomUUID()}`;
   const status = element('p', '', 'memory-status'); status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
@@ -48,14 +48,16 @@ export function mountMemoryView(container, { store, controller, proposalsContain
     for (const value of values) { const option = element('option', value.replaceAll('_', ' ')); option.value = value; input.append(option); }
     return input;
   }
-  async function run(operation, success, completion = 'Saved on this device.') {
+  function savedMessage() { return store.getStatus().mode === 'session' ? 'Kept for this visit. Reloading the page or choosing Exit clears it.' : 'Saved on this device.'; }
+  function retentionPlace() { return store.getStatus().mode === 'session' ? 'this visit' : 'this device'; }
+  async function run(operation, success, completion) {
     if (busy || closed) return;
     const initiatingKey = container.contains(document.activeElement) ? document.activeElement.dataset?.focusKey : null;
     busy = true; render();
     try {
       const result = await operation();
       if (closed) return;
-      if (success) success(result); say(result?.duplicate ? 'That relationship already exists. Its saved label was kept.' : completion);
+      if (success) success(result); say(result?.duplicate ? 'That relationship already exists. Its saved label was kept.' : completion || savedMessage());
     } catch (error) {
       if (closed) return;
       say(`Not saved. ${error.message}`);
@@ -113,7 +115,7 @@ export function mountMemoryView(container, { store, controller, proposalsContain
       }
     }
     const actions = element('div', undefined, 'memory-actions');
-    const save = element('button', editing ? 'Save changes' : 'Remember this note'); save.type = 'submit'; save.dataset.focusKey = 'save-note'; save.disabled = busy || !state.consent.storageEnabled;
+    const save = element('button', editing ? 'Save changes' : store.getStatus().mode === 'session' ? 'Keep this note for this visit' : 'Remember this note'); save.type = 'submit'; save.dataset.focusKey = 'save-note'; save.disabled = busy || !store.getStatus().savingEnabled;
     actions.append(save, button('Cancel editing', () => { const target = editing ? `edit-${editing}` : 'add-note'; resetEditor(); render(); focusContent(target); })); form.append(actions);
     for (const input of form.querySelectorAll('input, select, textarea')) input.disabled = busy;
     form.addEventListener('submit', event => {
@@ -153,7 +155,7 @@ export function mountMemoryView(container, { store, controller, proposalsContain
     const caret = focusKey && typeof active.selectionStart === 'number' ? [active.selectionStart, active.selectionEnd] : null;
     content.replaceChildren(); status.textContent = message;
     if (!state) { content.append(element('p', 'Loading saved notes…')); return; }
-    if (!state.consent.storageEnabled) { content.append(element('p', 'Saved notes are optional. Choose Remember on this device to begin.')); return; }
+    if (!store.getStatus().savingEnabled) { content.append(element('p', 'Notes are optional. Choose For this visit or Remember on this device to begin.')); return; }
     const add = button(editorOpen && !editing ? 'New note form is open' : 'Add a note', () => { if (editorOpen && !editing) { content.querySelector('[data-focus-key="title"]')?.focus(); return; } resetEditor(); editorOpen = true; render(); content.querySelector('[data-focus-key="title"]')?.focus(); }); add.dataset.focusKey = 'add-note'; add.disabled = busy; content.append(add);
     renderEditor();
     if (!state.nodes.length) content.append(element('p', 'No notes are saved yet. A goal, question or possibility can begin here.'));
@@ -168,10 +170,10 @@ export function mountMemoryView(container, { store, controller, proposalsContain
       const remove = button('Delete', () => {
         const binding = { ...expected(state), expectedRevision: node.revision };
         const confirmation = element('div', undefined, 'memory-delete-review'); confirmation.setAttribute('role', 'group'); confirmation.setAttribute('aria-label', `Confirm deleting ${node.title}`);
-        const confirm = button('Delete this note', () => run(() => store.deleteNode(node.id, binding), () => { if (editing === node.id) resetEditor(); }, 'Deleted this note and its connected relationships from this device.'));
+        const confirm = button('Delete this note', () => run(() => store.deleteNode(node.id, binding), () => { if (editing === node.id) resetEditor(); }, `Deleted this note and its connected relationships from ${retentionPlace()}.`));
         // The review itself disappears on render; recover to its owning control on failure.
         confirm.dataset.focusKey = `delete-${node.id}`;
-        confirmation.append(element('p', `Delete “${node.title}” and its connected relationships from this device?`), confirm, button('Keep it', () => { confirmation.remove(); focusContent(`delete-${node.id}`); }));
+        confirmation.append(element('p', `Delete “${node.title}” and its connected relationships from ${retentionPlace()}?`), confirm, button('Keep it', () => { confirmation.remove(); focusContent(`delete-${node.id}`); }));
         card.append(confirmation); confirmation.querySelector('button')?.focus();
       }, `Review deleting ${node.title}`); remove.dataset.focusKey = `delete-${node.id}`; remove.disabled = busy; actions.append(remove); card.append(actions); content.append(card);
     }
@@ -200,8 +202,8 @@ export function mountMemoryView(container, { store, controller, proposalsContain
       const remove = button('Delete relationship', () => {
         const binding = { ...expected(state), expectedRevision: edge.revision };
         const confirmation = element('div'); confirmation.setAttribute('role', 'group'); confirmation.setAttribute('aria-label', `Confirm deleting the relationship from ${from.title} to ${to.title}`);
-        const confirm = button('Delete this relationship', () => run(() => store.deleteEdge(edge.id, binding), null, 'Deleted this relationship from this device. The notes remain.')); confirm.dataset.focusKey = `delete-edge-${edge.id}`;
-        confirmation.append(element('p', 'Delete this relationship from the device? The notes remain.'), confirm, button('Keep it', () => { confirmation.remove(); focusContent(`delete-edge-${edge.id}`); })); card.append(confirmation); confirmation.querySelector('button')?.focus();
+        const confirm = button('Delete this relationship', () => run(() => store.deleteEdge(edge.id, binding), null, `Deleted this relationship from ${retentionPlace()}. The notes remain.`)); confirm.dataset.focusKey = `delete-edge-${edge.id}`;
+        confirmation.append(element('p', `Delete this relationship from ${retentionPlace()}? The notes remain.`), confirm, button('Keep it', () => { confirmation.remove(); focusContent(`delete-edge-${edge.id}`); })); card.append(confirmation); confirmation.querySelector('button')?.focus();
       }, `Review deleting the relationship from ${from.title} to ${to.title}`); remove.dataset.focusKey = `delete-edge-${edge.id}`; remove.disabled = busy; card.append(editEdge, remove); content.append(card);
     }
     if (focusKey) { const target = [...content.querySelectorAll('[data-focus-key]')].find(node => node.dataset.focusKey === focusKey) || content.querySelector('[data-focus-key="add-note"]'); target?.focus(); if (caret && target?.setSelectionRange) { try { target.setSelectionRange(...caret); } catch { /* Select elements do not have a caret. */ } } }
@@ -227,7 +229,7 @@ export function mountMemoryView(container, { store, controller, proposalsContain
       busy = true; confirm.disabled = true;
       try {
         const result = await (onConfirmProposal ? onConfirmProposal(clone(exact)) : controller.confirm(exact.proposalId, { turnId: exact.turnId }));
-        if (!closed) say(result?.duplicate ? 'Existing relationship kept.' : result?.dataset && result?.record ? 'Confirmed and saved on this device.' : 'Confirmation handled. Check the saved notes for the result.');
+        if (!closed) say(result?.duplicate ? 'Existing relationship kept.' : result?.dataset && result?.record ? `Confirmed. ${savedMessage()}` : 'Confirmation handled. Check the saved notes for the result.');
       } catch (error) { if (!closed) say(`Not saved. ${error.message}`); }
       finally { busy = false; if (!closed) { render(); renderProposal(); } }
     });
@@ -237,6 +239,13 @@ export function mountMemoryView(container, { store, controller, proposalsContain
     if (focusKey) [...review.querySelectorAll('[data-focus-key]')].find(node => node.dataset.focusKey === focusKey)?.focus();
   }
   function acceptState(next) {
+    const nextMode = store.getStatus().mode;
+    if (stateMode !== null && nextMode !== stateMode) {
+      resetEditor(); relationDraft = { from: '', to: '', relation: 'relates_to', label: '' }; relationsOpen = false;
+      edgeEditing = null; edgeDraft = null; edgeExpected = null; pending = null;
+      selectionGeneration++; selection = []; desiredSelection = []; notifySelection([]);
+    }
+    stateMode = nextMode;
     state = clone(next); const validIds = new Set([...state.nodes, ...state.edges].map(record => record.id));
     const nextSelection = state.consent.conversationUseEnabled ? selection.filter(identifier => validIds.has(identifier)) : [];
     desiredSelection = state.consent.conversationUseEnabled ? desiredSelection.filter(identifier => validIds.has(identifier)) : [];
@@ -248,7 +257,11 @@ export function mountMemoryView(container, { store, controller, proposalsContain
     async refresh() { try { const next = await store.load(); if (!closed) acceptState(next); return next; } catch (error) { if (!closed) { say(`Saved notes are unavailable. ${error.message}`); content.replaceChildren(element('p', 'Nothing was saved or restored.')); } throw error; } },
     setProposal(value) { pending = value ? clone(value) : null; renderProposal(); },
     getSelection() { return [...selection]; },
-    close() { closed = true; selectionGeneration++; unsubscribe(); review.remove(); container.replaceChildren(); }
+    close() {
+      closed = true; selectionGeneration++; unsubscribe(); state = null; pending = null; selection = []; desiredSelection = []; message = ''; resetEditor();
+      relationDraft = { from: '', to: '', relation: 'relates_to', label: '' }; edgeEditing = null; edgeDraft = null; edgeExpected = null; relationsOpen = false;
+      review.replaceChildren(); review.remove(); container.replaceChildren();
+    }
   };
   render(); api.refresh().catch(() => {});
   return Object.freeze(api);

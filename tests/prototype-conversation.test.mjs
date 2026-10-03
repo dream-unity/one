@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createConversation } from '../prototype/conversation/controller.js';
-import { boundedHistory, readFiniteSSE } from '../prototype/conversation/text.js';
+import { boundedHistory, readFiniteSSE, serviceResponse } from '../prototype/conversation/text.js';
 
 const id = number => `00000000-0000-4000-8000-${String(number).padStart(12, '0')}`;
 const tick = () => new Promise(resolve => setImmediate(resolve));
@@ -14,12 +14,12 @@ function harness(options = {}) {
   const currentContext = { routeEpoch: 0, consentEpoch: 0, memoryRevision: 0, canonVersion: 'published-manifesto/1',
     uiContext: { destination: 'unity', worldFocus: null, earth: null }, consentedMemories: [] };
   function captureStream() {
-    const track = { kind: 'audio', stopped: false, stop() { this.stopped = true; } }; tracks.push(track);
+    const track = new EventTarget(); Object.assign(track, { kind: 'audio', readyState: 'live', stopped: false, stop() { this.stopped = true; this.readyState = 'ended'; } }); tracks.push(track);
     return { getTracks: () => [track], getAudioTracks: () => [track] };
   }
   class Channel extends EventTarget {
     readyState = 'connecting'; sent = [];
-    send(value) { this.sent.push(JSON.parse(value)); }
+    send(value) { const event = JSON.parse(value); if (options.sendFailure || options.failEvent?.(event)) throw options.sendFailure || new DOMException('selective send failure', 'OperationError'); this.sent.push(event); }
     close() { this.readyState = 'closed'; }
     receive(value) { this.dispatchEvent(new MessageEvent('message', { data: JSON.stringify(value) })); }
   }
@@ -29,8 +29,8 @@ function harness(options = {}) {
     addTrack(track) { this.track = track; return { replaceTrack: async value => { this.replaced.push(value); this.track = value; if (options.replaceTrack) await options.replaceTrack(value); } }; }
     createDataChannel() { return this.channel; }
     async createOffer() { if (options.createOffer) await options.createOffer(); return { sdp: 'v=0\r\n' }; }
-    async setLocalDescription() {}
-    async setRemoteDescription() { this.connectionState = 'connected'; this.channel.readyState = 'open'; this.channel.dispatchEvent(new Event('open')); this.dispatchEvent(new Event('connectionstatechange')); }
+    async setLocalDescription() { if (options.setLocalDescription) await options.setLocalDescription(); }
+    async setRemoteDescription() { if (options.setRemoteDescription) await options.setRemoteDescription(); this.connectionState = 'connected'; this.channel.readyState = 'open'; this.channel.dispatchEvent(new Event('open')); this.dispatchEvent(new Event('connectionstatechange')); }
     close() { this.connectionState = 'closed'; }
     restartIce() { this.restarted = true; }
   }
@@ -41,6 +41,7 @@ function harness(options = {}) {
     requests.push({ path, body, init });
     if (options.fetch) { const value = await options.fetch(path, body, init); if (value) return value; }
     if (path.endsWith('/access')) return Response.json({ version: 1, accessToken: 'private-token', expiresAt: '2026-10-03T03:00:00Z', canonVersion: currentContext.canonVersion });
+    if (path.endsWith('/status')) return Response.json({ version: 1, enabled: true, ready: true, access: 'invite', voiceConfigured: true, textConfigured: true, reason: null, reasonCodes: [] });
     if (path.endsWith('/realtime')) return Response.json({ version: 1, sessionId: id(500), transport: { type: 'webrtc', sdp: 'answer' }, closeToken: 'close-only', clientDeadlineAt: '2026-10-03T02:12:00Z' });
     if (path.endsWith('/sessions/close')) return Response.json({ version: 1, status: 'closed' });
     if (path.endsWith('/knowledge')) return Response.json({ version: 1, chunks: [{ id: 'manifesto-practice', sourceId: 'manifesto', title: 'Practice', text: 'Real source passage.', claimType: 'philosophy', sha256: 'a'.repeat(64) }] });
@@ -49,7 +50,8 @@ function harness(options = {}) {
     return Response.json({ version: 1, ready: false, reason: 'SERVICE_NOT_READY' });
   }
   const conversation = createConversation({ fetch: fetcher, randomUUID: () => id(next++), now: () => Date.parse('2026-10-03T02:00:00Z'),
-    mediaDevices: { getUserMedia: options.getUserMedia || (async () => captureStream()) }, PeerConnection: Peer, createAudio: () => audio,
+    mediaDevices: options.mediaDevices === null ? null : { getUserMedia: options.getUserMedia || (async () => captureStream()) }, PeerConnection: options.PeerConnection === null ? null : Peer, createAudio: () => audio,
+    isSecureContext: options.isSecureContext ?? true,
     document: doc, window: win, getContext: () => currentContext, onEvent: value => events.push(value),
     onAction: options.onAction || (async request => ({ version: 1, requestId: request.requestId, routeEpoch: currentContext.routeEpoch, status: 'applied', code: 'APPLIED', message: 'Observed', observedState: currentContext.uiContext })),
     ensureMediaQuiet: options.ensureMediaQuiet || (async () => true), setTimer: (fn, delay) => { const key = ++timerId; timers.set(key, { fn, delay }); return key; }, clearTimer: key => timers.delete(key) });
@@ -90,8 +92,8 @@ test('Stop closes the owned call, peer, playback and physical microphone tracks'
 
 test('late microphone permission after Stop is immediately released without creating a paid call', async () => {
   let grant; const permission = new Promise(resolve => { grant = resolve; });
-  const h = await authorized({ getUserMedia: () => permission }); const starting = h.conversation.startVoice();
-  await h.conversation.stop(); const lateStream = h.captureStream(); grant(lateStream); await starting;
+  const h = await authorized({ getUserMedia: () => permission }); const starting = h.conversation.startVoice(); await tick();
+  await h.conversation.stop(); const lateStream = h.captureStream(); grant(lateStream); await starting; await tick();
   assert.equal(h.tracks[0].stopped, true); assert.equal(h.requests.some(value => value.path.endsWith('/realtime')), false);
   await h.conversation.exit();
 });
@@ -379,7 +381,7 @@ test('Stage4: typed response timeout revokes even a previously accepted response
 
 test('Stage4: late permission continuation between capture and assignment cannot leak a microphone', async () => {
   let grant; const permission = new Promise(resolve => { grant = resolve; });
-  const h = await authorized({ getUserMedia: () => permission }); const starting = h.conversation.startVoice();
+  const h = await authorized({ getUserMedia: () => permission }); const starting = h.conversation.startVoice(); await tick();
   grant(h.captureStream()); let stopping;
   queueMicrotask(() => { stopping = h.conversation.stop(); });
   await starting; await stopping;
@@ -422,4 +424,239 @@ test('Stage4: an action in a malformed finite stream is rejected before executio
     return stream([['action.request', { turnId: body.turnId, action, actionId: action.requestId, continuationToken: 'signed' }], ['turn.complete', { turnId: body.turnId, text: 'Conflicting completion' }]]);
   } });
   await assert.rejects(h.conversation.sendText('Open Earth'), { code: 'INVALID_STREAM' }); assert.equal(actions, 0); await h.conversation.exit();
+});
+
+test('Stage5: unavailable or undeployed service never asks for a microphone', async () => {
+  for (const response of [
+    Response.json({ version: 1, enabled: false, ready: false, access: 'invite', voiceConfigured: false, textConfigured: false, reason: 'SERVICE_NOT_READY', reasonCodes: ['AI_DISABLED', 'PROVIDER_NOT_CONFIGURED'] }),
+    new Response('<html>missing</html>', { status: 404 }),
+    Response.json({ version: 1, ready: true }),
+  ]) {
+    let captures = 0;
+    const h = await authorized({ getUserMedia: async () => { captures++; throw new Error('must not capture'); }, fetch: path => path.endsWith('/status') ? response : null });
+    await assert.rejects(h.conversation.startVoice());
+    assert.equal(captures, 0); assert.equal(h.peers.length, 0);
+    assert.equal(h.requests.some(request => request.path.endsWith('/realtime')), false);
+    assert.equal(h.conversation.getState().service.phase, 'unavailable');
+    assert.notEqual(h.conversation.getState().error.code, 'ACCESS_REQUIRED');
+    await h.conversation.exit();
+  }
+});
+
+test('Stage5: a status retry observes a later corrected deployment without retaining an unavailable cache', async () => {
+  let enabled = false;
+  const h = await authorized({ fetch: path => path.endsWith('/status') && !enabled ? new Response('old deployment', { status: 404 }) : null });
+  await assert.rejects(h.conversation.getStatus(), { code: 'SERVICE_DEPLOYMENT_MISSING' });
+  assert.equal(h.conversation.getState().service.code, 'SERVICE_DEPLOYMENT_MISSING');
+  enabled = true; await h.conversation.getStatus(); assert.equal(h.conversation.getState().service.phase, 'available');
+  await h.conversation.startVoice(); assert.equal(h.tracks.length, 1); await h.conversation.exit();
+});
+
+test('Stage5: bounded status wait and Stop during preflight cannot acquire capture after late readiness', async () => {
+  for (const kind of ['stop', 'timeout']) {
+    let ready; let captures = 0;
+    const pending = new Promise(resolve => { ready = resolve; });
+    const h = await authorized({ getUserMedia: async () => { captures++; return h.captureStream(); }, fetch: path => path.endsWith('/status') ? pending : null });
+    const starting = h.conversation.startVoice(); await tick();
+    if (kind === 'timeout') {
+      const rejected = assert.rejects(starting, { code: 'SERVICE_STATUS_TIMEOUT' });
+      const timeout = [...h.timers.values()].find(value => value.delay === 8000); assert.ok(timeout); timeout.fn(); await rejected;
+    } else { await h.conversation.stop(); await starting; }
+    ready(Response.json({ version: 1, enabled: true, ready: true, access: 'invite', voiceConfigured: true, textConfigured: true, reason: null })); await tick();
+    assert.equal(captures, 0); assert.equal(h.peers.length, 0); assert.equal(h.requests.some(request => request.path.endsWith('/realtime')), false);
+    await h.conversation.exit();
+  }
+});
+
+test('Stage5: microphone platform errors offer accurate recoveries without creating a paid call', async () => {
+  for (const [name, code] of [
+    ['NotAllowedError', 'MICROPHONE_PERMISSION_BLOCKED'], ['SecurityError', 'MICROPHONE_POLICY_BLOCKED'],
+    ['NotFoundError', 'MICROPHONE_NOT_FOUND'], ['NotReadableError', 'MICROPHONE_BUSY'], ['AbortError', 'MICROPHONE_INTERRUPTED'],
+    ['OverconstrainedError', 'MICROPHONE_CONSTRAINTS'], ['InvalidStateError', 'MICROPHONE_PAGE_INACTIVE'],
+  ]) {
+    const h = await authorized({ getUserMedia: () => Promise.reject(new DOMException('native detail', name)) });
+    await assert.rejects(h.conversation.startVoice(), { code });
+    assert.equal(h.conversation.getState().error.code, code); assert.equal(h.conversation.getState().voice, 'failed');
+    assert.equal(h.requests.some(request => request.path.endsWith('/realtime')), false); await h.conversation.exit();
+  }
+});
+
+test('Stage5: insecure, unsupported, and policy-blocked microphone environments do not request permission', async () => {
+  for (const [option, code] of [[{ isSecureContext: false }, 'MICROPHONE_HTTPS_REQUIRED'], [{ mediaDevices: null }, 'MICROPHONE_UNAVAILABLE'], [{ PeerConnection: null }, 'VOICE_UNAVAILABLE'], [{}, 'MICROPHONE_POLICY_BLOCKED']]) {
+    let captures = 0;
+    const h = await authorized({ ...option, getUserMedia: () => { captures++; throw new Error('must not capture'); } });
+    if (code === 'MICROPHONE_POLICY_BLOCKED') h.doc.permissionsPolicy = { allowsFeature: () => false };
+    await assert.rejects(h.conversation.startVoice(), { code }); assert.equal(captures, 0);
+    assert.equal(h.conversation.getState().error.code, code); await h.conversation.exit();
+  }
+});
+
+test('Stage5: unanswered microphone permission times out and a late grant is physically released', async () => {
+  let grant; const pending = new Promise(resolve => { grant = resolve; });
+  const h = await authorized({ getUserMedia: () => pending });
+  const starting = h.conversation.startVoice(); const rejected = assert.rejects(starting, { code: 'MICROPHONE_PERMISSION_TIMEOUT' }); await tick();
+  const timeout = [...h.timers.values()].find(value => value.delay === 30000); assert.ok(timeout); timeout.fn(); await rejected;
+  grant(h.captureStream()); await tick(); assert.ok(h.tracks.every(track => track.stopped));
+  assert.equal(h.requests.some(request => request.path.endsWith('/realtime')), false); await h.conversation.exit();
+});
+
+test('Stage5: capture must contain an active audio track before a paid call can start', async () => {
+  for (const ended of [false, true]) {
+    let supplied;
+    const h = await authorized({ getUserMedia: () => {
+      supplied = h.captureStream(); if (ended) supplied.getTracks()[0].readyState = 'ended';
+      return ended ? supplied : { getTracks: supplied.getTracks, getAudioTracks: () => [] };
+    } });
+    await assert.rejects(h.conversation.startVoice(), { code: 'MICROPHONE_NOT_FOUND' });
+    assert.ok(h.tracks.every(track => track.stopped)); assert.equal(h.requests.some(request => request.path.endsWith('/realtime')), false); await h.conversation.exit();
+  }
+});
+
+test('Stage5: a disconnected microphone closes the owned voice connection instead of claiming listening', async () => {
+  const h = await authorized(); await h.conversation.startVoice();
+  h.tracks[0].readyState = 'ended'; h.tracks[0].dispatchEvent(new Event('ended')); await tick();
+  assert.equal(h.conversation.getState().error.code, 'MICROPHONE_ENDED'); assert.equal(h.conversation.getState().voice, 'failed');
+  assert.equal(h.peers[0].connectionState, 'closed'); assert.ok(h.tracks.every(track => track.stopped));
+  assert.equal(h.requests.filter(request => request.path.endsWith('/sessions/close')).length, 1); await h.conversation.exit();
+});
+
+test('Stage5: data-channel termination closes capture and preserves text as a deliberate next action', async () => {
+  for (const event of ['close', 'error']) {
+    const h = await authorized(); await h.conversation.startVoice(); h.peers[0].channel.dispatchEvent(new Event(event)); await tick();
+    assert.equal(h.conversation.getState().voice, 'failed'); assert.equal(h.conversation.getState().error.code, 'VOICE_RECONNECT_REQUIRED');
+    assert.ok(h.tracks.every(track => track.stopped)); await h.conversation.sendText('Use text after a connection failure');
+    assert.equal(h.conversation.getState().transcript.at(-1).text, 'Actual reply'); await h.conversation.exit();
+  }
+});
+
+test('Stage5: one bounded transport recovery is explicit and a repeated disconnection releases capture', async () => {
+  const h = await authorized(); await h.conversation.startVoice(); const peer = h.peers[0];
+  peer.connectionState = 'disconnected'; peer.dispatchEvent(new Event('connectionstatechange'));
+  assert.equal(h.conversation.getState().voice, 'recovering'); assert.equal(h.audio.muted, true);
+  peer.connectionState = 'connected'; peer.dispatchEvent(new Event('connectionstatechange'));
+  assert.equal(h.conversation.getState().voice, 'listening');
+  assert.equal([...h.timers.values()].some(timer => timer.delay === 5000), false);
+  peer.connectionState = 'disconnected'; peer.dispatchEvent(new Event('connectionstatechange')); await tick();
+  assert.equal(h.conversation.getState().voice, 'failed'); assert.ok(h.tracks.every(track => track.stopped));
+  assert.equal(h.requests.filter(request => request.path.endsWith('/realtime')).length, 1); await h.conversation.exit();
+});
+
+test('Stage5: recovery deadline closes the existing call without creating a replacement', async () => {
+  const h = await authorized(); await h.conversation.startVoice(); const peer = h.peers[0];
+  peer.connectionState = 'disconnected'; peer.dispatchEvent(new Event('connectionstatechange'));
+  const timeout = [...h.timers.values()].find(timer => timer.delay === 5000); assert.ok(timeout); timeout.fn(); await tick();
+  assert.equal(h.conversation.getState().voice, 'failed'); assert.ok(h.tracks.every(track => track.stopped));
+  assert.equal(h.requests.filter(request => request.path.endsWith('/realtime')).length, 1); await h.conversation.exit();
+});
+
+test('Stage5: Resume never reacquires a microphone on a disconnected owned peer', async () => {
+  const h = await authorized(); await h.conversation.startVoice(); await h.conversation.enterMedia();
+  h.peers[0].connectionState = 'disconnected';
+  await assert.rejects(h.conversation.resumeVoice(), { code: 'VOICE_RECONNECT_REQUIRED' });
+  assert.equal(h.tracks.length, 1); assert.equal(h.peers[0].connectionState, 'closed'); await h.conversation.exit();
+});
+
+test('Stage5: throwing data-channel writes cannot obstruct physical Stop cleanup or hangup', async () => {
+  const h = await authorized({ sendFailure: new DOMException('buffer full', 'OperationError') }); await h.conversation.startVoice();
+  await h.conversation.stop(); assert.ok(h.tracks.every(track => track.stopped)); assert.equal(h.peers[0].connectionState, 'closed');
+  assert.equal(h.requests.filter(request => request.path.endsWith('/sessions/close')).length, 1); await h.conversation.exit();
+});
+
+test('Stage5: network and service errors explain the failure without exposing platform details', async () => {
+  const h = await authorized({ fetch: path => path.endsWith('/status') ? Promise.reject(new TypeError('internal host and token detail')) : null });
+  await assert.rejects(h.conversation.getStatus(), { code: 'NETWORK_UNAVAILABLE' });
+  assert.match(h.conversation.getState().service.message, /Check your connection/);
+  assert.equal(h.conversation.getState().service.message.includes('token detail'), false); await h.conversation.exit();
+  await assert.rejects(serviceResponse(Response.json({ code: 'SERVICE_NOT_READY', message: 'SERVICE_NOT_READY' }, { status: 503 })), failure => failure.code === 'SERVICE_NOT_READY' && failure.message.includes('configuration'));
+});
+
+test('Stage5: late paid creation after Stop or a creation deadline is closed without reviving capture', async () => {
+  for (const ending of ['stop', 'timeout']) {
+    let complete; const pending = new Promise(resolve => { complete = resolve; });
+    const h = await authorized({ fetch: path => path.endsWith('/realtime') ? pending : null });
+    const starting = h.conversation.startVoice(); await tick();
+    assert.equal(h.tracks.length, 1);
+    if (ending === 'stop') { await h.conversation.stop(); await starting; }
+    else {
+      const rejection = assert.rejects(starting, { code: 'VOICE_START_TIMEOUT' });
+      const timeout = [...h.timers.values()].find(timer => timer.delay === 35000); assert.ok(timeout); timeout.fn(); await rejection;
+      assert.equal(h.conversation.getState().error.code, 'VOICE_START_TIMEOUT');
+    }
+    assert.ok(h.tracks.every(track => track.stopped)); assert.equal(h.peers[0].connectionState, 'closed');
+    complete(Response.json({ version: 1, sessionId: id(501), transport: { type: 'webrtc', sdp: 'late-answer' }, closeToken: 'late-close', clientDeadlineAt: '2026-10-03T02:12:00Z' })); await tick();
+    assert.equal(h.peers[0].connectionState, 'closed'); assert.ok(h.tracks.every(track => track.stopped));
+    const closed = h.requests.filter(request => request.path.endsWith('/sessions/close'));
+    assert.equal(closed.length, 1); assert.equal(closed[0].body.sessionId, id(501)); await h.conversation.exit();
+  }
+});
+
+test('Stage5: a failed response write ends the owned call instead of leaving a typed turn thinking', async () => {
+  const h = await authorized({ sendFailure: new DOMException('buffer full', 'OperationError') }); await h.conversation.startVoice();
+  assert.equal((await h.conversation.sendText('My new question')).status, 'cancelled');
+  assert.equal(h.conversation.getState().error.code, 'VOICE_RECONNECT_REQUIRED'); assert.equal(h.conversation.getState().text, 'idle');
+  assert.ok(h.tracks.every(track => track.stopped)); assert.equal(h.peers[0].connectionState, 'closed'); await h.conversation.exit();
+});
+
+test('Stage5: unavailable service on Resume leaves the microphone physically paused', async () => {
+  let available = true;
+  const h = await authorized({ fetch: path => path.endsWith('/status') && !available ? Response.json({ version: 1, enabled: false, ready: false, access: 'invite', voiceConfigured: true, textConfigured: true, reason: 'SERVICE_NOT_READY', reasonCodes: ['AI_DISABLED'] }) : null });
+  await h.conversation.startVoice(); await h.conversation.enterMedia(); available = false;
+  await assert.rejects(h.conversation.resumeVoice(), { code: 'SERVICE_NOT_READY' });
+  assert.equal(h.tracks.length, 1); assert.ok(h.tracks.every(track => track.stopped));
+  assert.equal(h.conversation.getState().service.phase, 'unavailable'); await h.conversation.exit();
+});
+
+test('Stage5: a failed typed user-item write cannot authorize a provider response', async () => {
+  const h = await authorized({ failEvent: event => event.item?.role === 'user' }); await h.conversation.startVoice();
+  const dc = h.peers[0].channel; assert.equal((await h.conversation.sendText('Current question')).status, 'cancelled');
+  assert.equal(dc.sent.some(event => event.type === 'response.create'), false);
+  assert.ok(h.tracks.every(track => track.stopped)); assert.equal(h.conversation.getState().voice, 'failed'); await h.conversation.exit();
+});
+
+test('Stage5: an unsent function output cannot trigger a provider tool continuation', async () => {
+  for (const tool of [{ name: 'navigate', arguments: '{"destination":"dream-world"}' }, { name: 'lookup_knowledge', arguments: '{"query":"practice","topics":[]}' }, { name: 'navigate', arguments: 'invalid-json' }]) {
+    const h = await authorized({ failEvent: event => event.item?.type === 'function_call_output' }); await h.conversation.startVoice(); const dc = h.peers[0].channel;
+    await spokenTurn(dc, 'input-item'); await responseCreated(dc, 'response'); const before = dc.sent.filter(event => event.type === 'response.create').length;
+    dc.receive({ type: 'response.done', response: { id: 'response', status: 'completed', output: [{ type: 'function_call', call_id: 'call', ...tool }] } }); await tick();
+    assert.equal(dc.sent.filter(event => event.type === 'response.create').length, before);
+    assert.ok(h.tracks.every(track => track.stopped)); assert.equal(h.conversation.getState().voice, 'failed'); await h.conversation.exit();
+  }
+});
+
+test('Stage5: malformed SDP with valid close credentials still releases the created backend call', async () => {
+  const h = await authorized({ fetch: path => path.endsWith('/realtime') ? Response.json({ version: 1, sessionId: id(502), closeToken: 'malformed-close', transport: { type: 'webrtc', sdp: null } }) : null });
+  await assert.rejects(h.conversation.startVoice(), { code: 'INVALID_SESSION' });
+  const close = h.requests.find(request => request.path.endsWith('/sessions/close'));
+  assert.equal(close.body.sessionId, id(502)); assert.ok(h.tracks.every(track => track.stopped)); await h.conversation.exit();
+});
+
+test('Stage5: provider errors during bounded recovery cannot claim disconnected capture is listening', async () => {
+  const h = await authorized(); await h.conversation.startVoice(); const peer = h.peers[0];
+  peer.connectionState = 'disconnected'; peer.dispatchEvent(new Event('connectionstatechange'));
+  peer.channel.receive({ type: 'error', error: { code: 'PROVIDER_ERROR', message: 'Request failed' } }); await tick();
+  assert.equal(h.conversation.getState().voice, 'recovering'); assert.ok([...h.timers.values()].some(timer => timer.delay === 5000));
+  await h.conversation.exit();
+});
+
+test('Stage5: stalled browser SDP setup has a deadline and cannot leave microphone capture active', async () => {
+  for (const stage of ['createOffer', 'setLocalDescription', 'setRemoteDescription']) {
+    let finish; const pending = new Promise(resolve => { finish = resolve; });
+    const h = await authorized({ [stage]: () => pending }); const starting = h.conversation.startVoice();
+    const rejected = assert.rejects(starting, { code: 'VOICE_SETUP_TIMEOUT' }); await tick();
+    const timeout = [...h.timers.values()].find(timer => timer.delay === 15000); assert.ok(timeout); timeout.fn(); await rejected;
+    assert.ok(h.tracks.every(track => track.stopped)); assert.equal(h.peers[0].connectionState, 'closed');
+    const creates = h.requests.filter(request => request.path.endsWith('/realtime')).length;
+    assert.equal(creates, stage === 'setRemoteDescription' ? 1 : 0);
+    finish(); await tick(); assert.ok(h.tracks.every(track => track.stopped));
+    assert.equal(h.requests.filter(request => request.path.endsWith('/realtime')).length, creates);
+    await h.conversation.exit();
+  }
+});
+
+test('Stage5: cancelling a preflight clears checking and Exit settles a standalone stalled status read', async () => {
+  const h = await authorized({ fetch: path => path.endsWith('/status') ? new Promise(() => {}) : null });
+  const starting = h.conversation.startVoice(); await tick(); await h.conversation.stop(); await starting;
+  assert.notEqual(h.conversation.getState().service.phase, 'checking');
+  const checking = h.conversation.getStatus(); const rejected = assert.rejects(checking, { name: 'AbortError' });
+  await h.conversation.exit(); await rejected; assert.equal(h.timers.size, 0);
 });
