@@ -757,7 +757,7 @@ async function deploymentIsCurrent(context) {
       await relations.getByLabel('To', { exact: true }).selectOption({ label: SECOND_VISIT_NOTE });
       await relations.getByLabel('Optional label', { exact: true }).fill(relationDraftLabel);
       await page.locator('#memory-share-consent').uncheck({ timeout: remaining() });
-      await page.waitForFunction(() => document.getElementById('memory-status').textContent.includes('Saved notes are not included'), null, { timeout: remaining() });
+      await page.waitForFunction(() => document.getElementById('memory-status').textContent.includes('notes are not included in conversation'), null, { timeout: remaining() });
       assert.equal(await page.getByRole('textbox', { name: 'Title', exact: true }).inputValue(), draftTitle);
       assert.equal(await page.getByRole('textbox', { name: 'Note', exact: true }).inputValue(), draftText);
       assert.equal(await page.locator('.memory-edge-editor').getByLabel('Optional label', { exact: true }).inputValue(), edgeLabel);
