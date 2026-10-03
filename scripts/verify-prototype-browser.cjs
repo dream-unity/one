@@ -569,7 +569,9 @@ async function deploymentIsCurrent(context) {
     });
     await check('visit-navigation-retains-notes-and-relationships-in-same-document', async () => {
       const documentIdentity = await page.evaluate(() => performance.timeOrigin);
+      await page.getByRole('link', { name: 'Back to the centre', exact: true }).click({ timeout: remaining() }); await viewIs('unity');
       await page.locator('.quiet-navigation [data-navigate="dream-world"]').click({ timeout: remaining() }); await viewIs('dream-world');
+      await page.getByRole('link', { name: 'Back to the centre', exact: true }).click({ timeout: remaining() }); await viewIs('unity');
       await page.locator('.quiet-navigation [data-navigate="constellation"]').click({ timeout: remaining() }); await viewIs('constellation');
       await visitIs(true); await waitForNote(VISIT_NOTE); await waitForNote(SECOND_VISIT_NOTE);
       assert.equal(await noteCard(VISIT_NOTE).getByText(EDITED_VISIT_NOTE, { exact: true }).isVisible(), true);
