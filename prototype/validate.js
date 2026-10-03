@@ -1,4 +1,4 @@
-import { schemas, toolDefinitions } from './contracts.mjs';
+import { schemas, toolDefinitions } from './contracts.js';
 
 // This validator covers the JSON Schema subset used by the pinned public contracts.
 // It cannot establish trusted origins, cryptographic IDs, actual user confirmation,

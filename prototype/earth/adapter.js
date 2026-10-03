@@ -1,5 +1,5 @@
-import { schemas } from '../contracts.mjs';
-import { validate } from '../validate.mjs';
+import { schemas } from '../contracts.js';
+import { validate } from '../validate.js';
 
 export const EARTH_ORIGIN = 'https://november-1st-sable.vercel.app';
 const CHILD_KINDS = new Set(['HELLO', 'READY', 'FAILED', 'RESULT', 'ACK', 'SNAPSHOT',

@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { schemas, toolDefinitions } from '../prototype/contracts.mjs';
-import { validate, assertValid, validateTool, validateContract } from '../prototype/validate.mjs';
+import { schemas, toolDefinitions } from '../prototype/contracts.js';
+import { validate, assertValid, validateTool, validateContract } from '../prototype/validate.js';
 
 const id = '6d61a490-3419-49ba-8f59-8a8299dd8117';
 const other = '72d5d306-fbcf-438c-8333-872a5031f025';

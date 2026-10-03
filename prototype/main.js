@@ -5,7 +5,7 @@ import { createEarthAdapter, EARTH_ORIGIN } from './earth/adapter.js';
 import { createActionExecutor, observedView } from './actions.js';
 import { createMemoryStore, createMemoryController } from './memory/store.js';
 import { mountMemoryView } from './memory/view.js';
-import { createConversation } from './conversation/controller.mjs';
+import { createConversation } from './conversation/controller.js';
 
 const $ = id => document.getElementById(id);
 let state = initialState(new URL(location.href).searchParams.get('view') || 'unity');

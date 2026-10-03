@@ -1,5 +1,5 @@
-import { validateContract } from '../validate.mjs';
-import { ConversationError, boundedHistory, readFiniteSSE, serviceResponse, utf8Bytes } from './text.mjs';
+import { validateContract } from '../validate.js';
+import { ConversationError, boundedHistory, readFiniteSSE, serviceResponse, utf8Bytes } from './text.js';
 
 const DEFAULT_DEADLINE = 12 * 60 * 1000;
 const DEFAULT_IDLE = 90 * 1000;

@@ -22,8 +22,8 @@ const permitted = [
   'prototype/index.html', 'prototype/styles.css', 'prototype/main.js', 'prototype/state.js',
   'prototype/boot.js',
   'prototype/scene.js', 'prototype/manifesto-view.js', 'prototype/actions.js',
-  'prototype/contracts.mjs', 'prototype/validate.mjs', 'prototype/earth/adapter.js',
-  'prototype/conversation/controller.mjs', 'prototype/conversation/text.mjs',
+  'prototype/contracts.js', 'prototype/validate.js', 'prototype/earth/adapter.js',
+  'prototype/conversation/controller.js', 'prototype/conversation/text.js',
   'prototype/memory/store.js', 'prototype/memory/consent.js', 'prototype/memory/view.js',
   'prototype/build-info.json',
 ].sort();

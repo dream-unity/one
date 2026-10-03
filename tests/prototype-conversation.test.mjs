@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createConversation } from '../prototype/conversation/controller.mjs';
-import { boundedHistory, readFiniteSSE } from '../prototype/conversation/text.mjs';
+import { createConversation } from '../prototype/conversation/controller.js';
+import { boundedHistory, readFiniteSSE } from '../prototype/conversation/text.js';
 
 const id = number => `00000000-0000-4000-8000-${String(number).padStart(12, '0')}`;
 const tick = () => new Promise(resolve => setImmediate(resolve));
