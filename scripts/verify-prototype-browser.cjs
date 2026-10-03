@@ -115,6 +115,7 @@ async function confirmDialog(action, expectedText) {
 }
 async function rememberingIs(enabled, target = page) {
   await target.waitForFunction(value => document.getElementById('memory-consent').checked === value &&
+    !document.getElementById('memory-consent').disabled &&
     document.getElementById('memory-status').textContent.includes(value ? 'saved notes' : 'Remembering is off'), enabled, { timeout: remaining() });
 }
 async function waitForAccessOrUnreadyService(target = page) {
@@ -123,7 +124,8 @@ async function waitForAccessOrUnreadyService(target = page) {
 }
 async function visitIs(enabled, target = page) {
   await target.waitForFunction(value => document.getElementById('memory-session-mode').getAttribute('aria-pressed') === String(value) &&
-    (!value || document.getElementById('memory-status').textContent.includes('For this visit')), enabled, { timeout: remaining() });
+    (value ? !document.getElementById('memory-share-consent').disabled && document.getElementById('memory-status').textContent.includes('For this visit')
+      : !document.getElementById('memory-session-mode').disabled), enabled, { timeout: remaining() });
 }
 // Native methods keep their original receiver, arguments, return values and errors.
 // The counters observe attempted browser writes, without changing application state.
