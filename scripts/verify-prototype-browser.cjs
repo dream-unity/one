@@ -154,8 +154,9 @@ async function deploymentIsCurrent(context) {
         globalThis.__dreamUnityObservePageShow({ url: location.href, persisted: event.persisted }).catch(() => {});
       });
     });
+    const sharedPrototypeRequests = new WeakSet();
     context.on('response', response => {
-      if (prototypeUrl(response.url())) evidence.responses.push({ url: response.url(), status: response.status(),
+      if (prototypeUrl(response.url()) || sharedPrototypeRequests.has(response.request())) evidence.responses.push({ url: response.url(), status: response.status(),
         contentType: response.headers()['content-type'] || '', resourceType: response.request().resourceType() });
     });
     context.on('requestfailed', request => {
@@ -165,6 +166,10 @@ async function deploymentIsCurrent(context) {
     page.on('console', message => { if (prototypeUrl(page.url()) && message.type() === 'error') evidence.consoleErrors.push(message.text()); });
     context.on('request', request => {
       const url = new URL(request.url());
+      if (url.origin === 'https://dreamunity.one' && url.pathname === '/symbol-motion.js') {
+        // Bind provenance when requested: a late old-home response can arrive after Back.
+        try { if (prototypeUrl(request.frame().url())) sharedPrototypeRequests.add(request); } catch { /* No document frame owns this request. */ }
+      }
       if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method()) &&
         (url.pathname.startsWith('/api/unity/') || /(?:^|\.)openai\.com$/.test(url.hostname))) {
         evidence.forbiddenRequests.push({ method: request.method(), url: request.url() });
@@ -465,6 +470,10 @@ async function deploymentIsCurrent(context) {
       const modules = evidence.responses.filter(item => item.resourceType === 'script');
       assert.ok(modules.some(item => new URL(item.url).pathname === '/prototype/main.js'), 'the actual main module must be fetched');
       assert.ok(modules.every(item => /(?:java|ecma)script/i.test(item.contentType)), 'JavaScript resources must have executable MIME types');
+      assert.ok(modules.some(item => new URL(item.url).pathname === '/symbol-motion.js'), 'the shared prototype ink-clock dependency must be observed');
+      assert.ok(modules.every(item => new URL(item.url).searchParams.get('v') === evidence.expectedCommit), 'every served prototype module, including shared dependencies, must carry the exact release cache identity');
+      const styles = evidence.responses.filter(item => new URL(item.url).pathname === '/prototype/styles.css');
+      assert.ok(styles.length && styles.every(item => new URL(item.url).searchParams.get('v') === evidence.expectedCommit), 'the prototype stylesheet must carry the same release cache identity');
     });
     evidence.status = evidence.gateErrors.length ? 'failed' : 'passed';
     if (evidence.gateErrors.length) {

@@ -4,7 +4,7 @@ import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { execFileSync } from 'node:child_process';
-import { PUBLIC_DIRECTORY, PUBLIC_FILES, stagePublicSite } from '../scripts/stage-public-site.mjs';
+import { PUBLIC_DIRECTORY, PUBLIC_FILES, stagePublicSite, moduleReferences } from '../scripts/stage-public-site.mjs';
 
 const repository = fileURLToPath(new URL('../', import.meta.url));
 const permitted = [
@@ -49,6 +49,9 @@ test('publication contains only the approved home and prototype dependencies and
       const info = JSON.parse(await readFile(join(PUBLIC_DIRECTORY, file), 'utf8'));
       assert.equal(info.sourceCommit, expectedSourceCommit);
       assert.equal(info.contractVersion, 'du-prototype/1.0');
+    } else if (/^[a-f0-9]{40}$/.test(expectedSourceCommit) && (file === 'prototype/index.html' || file.endsWith('.js') && file.startsWith('prototype/'))) {
+      assert.equal((await readFile(join(PUBLIC_DIRECTORY, file), 'utf8')).replaceAll(`?v=${expectedSourceCommit}`, ''),
+        await readFile(join(repository, file), 'utf8'), `${file} may change only dependency cache identity`);
     } else assert.deepEqual(await readFile(join(PUBLIC_DIRECTORY, file)), await readFile(join(repository, file)),
         `${file} must publish the current source bytes`);
     if (!/\.(?:html|css|m?js)$/.test(file)) continue;
@@ -79,6 +82,57 @@ test('publication contains only the approved home and prototype dependencies and
   } finally {
     if (previousExplicitRevision === undefined) delete process.env.DREAMUNITY_SOURCE_COMMIT;
     else process.env.DREAMUNITY_SOURCE_COMMIT = previousExplicitRevision;
+  }
+});
+
+test('one exact revision versions the staged entry and complete module graph without changing raw or home source', async () => {
+  const previous = { explicit: process.env.DREAMUNITY_SOURCE_COMMIT, github: process.env.GITHUB_SHA };
+  const revision = 'a'.repeat(40);
+  const originals = new Map(await Promise.all(PUBLIC_FILES.filter(file => file !== '.nojekyll').map(async file => [file, await readFile(join(repository, file))])));
+  try {
+    process.env.DREAMUNITY_SOURCE_COMMIT = revision;
+    await stagePublicSite();
+    const html = await readFile(join(PUBLIC_DIRECTORY, 'prototype/index.html'), 'utf8');
+    assert.match(html, new RegExp(`src="\\./boot\\.js\\?v=${revision}"`));
+    assert.match(html, new RegExp(`href="\\./styles\\.css\\?v=${revision}"`));
+    // Independently walk the actual served graph, including boot's dynamic import
+    // and the shared module above /prototype/. Every edge must stay allowlisted.
+    const pending = ['prototype/boot.js'], visited = new Set();
+    while (pending.length) {
+      const file = pending.pop(); if (visited.has(file)) continue; visited.add(file);
+      const source = await readFile(join(PUBLIC_DIRECTORY, file), 'utf8');
+      const references = [...source.matchAll(/(?:\bfrom\s+|\bimport\s*\(\s*|^\s*import\s*)["']([^"']+)["']/gm)];
+      for (const [, specifier] of references) {
+        const target = new URL(specifier, `https://public.example/${file}`);
+        assert.equal(target.origin, 'https://public.example');
+        assert.equal(target.searchParams.get('v'), revision, `${file}: ${specifier} must identify this release`);
+        const dependency = target.pathname.slice(1);
+        assert.ok(PUBLIC_FILES.includes(dependency), `${file} imports an unpublished dependency`);
+        pending.push(dependency);
+      }
+      execFileSync(process.execPath, ['--check', join(PUBLIC_DIRECTORY, file)]);
+    }
+    assert.equal(visited.size, 14, 'the current boot/main graph and shared ink clock must all be traversed');
+    assert.ok(visited.has('prototype/main.js')); assert.ok(visited.has('symbol-motion.js'));
+    assert.match(await readFile(join(PUBLIC_DIRECTORY, 'prototype/memory/consent.js'), 'utf8'), new RegExp(`from '\\./store\\.js\\?v=${revision}'`), 'retained re-export entry is also versioned');
+    for (const [file, original] of originals) {
+      assert.deepEqual(await readFile(join(repository, file)), original, `staging cannot mutate raw source ${file}`);
+      if (!file.startsWith('prototype/')) assert.deepEqual(await readFile(join(PUBLIC_DIRECTORY, file)), original, `unrelated published home asset ${file} remains byte-for-byte intact`);
+    }
+    delete process.env.DREAMUNITY_SOURCE_COMMIT; delete process.env.GITHUB_SHA;
+    await stagePublicSite();
+    for (const [file, original] of originals) assert.deepEqual(await readFile(join(PUBLIC_DIRECTORY, file)), original, `no-revision fallback must preserve ${file}`);
+  } finally {
+    if (previous.explicit === undefined) delete process.env.DREAMUNITY_SOURCE_COMMIT; else process.env.DREAMUNITY_SOURCE_COMMIT = previous.explicit;
+    if (previous.github === undefined) delete process.env.GITHUB_SHA; else process.env.GITHUB_SHA = previous.github;
+  }
+});
+
+test('bounded module references ignore comment and regex punctuation and reject unsupported imports', () => {
+  const source = `// import('./comment.js')\n/* export { X } from './comment2.js'; */\nimport { x } from './state.js';\nexport { y } from '../shared.js';\nexport * from './other.js';\nimport './side-effect.js';\nconst punctuation = /['"/]/;\nconst prose = "from './example.js'";\n  import('./main.js').then(() => {});\nconst url = import.meta.url;`;
+  assert.deepEqual(moduleReferences(source).map(item => item.value), ['./state.js', '../shared.js', './other.js', './side-effect.js', './main.js']);
+  for (const unsupported of ['import(moduleName)', 'import(`./${name}.js`)', 'const later = import("./main.js")', 'const example = "import(\\"./main.js\\")"', 'const pattern = /import(".\/main.js")/']) {
+    assert.throws(() => moduleReferences(unsupported), /Unsupported module import syntax/);
   }
 });
 
