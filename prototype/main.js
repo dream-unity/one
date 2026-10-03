@@ -95,7 +95,10 @@ function render() {
     ready: 'Your conversation is ready.', connected: 'Listening. Stop releases your microphone.',
     paused: 'Microphone paused. Choose Resume when ready.', stopped: 'Microphone stopped. You can still write.',
     expired: 'Voice ended. Text and navigation remain available.', failed: 'Voice is unavailable. You can still write.', closed: 'Microphone stopped. You can still write.' };
-  $('session-status').textContent = state.mode === 'media' ? 'Media mode. Microphone and AI audio are off. Choose Resume to speak again.' : descriptions[state.microphone] || 'Write an intention, or choose Speak.';
+  const voiceDescription = state.microphone === 'paused' && !authorized ? descriptions.idle : descriptions[state.microphone] || descriptions.idle;
+  $('session-status').textContent = state.mode === 'media'
+    ? `Media mode. Microphone and AI audio are off. ${authorized ? 'Choose Resume to speak again.' : 'You can still explore and write.'}`
+    : voiceDescription;
   $('earth-status').textContent = state.earth?.app === 'failed' ? 'Earth could not connect.' : state.earth?.globe === 'ready' ? 'Earth is ready.' : state.earth?.app === 'ready' ? 'Earth is open. Globe and feed availability may vary.' : 'Opening God’s Earth View…';
 }
 function setUrl(destination, replace = false) {

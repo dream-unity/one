@@ -198,6 +198,8 @@ async function deploymentIsCurrent(context) {
       await page.locator('.quiet-navigation [data-navigate="dream-world"]').focus(); await page.keyboard.press('Enter');
       await viewIs('dream-world');
       assert.equal(await page.locator('#view-title').evaluate(element => element === document.activeElement), true);
+      assert.equal(await page.locator('#resume-button').isVisible(), false);
+      assert.doesNotMatch(await page.locator('#session-status').textContent(), /Resume/);
       await page.locator('.world-choice[data-navigate="minds-eye"]').click({ timeout: remaining() });
       await viewIs('minds-eye');
       assert.equal(await page.locator('[data-view-panel="minds-eye"] .availability').textContent(), 'Coming soon.');
