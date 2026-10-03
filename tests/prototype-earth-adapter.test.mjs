@@ -10,7 +10,7 @@ const hello = { buildCommit: 'a'.repeat(40), capabilities: {
 } };
 const observed = { status: 'applied', code: 'VIEW_OBSERVED', message: 'The real view changed.', snapshot: null };
 
-function fixture(t) {
+function fixture(t, options = {}) {
   const win = new EventTarget(); const frames = []; const states = []; let next = 1;
   const host = { children: [], replaceChildren(frame) { this.children = [frame]; } };
   class Frame extends EventTarget {
@@ -19,13 +19,15 @@ function fixture(t) {
     remove() { this.removed = true; if (host.children.includes(this)) host.children = []; }
   }
   const adapter = createEarthAdapter({ host, window: win, uuid: () => id(next++),
-    frameFactory() { const frame = new Frame(); frames.push(frame); return frame; }, onState: value => states.push(value) });
+    frameFactory() { const frame = new Frame(); frames.push(frame); return frame; }, onState: value => states.push(value), ...options });
   t.after(() => adapter.close());
   function receive(frame, kind, payload, options = {}) {
     const init = frame.sent.find(item => item.data.kind === 'INIT')?.data;
     assert.ok(init, 'the owned frame must receive its INIT challenge first');
     const data = { channel: 'dream-unity:earth', version: 1, bridgeId: init.bridgeId,
-      epoch: init.epoch, requestId: id(next++), kind, payload, ...options.envelope };
+      epoch: init.epoch, requestId: kind === 'HELLO' ? init.requestId
+        : kind === 'READY' ? frame.sent.findLast(item => item.data.kind === 'START')?.data.requestId || id(next++)
+        : id(next++), kind, payload, ...options.envelope };
     win.dispatchEvent(Object.assign(new Event('message'), {
       data, origin: options.origin || EARTH_ORIGIN, source: options.source || frame.contentWindow,
     }));
@@ -140,4 +142,51 @@ test('missing cancellation acknowledgement remains unknown after a bounded deadl
   const command = h.adapter.command({ name: 'earth_get_view', args: {} }, id(802), { signal: controller.signal });
   const rejected = assert.rejects(command, { code: 'ACTION_OUTCOME_UNKNOWN' }); controller.abort();
   assert.equal(frame.sent.at(-1).data.kind, 'CANCEL'); t.mock.timers.tick(2000); await rejected;
+});
+
+test('only correlated HELLO and READY receipts complete startup; STATUS cannot impersonate READY', async t => {
+  const h = fixture(t); const owner = h.begin(); let finished = false;
+  owner.promise.then(() => { finished = true; });
+  h.receive(owner.frame, 'HELLO', hello, { envelope: { requestId: id(900) } });
+  await tick(); assert.equal(h.adapter.getState().capabilities, null);
+  h.receive(owner.frame, 'HELLO', hello); await tick();
+  h.receive(owner.frame, 'READY', readiness, { envelope: { requestId: id(901) } });
+  h.receive(owner.frame, 'STATUS', readiness); await tick();
+  assert.equal(finished, false);
+  assert.notEqual(h.adapter.getState().readiness.app, 'ready');
+  h.receive(owner.frame, 'FAILED', { code: 'UNRELATED', message: 'Other request failed.', retryable: false },
+    { envelope: { requestId: id(902) } });
+  h.receive(owner.frame, 'READY', readiness); await owner.promise;
+  assert.equal(finished, true);
+});
+
+test('unsolicited or mismatched snapshots cannot replace the supported restore view', async t => {
+  const h = fixture(t); const frame = await h.finish(h.begin());
+  const share = { format: 'gev-share-v2', hashParams: 'v=2&lat=1&lon=2', feed: null, hasUnsavedState: true };
+  h.receive(frame, 'SNAPSHOT', { snapshot: share });
+  assert.equal(h.adapter.getState().snapshot, null);
+  const pending = h.adapter.getSnapshot();
+  const request = frame.sent.findLast(item => item.data.kind === 'SNAPSHOT_REQUEST').data;
+  h.receive(frame, 'SNAPSHOT', { snapshot: share }, { envelope: { requestId: request.requestId } });
+  assert.deepEqual(await pending, share);
+  h.receive(frame, 'SNAPSHOT', { snapshot: { ...share, hashParams: 'v=2&lat=3&lon=4' } });
+  assert.deepEqual(h.adapter.getState().snapshot, share);
+});
+
+test('media preflight runs once per request and QUIET revokes an outstanding grant', async t => {
+  let finishMedia, calls = 0;
+  const h = fixture(t, { onMedia: () => { calls++; return new Promise(resolve => { finishMedia = resolve; }); } });
+  const frame = await h.finish(h.begin());
+  const envelope = { requestId: id(950) };
+  h.receive(frame, 'MEDIA_FOCUS_REQUEST', { reason: 'player-surface' }, { envelope });
+  h.receive(frame, 'MEDIA_FOCUS_REQUEST', { reason: 'player-surface' }, { envelope });
+  assert.equal(calls, 1);
+  const quiet = h.adapter.quiet();
+  const request = frame.sent.findLast(item => item.data.kind === 'QUIET_REQUEST').data;
+  h.receive(frame, 'QUIET_ACK', { quiet: true, blockedPlayerCount: 0 }, { envelope: { requestId: request.requestId } });
+  assert.equal(await quiet, true);
+  finishMedia(true); await tick();
+  assert.equal(frame.sent.some(item => item.data.kind === 'MEDIA_FOCUS_GRANTED'), false);
+  h.receive(frame, 'MEDIA_FOCUS_REQUEST', { reason: 'player-surface' }, { envelope });
+  assert.equal(calls, 1);
 });

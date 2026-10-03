@@ -71,5 +71,10 @@ export function parseLocalIntention(text) {
   for (const world of WORLDS) {
     if (command === `focus ${world}` || command === `focus dream ${world}`) return { name: 'focus_world', args: { world } };
   }
+  for (const world of ['machine', 'maker']) {
+    if (new RegExp(`^(?:open|show|visit|go to|take me to) dream ${world}$`).test(command)) {
+      return { name: 'focus_world', args: { world } };
+    }
+  }
   return null;
 }

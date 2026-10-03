@@ -23,7 +23,7 @@ export function createEarthAdapter({ host, onState = () => {}, onMedia = async (
   }
   let frame = null, bridgeId = null, epoch = 0, active = false, capabilities = null;
   let readiness = { ...EMPTY_READY }, snapshot = null, opening = null;
-  let intakeStart = 0, intakeCount = 0;
+  let intakeStart = 0, intakeCount = 0, mediaGeneration = 0;
   const pending = new Map();
   const completedMedia = new Set();
 
@@ -83,38 +83,48 @@ export function createEarthAdapter({ host, onState = () => {}, onMedia = async (
     if (now - intakeStart >= 1000) { intakeStart = now; intakeCount = 0; }
     if (++intakeCount > 30 || size > 32768 || !validate(schemas.earthBridge, data).valid) return;
     if (!CHILD_KINDS.has(data.kind) || data.bridgeId !== bridgeId || data.epoch !== epoch) return;
-    if (data.kind === 'HELLO') { capabilities = data.payload.capabilities; opening?.hello.resolve(data.payload); report(); return; }
+    if (data.kind === 'HELLO') {
+      if (opening?.phase !== 'hello' || data.requestId !== opening.initId) return;
+      capabilities = data.payload.capabilities; opening.hello.resolve(data.payload); report(); return;
+    }
     if (data.kind === 'READY' || data.kind === 'STATUS') {
+      if (!active || !capabilities || opening?.phase === 'hello') return;
+      if (data.kind === 'READY' && (opening?.phase !== 'ready' || data.requestId !== opening.startId)) return;
+      if (data.kind === 'STATUS' && opening && data.payload.app === 'ready') return;
       readiness = data.payload; report();
-      if (opening?.phase === 'ready' && readiness.app === 'ready' && readiness.restore !== 'pending') opening.ready.resolve(readiness);
+      if (data.kind === 'READY' && readiness.app === 'ready' && readiness.restore !== 'pending') opening.ready.resolve(readiness);
       if (readiness.app === 'failed') opening?.ready.reject(failure('EARTH_START_FAILED', 'Earth could not start.'));
       return;
     }
     if (data.kind === 'FAILED') {
-      opening?.ready.reject(failure(data.payload.code, data.payload.message));
+      if (opening?.phase === 'ready' && data.requestId === opening.startId) opening.ready.reject(failure(data.payload.code, data.payload.message));
+      if (opening?.phase === 'hello' && data.requestId === opening.initId) opening.hello.reject(failure(data.payload.code, data.payload.message));
       const waiter = pending.get(data.requestId); waiter?.finish(failure(data.payload.code, data.payload.message));
       return;
     }
     if (data.kind === 'MEDIA_FOCUS_REQUEST') {
-      if (!active) return;
-      const requestBridge = bridgeId, requestEpoch = epoch;
+      if (!active || completedMedia.has(data.requestId)) return;
+      // Mark before the async preflight so duplicate messages never stop a newer conversation.
+      completedMedia.add(data.requestId);
+      if (completedMedia.size > 64) completedMedia.delete(completedMedia.values().next().value);
+      const requestBridge = bridgeId, requestEpoch = epoch, requestGeneration = mediaGeneration;
       try {
         const stopped = await onMedia(data.payload.reason);
-        if (stopped !== true || requestBridge !== bridgeId || requestEpoch !== epoch || !active) return;
-        if (completedMedia.size >= 64) completedMedia.clear();
-        completedMedia.add(data.requestId);
+        if (stopped !== true || requestBridge !== bridgeId || requestEpoch !== epoch || requestGeneration !== mediaGeneration || !active) return;
         post('MEDIA_FOCUS_GRANTED', { captureStopped: true, outputStopped: true }, data.requestId);
       } catch { /* A failed preflight grants no playback authority. */ }
       return;
     }
     if (data.kind === 'REQUEST_HOME') { if (active) onHome(); return; }
-    if (data.kind === 'SNAPSHOT') snapshot = data.payload.snapshot;
     const waiter = pending.get(data.requestId);
     const matches = waiter && (data.kind === 'RESULT' && waiter.kind === 'COMMAND'
       || data.kind === 'ACK' && data.payload.forKind === waiter.kind
       || data.kind === 'SNAPSHOT' && waiter.kind === 'SNAPSHOT_REQUEST'
       || data.kind === 'QUIET_ACK' && waiter.kind === 'QUIET_REQUEST');
-    if (matches && waiter.epoch === epoch) waiter.finish(null, data.payload);
+    if (matches && waiter.epoch === epoch) {
+      if (data.kind === 'SNAPSHOT') snapshot = data.payload.snapshot;
+      waiter.finish(null, data.payload);
+    }
   }
   win.addEventListener('message', receive);
 
@@ -133,7 +143,7 @@ export function createEarthAdapter({ host, onState = () => {}, onMedia = async (
     if (opening && !opening.cancelled && opening.epoch === nextEpoch && opening.signal === signal) return opening.promise;
     if (!opening && active && frame && nextEpoch === epoch && readiness.app === 'ready') return Promise.resolve(readiness);
     if (frame) destroyFrame();
-    const owner = { epoch: nextEpoch, bridgeId: uuid(), frame: null, signal,
+    const owner = { epoch: nextEpoch, bridgeId: uuid(), initId: uuid(), startId: uuid(), frame: null, signal,
       hello: deferred(), ready: deferred(), phase: 'hello', cancelled: false,
       settled: false, abort: null, retry: null, promise: null };
     // Readiness can be rejected before its phase begins; never leave an unhandled waiter.
@@ -158,15 +168,15 @@ export function createEarthAdapter({ host, onState = () => {}, onMedia = async (
       frame.referrerPolicy = 'strict-origin-when-cross-origin';
       // No fullscreen delegation: parent-wrapper fullscreen keeps Stop, Text and Exit accessible.
       frame.allow = 'autoplay; encrypted-media; picture-in-picture; clipboard-write; microphone \'none\'; camera \'none\'; geolocation \'none\'';
-      frame.addEventListener('load', () => { if (active && ownsFrame(owner)) { try { post('INIT'); } catch {} } });
+      frame.addEventListener('load', () => { if (active && ownsFrame(owner)) { try { post('INIT', {}, owner.initId); } catch {} } });
       host.replaceChildren(frame); frame.src = frameUrl.href;
       report();
-      owner.retry = setInterval(() => { if (active && ownsFrame(owner) && !capabilities) { try { post('INIT'); } catch {} } }, 600);
+      owner.retry = setInterval(() => { if (active && ownsFrame(owner) && !capabilities) { try { post('INIT', {}, owner.initId); } catch {} } }, 600);
       try {
         await timeoutPromise(owner.hello.promise, 8000, 'EARTH_HANDSHAKE_TIMEOUT');
         if (owner.cancelled || !active || !ownsFrame(owner)) throw failure('CANCELLED', 'Earth opening cancelled.');
         owner.phase = 'ready';
-        post('START', { restore: snapshot });
+        post('START', { restore: snapshot }, owner.startId);
         const value = await timeoutPromise(owner.ready.promise, 20000, 'EARTH_READY_TIMEOUT');
         if (owner.cancelled || !active || !ownsFrame(owner)) throw failure('SUPERSEDED', 'Earth opening superseded.');
         return value;
@@ -192,7 +202,7 @@ export function createEarthAdapter({ host, onState = () => {}, onMedia = async (
       owner.ready.reject(failure('CANCELLED', 'Earth closed.'));
       if (opening === owner) opening = null;
     }
-    active = false; rejectPending(); frame = null;
+    active = false; mediaGeneration++; completedMedia.clear(); rejectPending(); frame = null;
     if (ownedFrame) { ownedFrame.src = 'about:blank'; ownedFrame.remove(); }
     bridgeId = null; capabilities = null;
   }
@@ -228,6 +238,7 @@ export function createEarthAdapter({ host, onState = () => {}, onMedia = async (
       return request('COMMAND', { turnId, tool }, tool.name.startsWith('earth_fly') ? 20000 : 5000, { signal });
     },
     async quiet() {
+      mediaGeneration++;
       if (!active || !frame) return true;
       const answer = await request('QUIET_REQUEST', {}, 5000);
       return answer.quiet === true && answer.blockedPlayerCount === 0;

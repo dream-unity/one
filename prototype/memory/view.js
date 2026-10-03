@@ -30,6 +30,10 @@ export function mountMemoryView(container, { store, controller, proposalsContain
   proposalsContainer.append(review);
 
   function say(value) { message = value; status.textContent = value; }
+  function focusContent(key = 'add-note') {
+    const target = [...content.querySelectorAll('[data-focus-key]')].find(node => node.dataset.focusKey === key) || content.querySelector('[data-focus-key="add-note"]');
+    target?.focus();
+  }
   function notifySelection(identifiers) {
     try { const result = onSelectionChange([...identifiers]); result?.catch?.(error => say(`Selected notes were not shared. ${error.message}`)); } catch (error) { say(`Selected notes were not shared. ${error.message}`); }
   }
@@ -61,8 +65,7 @@ export function mountMemoryView(container, { store, controller, proposalsContain
       if (!closed) {
         render();
         if (initiatingKey && document.activeElement === document.body) {
-          const target = [...content.querySelectorAll('[data-focus-key]')].find(node => node.dataset.focusKey === initiatingKey) || content.querySelector('[data-focus-key="add-note"]');
-          target?.focus();
+          focusContent(initiatingKey);
         }
       }
     }
@@ -111,7 +114,7 @@ export function mountMemoryView(container, { store, controller, proposalsContain
     }
     const actions = element('div', undefined, 'memory-actions');
     const save = element('button', editing ? 'Save changes' : 'Remember this note'); save.type = 'submit'; save.dataset.focusKey = 'save-note'; save.disabled = busy || !state.consent.storageEnabled;
-    actions.append(save, button('Cancel editing', () => { resetEditor(); render(); })); form.append(actions);
+    actions.append(save, button('Cancel editing', () => { const target = editing ? `edit-${editing}` : 'add-note'; resetEditor(); render(); focusContent(target); })); form.append(actions);
     for (const input of form.querySelectorAll('input, select, textarea')) input.disabled = busy;
     form.addEventListener('submit', event => {
       event.preventDefault();
@@ -134,7 +137,7 @@ export function mountMemoryView(container, { store, controller, proposalsContain
     const label = field(form, 'Optional label', 'label', element('input'), relationDraft.label, relationDraft);
     label.setAttribute('aria-describedby', `${prefix}-label-limit`);
     const limit = element('p', 'Up to 240 characters. The direction and relation are explicit; they do not measure you.'); limit.id = `${prefix}-label-limit`; form.append(limit);
-    const submit = element('button', 'Save this relationship'); submit.type = 'submit'; submit.disabled = busy; form.append(submit);
+    const submit = element('button', 'Save this relationship'); submit.type = 'submit'; submit.dataset.focusKey = 'save-new-edge'; submit.disabled = busy; form.append(submit);
     form.addEventListener('submit', event => {
       event.preventDefault(); const from = state.nodes.find(node => node.id === relationDraft.from), to = state.nodes.find(node => node.id === relationDraft.to);
       if (!from || !to) { say('Choose both saved notes first.'); return; }
@@ -165,7 +168,10 @@ export function mountMemoryView(container, { store, controller, proposalsContain
       const remove = button('Delete', () => {
         const binding = { ...expected(state), expectedRevision: node.revision };
         const confirmation = element('div', undefined, 'memory-delete-review'); confirmation.setAttribute('role', 'group'); confirmation.setAttribute('aria-label', `Confirm deleting ${node.title}`);
-        confirmation.append(element('p', `Delete “${node.title}” and its connected relationships from this device?`), button('Delete this note', () => run(() => store.deleteNode(node.id, binding), () => { if (editing === node.id) resetEditor(); }, 'Deleted this note and its connected relationships from this device.')), button('Keep it', () => confirmation.remove()));
+        const confirm = button('Delete this note', () => run(() => store.deleteNode(node.id, binding), () => { if (editing === node.id) resetEditor(); }, 'Deleted this note and its connected relationships from this device.'));
+        // The review itself disappears on render; recover to its owning control on failure.
+        confirm.dataset.focusKey = `delete-${node.id}`;
+        confirmation.append(element('p', `Delete “${node.title}” and its connected relationships from this device?`), confirm, button('Keep it', () => { confirmation.remove(); focusContent(`delete-${node.id}`); }));
         card.append(confirmation); confirmation.querySelector('button')?.focus();
       }, `Review deleting ${node.title}`); remove.dataset.focusKey = `delete-${node.id}`; remove.disabled = busy; actions.append(remove); card.append(actions); content.append(card);
     }
@@ -186,27 +192,33 @@ export function mountMemoryView(container, { store, controller, proposalsContain
         if (edgeExpected.revision !== state.revision || edgeExpected.consentEpoch !== state.consentEpoch || edgeExpected.expectedRevision !== edge.revision) {
           form.append(element('p', 'Memory changed. Your relationship draft remains here; reload the saved version before replacing it.', 'memory-error'), button('Reload saved relationship', () => { edgeDraft = { relation: edge.relation, label: edge.label }; edgeExpected = { ...expected(state), expectedRevision: edge.revision }; render(); }));
         }
-        const submit = element('button', 'Save relationship changes'); submit.type = 'submit'; submit.dataset.focusKey = 'save-edge'; submit.disabled = busy; form.append(submit, button('Cancel', () => { edgeEditing = null; edgeDraft = null; edgeExpected = null; render(); }));
+        const submit = element('button', 'Save relationship changes'); submit.type = 'submit'; submit.dataset.focusKey = 'save-edge'; submit.disabled = busy; form.append(submit, button('Cancel', () => { edgeEditing = null; edgeDraft = null; edgeExpected = null; render(); focusContent(`edit-edge-${edge.id}`); }));
         relation.disabled = busy; label.disabled = busy;
         form.addEventListener('submit', event => { event.preventDefault(); const candidate = { operation: 'update_edge', edgeId: edge.id, expectedRevision: edgeExpected.expectedRevision, ...clone(edgeDraft) }, binding = clone(edgeExpected); run(() => store.commitProposal(candidate, binding), () => { edgeEditing = null; edgeDraft = null; edgeExpected = null; }); });
         card.append(form);
       }
       const remove = button('Delete relationship', () => {
         const binding = { ...expected(state), expectedRevision: edge.revision };
-        const confirmation = element('div'); confirmation.append(element('p', 'Delete this relationship from the device? The notes remain.'), button('Delete this relationship', () => run(() => store.deleteEdge(edge.id, binding), null, 'Deleted this relationship from this device. The notes remain.')), button('Keep it', () => confirmation.remove())); card.append(confirmation); confirmation.querySelector('button')?.focus();
+        const confirmation = element('div'); confirmation.setAttribute('role', 'group'); confirmation.setAttribute('aria-label', `Confirm deleting the relationship from ${from.title} to ${to.title}`);
+        const confirm = button('Delete this relationship', () => run(() => store.deleteEdge(edge.id, binding), null, 'Deleted this relationship from this device. The notes remain.')); confirm.dataset.focusKey = `delete-edge-${edge.id}`;
+        confirmation.append(element('p', 'Delete this relationship from the device? The notes remain.'), confirm, button('Keep it', () => { confirmation.remove(); focusContent(`delete-edge-${edge.id}`); })); card.append(confirmation); confirmation.querySelector('button')?.focus();
       }, `Review deleting the relationship from ${from.title} to ${to.title}`); remove.dataset.focusKey = `delete-edge-${edge.id}`; remove.disabled = busy; card.append(editEdge, remove); content.append(card);
     }
     if (focusKey) { const target = [...content.querySelectorAll('[data-focus-key]')].find(node => node.dataset.focusKey === focusKey) || content.querySelector('[data-focus-key="add-note"]'); target?.focus(); if (caret && target?.setSelectionRange) { try { target.setSelectionRange(...caret); } catch { /* Select elements do not have a caret. */ } } }
   }
   function renderProposal() {
+    const active = document.activeElement;
+    const focusedProposal = review.contains(active);
+    const focusKey = focusedProposal ? active.dataset?.focusKey : null;
     review.replaceChildren(); review.hidden = !pending;
-    if (!pending) return;
+    if (!pending) { if (focusedProposal) focusContent(); return; }
     const exact = pending;
     review.append(element('h3', 'Review before remembering'), element('p', 'This AI suggestion is not saved. Confirm only if the exact change expresses what you want.'));
     function recordText(record) {
       if (!record) return 'Nothing is saved for this suggestion yet.';
       if (record.kind) return `Kind: ${record.kind}\nTitle: ${record.title}\nNote: ${record.text}\nStatus: ${record.status || 'active'}`;
-      return `From: ${state?.nodes.find(node => node.id === record.from)?.title || record.from || exact.before?.from}\nTo: ${state?.nodes.find(node => node.id === record.to)?.title || record.to || exact.before?.to}\nRelationship: ${record.relation}\nLabel: ${record.label}`;
+      const from = record.from || exact.before?.from, to = record.to || exact.before?.to;
+      return `From: ${state?.nodes.find(node => node.id === from)?.title || from}\nTo: ${state?.nodes.find(node => node.id === to)?.title || to}\nRelationship: ${record.relation}\nLabel: ${record.label}`;
     }
     review.append(element('h4', 'Before'), element('pre', recordText(exact.before), 'memory-review-text'), element('h4', exact.duplicate ? 'After: unchanged existing relationship' : 'After'), element('pre', recordText(exact.duplicate ? exact.before : exact.after), 'memory-review-text'));
     if (exact.duplicate) review.append(element('p', 'This directed relationship already exists. Confirmation keeps its saved identity and label; the proposed label will not overwrite it.'));
@@ -219,8 +231,10 @@ export function mountMemoryView(container, { store, controller, proposalsContain
       } catch (error) { if (!closed) say(`Not saved. ${error.message}`); }
       finally { busy = false; if (!closed) { render(); renderProposal(); } }
     });
-    confirm.disabled = busy;
-    review.append(confirm, button('Decline this suggestion', () => controller.reject(exact.proposalId)));
+    confirm.disabled = busy; confirm.dataset.focusKey = 'confirm-proposal';
+    const decline = button('Decline this suggestion', () => controller.reject(exact.proposalId)); decline.dataset.focusKey = 'decline-proposal';
+    review.append(confirm, decline);
+    if (focusKey) [...review.querySelectorAll('[data-focus-key]')].find(node => node.dataset.focusKey === focusKey)?.focus();
   }
   function acceptState(next) {
     state = clone(next); const validIds = new Set([...state.nodes, ...state.edges].map(record => record.id));

@@ -1,7 +1,15 @@
 import { schemas } from './wire-contracts.js';
-import { assertValid } from './validate.js';
+import { assertValid, validate } from './validate.js';
 
 const clone = value => JSON.parse(JSON.stringify(value));
+// JSON object member order is not part of an operation's identity.
+const canonical = value => value && typeof value === 'object'
+  ? Array.isArray(value) ? `[${value.map(canonical).join(',')}]`
+    : `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(',')}}`
+  : JSON.stringify(value);
+const MAX_VISIT_ACTIONS = 4096;
+const failureCode = error => typeof error?.code === 'string' && error.code.length > 0 && error.code.length <= 80
+  ? error.code : 'ACTION_FAILED';
 export function observedView(state) {
   return { destination: state.destination, worldFocus: state.worldFocus,
     earth: state.destination === 'earth' ? { globe: state.earth?.globe || 'not-started',
@@ -19,18 +27,18 @@ export function createActionExecutor({ getState, navigate, focus, reflect, earth
       routeEpoch: request.routeEpoch, status, code, message: String(message).slice(0, 400),
       observedState: observedView(getState()) });
   }
-  function trimCompleted() {
-    // A pending request must never lose its identity and execute a second time.
-    const completed = [...requests].filter(([, value]) => value.complete);
-    for (const [id] of completed.slice(0, Math.max(0, completed.length - 128))) requests.delete(id);
-  }
   async function execute(value, { signal, source = 'local' } = {}) {
     assertValid(schemas.actionRequest, value);
-    const request = clone(value), fingerprint = JSON.stringify(request);
+    const request = clone(value), fingerprint = canonical(request);
     if (requests.has(request.requestId)) {
       const owned = requests.get(request.requestId);
       if (owned.fingerprint !== fingerprint) return receipt(request, 'rejected', 'REQUEST_ID_REUSE', 'This request ID belongs to a different operation.');
       return clone(await owned.promise);
+    }
+    // Retain every admitted identity for this visit. Evicting an old completion
+    // would turn its delayed retry into a second effect at unchanged epochs.
+    if (requests.size >= MAX_VISIT_ACTIONS) {
+      return receipt(request, 'blocked', 'VISIT_ACTION_LIMIT', 'This visit has reached its operation limit. Reload the page to start a fresh visit.');
     }
     if ([...requests.values()].filter(item => !item.complete).length >= 128) {
       return receipt(request, 'blocked', 'ACTION_LIMIT', 'Too many operations are pending. Stop them before starting another.');
@@ -41,7 +49,7 @@ export function createActionExecutor({ getState, navigate, focus, reflect, earth
     owned.promise = Promise.resolve().then(() => run(request, { signal, source, ownerEpoch }));
     requests.set(request.requestId, owned);
     const result = await owned.promise;
-    owned.complete = true; trimCompleted();
+    owned.complete = true;
     try { onResult(request, clone(result)); } catch { /* Reporting cannot change an observed receipt. */ }
     return clone(result);
   }
@@ -104,8 +112,13 @@ export function createActionExecutor({ getState, navigate, focus, reflect, earth
           if (JSON.stringify(getState().reflection?.worlds) !== JSON.stringify(tool.args.worlds) || getState().reflection?.summary !== tool.args.summary) return receipt(request, 'failed', 'REFLECTION_UNCONFIRMED', 'The requested interpretation could not be observed.');
           return receipt(request, 'applied', 'PROVISIONAL_REFLECTION', 'Displayed a possible interpretation. It can be corrected or dismissed.');
         case 'propose_memory':
-          await waitFor(proposeMemory(tool.args.proposal, request, { signal: controller.signal }));
+          answer = await waitFor(proposeMemory(tool.args.proposal, request, { signal: controller.signal }));
           if (!stillOwned()) return superseded();
+          if (!answer || !validate({ type: 'string', format: 'uuid' }, answer.proposalId).valid
+            || answer.turnId !== request.turnId || answer.consentEpoch !== request.consentEpoch
+            || answer.revision !== request.memoryRevision || canonical(answer.proposal) !== canonical(tool.args.proposal)) {
+            return receipt(request, 'failed', 'MEMORY_PROPOSAL_UNCONFIRMED', 'The exact memory proposal could not be observed. Nothing has been confirmed as saved.');
+          }
           return receipt(request, 'applied', 'MEMORY_PROPOSED', 'A precise memory proposal is awaiting local user confirmation. Nothing has been saved by this proposal.');
         case 'lookup_knowledge':
           return receipt(request, 'blocked', 'SERVICE_LOOKUP_REQUIRED', 'Source lookup is owned by the authenticated conversation service.');
@@ -118,13 +131,13 @@ export function createActionExecutor({ getState, navigate, focus, reflect, earth
           return receipt(request, answer.status, answer.code, answer.message);
       }
     } catch (error) {
-      if (error.code === 'ACTION_OUTCOME_UNKNOWN' || controller.signal.aborted && earthDispatched) {
-        return receipt(request, 'unknown', 'ACTION_OUTCOME_UNKNOWN', error.code === 'ACTION_OUTCOME_UNKNOWN' ? error.message
+      if (error?.code === 'ACTION_OUTCOME_UNKNOWN' || controller.signal.aborted && earthDispatched) {
+        return receipt(request, 'unknown', 'ACTION_OUTCOME_UNKNOWN', error?.code === 'ACTION_OUTCOME_UNKNOWN' ? error.message
           : 'Earth was interrupted. Its final effect is unconfirmed; read the current view before repeating the action.');
       }
       if (controller.signal.aborted) return receipt(request, 'cancelled', 'CANCELLED', 'This operation stopped or timed out. The displayed view shows the current state.');
       if (!stillOwned() && !navigating) return superseded();
-      return receipt(request, 'failed', error.code || 'ACTION_FAILED', error.message || 'The requested effect could not be verified.');
+      return receipt(request, 'failed', failureCode(error), typeof error?.message === 'string' ? error.message : 'The requested effect could not be verified.');
     } finally {
       clearTimer(timer); running.delete(controller); signal?.removeEventListener('abort', abort);
     }

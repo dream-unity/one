@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createMemoryStore, createMemoryController, createIndexedDBPersistence, validateDataset, MEMORY_LIMITS } from '../prototype/memory/store.js';
+import { mountMemoryView } from '../prototype/memory/view.js';
 
 // Injection exists only in this test. It mirrors IDB's serialized readwrite transactions:
 // a fresh authoritative record is read inside the lock, failure rolls back the whole record.
@@ -392,4 +393,102 @@ test('production IDB request failure stays STORAGE_ERROR and keeps the exact unc
   assert.equal(controller.getPending().proposalId, candidate.proposalId); assert.equal(factory.state.nodes.length, 0);
   assert.equal((await controller.confirm(candidate.proposalId, { turnId })).record.title, 'Keep this exact candidate');
   controller.close(); store.close();
+});
+
+// Interaction-only DOM facade: detached/disabled controls cannot retain focus.
+// This exercises real view event handlers; layout, native IDB and screen-reader
+// behavior remain separate browser acceptance checks.
+function memoryDocument() {
+  class Element {
+    constructor(tag) { this.tagName = tag; this.children = []; this.dataset = {}; this.attributes = {}; this.listeners = {}; this.parentNode = null; this.value = ''; }
+    get isConnected() { return this === document.body || Boolean(this.parentNode?.isConnected); }
+    contains(node) { return this === node || this.children.some(child => child.contains(node)); }
+    append(...children) { for (const child of children) { child.parentNode = this; this.children.push(child); } }
+    replaceChildren(...children) { for (const child of [...this.children]) child.remove(); this._text = ''; this.append(...children); }
+    remove() {
+      if (this.contains(document.activeElement)) document.activeElement = document.body;
+      if (this.parentNode) this.parentNode.children = this.parentNode.children.filter(child => child !== this);
+      this.parentNode = null;
+    }
+    set textContent(value) { this.replaceChildren(); this._text = String(value); }
+    get textContent() { return (this._text || '') + this.children.map(child => child.textContent).join(''); }
+    setAttribute(name, value) { this.attributes[name] = value; }
+    addEventListener(name, listener) { this.listeners[name] = listener; }
+    focus() { if (this.isConnected && !this.disabled) document.activeElement = this; }
+    click() { if (!this.disabled) { this.focus(); return this.listeners.click?.({ preventDefault() {} }); } }
+    querySelectorAll(selector) {
+      const choices = selector.split(',').map(value => value.trim());
+      const matches = node => choices.some(choice => {
+        if (choice === '[data-focus-key]') return node.dataset.focusKey !== undefined;
+        const focus = choice.match(/^\[data-focus-key="([^"]+)"\]$/);
+        return focus ? node.dataset.focusKey === focus[1] : node.tagName === choice;
+      });
+      const found = [];
+      for (const child of this.children) { if (matches(child)) found.push(child); found.push(...child.querySelectorAll(selector)); }
+      return found;
+    }
+    querySelector(selector) { return this.querySelectorAll(selector)[0] || null; }
+  }
+  const document = { createElement: tag => new Element(tag) };
+  document.body = new Element('body'); document.activeElement = document.body;
+  return document;
+}
+const byText = (container, title) => container.querySelectorAll('button').find(button => button.textContent === title);
+const settleView = async () => { for (let turn = 0; turn < 4; turn++) await new Promise(resolve => setImmediate(resolve)); };
+async function withMemoryView(run) {
+  const previous = globalThis.document; globalThis.document = memoryDocument();
+  const { store, persistence } = fixture(); await enable(store);
+  const saved = await save(store, node('A recoverable goal'));
+  const container = document.createElement('div'), proposals = document.createElement('div'); document.body.append(container, proposals);
+  let view;
+  const controller = createMemoryController({ store, onPendingChange: proposal => view?.setProposal(proposal) });
+  view = mountMemoryView(container, { store, controller, proposalsContainer: proposals });
+  try { await view.refresh(); await run({ store, persistence, saved, container, proposals, controller, view }); }
+  finally { view.close(); controller.close(); store.close(); globalThis.document = previous; }
+}
+
+test('keyboard deletion returns to its owner on Keep and to an available control after commit', async () => {
+  await withMemoryView(async ({ store, saved, container }) => {
+    byText(container, 'Delete').click();
+    assert.equal(document.activeElement.textContent, 'Delete this note');
+    byText(container, 'Keep it').click();
+    assert.equal(document.activeElement.dataset.focusKey, `delete-${saved.record.id}`);
+    assert.equal((await store.load()).nodes.length, 1);
+    byText(container, 'Delete').click(); byText(container, 'Delete this note').click(); await settleView();
+    assert.equal((await store.load()).nodes.length, 0);
+    assert.equal(document.activeElement.dataset.focusKey, 'add-note');
+  });
+});
+
+test('cancelling note and relationship edits restores their keyboard entry points', async () => {
+  await withMemoryView(async ({ store, saved, container }) => {
+    byText(container, 'Edit').click(); byText(container, 'Cancel editing').click();
+    assert.equal(document.activeElement.dataset.focusKey, `edit-${saved.record.id}`);
+    const second = await save(store, node('Second endpoint'));
+    const edge = await save(store, { operation: 'create_edge', from: saved.record.id, fromRevision: 1, to: second.record.id, toRevision: 1, relation: 'supports', label: 'Chosen connection' });
+    byText(container, 'Edit relationship').click(); byText(container, 'Cancel').click();
+    assert.equal(document.activeElement.dataset.focusKey, `edit-edge-${edge.record.id}`);
+    byText(container, 'Delete relationship').click(); byText(container, 'Keep it').click();
+    assert.equal(document.activeElement.dataset.focusKey, `delete-edge-${edge.record.id}`);
+  });
+});
+
+test('failed AI confirmation keeps exact readable relationship review and keyboard retry', async () => {
+  await withMemoryView(async ({ store, persistence, saved, container, proposals, controller }) => {
+    const second = await save(store, node('Second endpoint'));
+    const edge = await save(store, { operation: 'create_edge', from: saved.record.id, fromRevision: 1, to: second.record.id, toRevision: 1, relation: 'supports', label: 'Original wording' });
+    const candidate = await controller.propose({ operation: 'update_edge', edgeId: edge.record.id, expectedRevision: 1, relation: 'challenges', label: 'Proposed wording' }, { ...expected(edge.dataset), turnId: uuid(), sharedIds: [edge.record.id] });
+    const texts = proposals.querySelectorAll('pre').map(element => element.textContent);
+    assert.match(texts[0], /From: A recoverable goal\nTo: Second endpoint\nRelationship: supports\nLabel: Original wording/);
+    assert.match(texts[1], /From: A recoverable goal\nTo: Second endpoint\nRelationship: challenges\nLabel: Proposed wording/);
+    persistence.failure = new Error('Device storage denied');
+    await byText(proposals, 'Confirm this exact change').click();
+    assert.equal(controller.getPending().proposalId, candidate.proposalId);
+    assert.equal(document.activeElement.textContent, 'Confirm this exact change');
+    assert.match(container.textContent, /Not saved\. Device storage denied/);
+    persistence.failure = null;
+    byText(proposals, 'Decline this suggestion').click();
+    assert.equal(controller.getPending(), null); assert.equal(document.activeElement.dataset.focusKey, 'add-note');
+    assert.equal((await store.load()).edges[0].label, 'Original wording');
+  });
 });

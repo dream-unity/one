@@ -25,6 +25,8 @@ export async function readFiniteSSE(response, onEvent, signal) {
     throw new ConversationError('INVALID_STREAM', 'The text service returned an invalid stream.');
   }
   const reader = response.body.getReader(); const decoder = new TextDecoder();
+  const abort = () => { reader.cancel().catch(() => {}); };
+  signal?.addEventListener('abort', abort, { once: true });
   let buffer = ''; let bytes = 0; let count = 0;
   const dispatch = async block => {
     if (!block.trim() || block.split('\n').every(line => !line || line.startsWith(':'))) return;
@@ -46,6 +48,7 @@ export async function readFiniteSSE(response, onEvent, signal) {
     while (true) {
       if (signal?.aborted) throw new DOMException('Cancelled', 'AbortError');
       const { value, done } = await reader.read();
+      if (signal?.aborted) throw new DOMException('Cancelled', 'AbortError');
       if (done) break;
       bytes += value.byteLength;
       if (bytes > 256 * 1024) throw new ConversationError('STREAM_LIMIT', 'The text stream exceeded its allowed size.');
@@ -59,7 +62,7 @@ export async function readFiniteSSE(response, onEvent, signal) {
     }
     buffer += decoder.decode();
     if (buffer.trim()) await dispatch(buffer);
-  } finally { await reader.cancel().catch(() => {}); reader.releaseLock(); }
+  } finally { signal?.removeEventListener('abort', abort); await reader.cancel().catch(() => {}); reader.releaseLock(); }
 }
 
 export async function serviceResponse(response) {

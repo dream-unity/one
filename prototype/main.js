@@ -8,12 +8,13 @@ import { mountMemoryView } from './memory/view.js';
 import { createConversation } from './conversation/controller.js';
 
 const $ = id => document.getElementById(id);
-let state = initialState(new URL(location.href).searchParams.get('view') || 'unity');
+const requestedDestination = new URL(location.href).searchParams.get('view') || 'unity';
+let state = initialState(requestedDestination);
 const localSessionId = crypto.randomUUID();
 let memory = null, memoryView = null, memoryController = null;
 let sharedContext = [], selectedIds = [], serviceStatus = null, conversation = null;
 let routeController = null, navigationGeneration = 0, manifestoLoaded = false;
-let providerContextRevision = 0, exiting = false, textPhase = 'idle';
+let providerContextRevision = 0, exiting = false, textPhase = 'idle', submissionGeneration = 0;
 const transcriptEntries = new Map();
 const directSaveControllers = new Set();
 const scene = createScene($('unity-scene'));
@@ -66,7 +67,10 @@ function showError(error) {
   const message = error?.message || 'This action could not be completed.';
   notice(message, 'error');
 }
-const guarded = handler => event => Promise.resolve().then(() => handler(event)).catch(showError);
+const guarded = handler => event => {
+  try { Promise.resolve(handler(event)).catch(showError); }
+  catch (error) { showError(error); }
+};
 function render() {
   document.body.dataset.view = state.destination;
   document.body.dataset.mode = state.mode;
@@ -80,10 +84,11 @@ function render() {
   scene.setFocus(state.reflection?.worlds || (state.worldFocus ? [state.worldFocus] : []), state.reflection?.summary || '');
   $('interpretation-panel').hidden = !state.reflection;
   $('interpretation-text').textContent = state.reflection?.summary || '';
-  $('resume-button').hidden = state.mode !== 'media' && !['paused', 'idle', 'failed', 'expired', 'closed'].includes(state.microphone);
-  $('resume-button').disabled = !conversation?.getState().authorized;
+  const authorized = Boolean(conversation?.getState().authorized);
+  $('resume-button').hidden = !authorized || (state.mode !== 'media' && !['paused', 'idle', 'failed', 'expired', 'closed'].includes(state.microphone));
+  $('resume-button').disabled = !authorized;
   const voiceActive = ['listening', 'speaking', 'connected', 'ready'].includes(state.microphone);
-  $('voice-label').textContent = voiceActive ? 'Listening' : state.mode === 'media' ? 'Resume' : 'Speak';
+  $('voice-label').textContent = state.microphone === 'speaking' ? 'Speaking' : voiceActive ? 'Listening' : state.mode === 'media' ? 'Resume' : 'Speak';
   $('voice-start').setAttribute('aria-pressed', String(voiceActive));
   const descriptions = { idle: 'Write an intention, or choose Speak.', listening: 'Listening. Stop releases your microphone.',
     speaking: 'Speaking. You can interrupt or press Stop.', connecting: 'Connecting your conversation…', permission: 'Waiting for microphone permission…', thinking: 'Considering your question…',
@@ -139,7 +144,8 @@ async function navigate(destination, { back = false, signal, replace = false } =
     dispatch({ type: 'navigate', destination, back }); setUrl(destination, replace);
     if (previous === 'earth') await earth.suspend(state.routeEpoch, 'route-exit');
     if (!current()) return null;
-    $('view-status').textContent = ''; $('view-title').focus({ preventScroll: true });
+    $('view-status').textContent = '';
+    $(destination === 'unity' ? 'arrival-title' : 'view-title').focus({ preventScroll: true });
     if (destination === 'manifesto' && !manifestoLoaded) {
       await loadManifesto($('manifesto-content'), { signal: ownedController.signal });
       if (!current()) return null;
@@ -179,13 +185,17 @@ const executor = createActionExecutor({ getState: () => state, navigate, focus,
     if (!ownsProposal()) throw Object.assign(new Error('Memory proposal cancelled.'), { code: 'CANCELLED' });
     if (!dataset.consent.storageEnabled) throw new Error('Enable remembering before saving a proposed note.');
     if (proposal.operation !== 'create_node' && !dataset.consent.conversationUseEnabled) throw new Error('Share the selected saved records before asking the AI to propose their changes.');
-    await memoryController.propose(proposal, { turnId: request.turnId, sharedIds: sharedContext.map(r => r.id),
+    const pending = await memoryController.propose(proposal, { turnId: request.turnId, sharedIds: sharedContext.map(r => r.id),
       consentEpoch: request.consentEpoch, revision: request.memoryRevision, signal });
     if (!ownsProposal()) {
       if (memoryController.getPending()?.turnId === request.turnId) memoryController.invalidate();
       throw Object.assign(new Error('Memory proposal cancelled.'), { code: 'CANCELLED' });
     }
+    if (!pending || memoryController.getPending()?.proposalId !== pending.proposalId) {
+      throw Object.assign(new Error('This memory proposal is no longer awaiting review.'), { code: 'STALE_PROPOSAL' });
+    }
     if (state.destination !== 'constellation') notice('A memory proposal is ready in My constellation. Review its exact wording before saving.');
+    return pending;
   },
   onResult(request, result) {
     if (['failed', 'blocked', 'rejected', 'cancelled', 'superseded', 'unknown'].includes(result.status)) notice(result.message);
@@ -205,6 +215,7 @@ conversation = createConversation({ baseUrl: EARTH_ORIGIN,
       transcript(event);
     }
     if (event.type === 'error') { showError(event); if (event.code === 'ACCESS_REQUIRED') revealAccess(); }
+    if (event.type === 'playback-blocked') notice('Audio playback was blocked. Select the voice button to retry playback, or continue by writing.');
   },
   onState(value) {
     textPhase = value.text;
@@ -337,14 +348,22 @@ $('correct-interpretation').addEventListener('click', guarded(async () => {
 }));
 $('intention-form').addEventListener('submit', guarded(async event => {
   event.preventDefault(); const message = $('intention-input').value.trim(); if (!message) return;
+  const submission = ++submissionGeneration;
+  const clearSubmittedDraft = () => {
+    if (submission === submissionGeneration && $('intention-input').value.trim() === message) $('intention-input').value = '';
+  };
+  const restoreSubmittedDraft = () => {
+    if (submission === submissionGeneration && !$('intention-input').value) $('intention-input').value = message;
+  };
   interruptLocalWork();
   earth.cancelActions().catch(() => {});
   if (new TextEncoder().encode(message).length > 8192) { showError(new Error('Please keep this message within 8 KB.')); return; }
   const tool = parseLocalIntention(message);
   if (tool) {
     pauseForUserControl();
-    $('intention-input').value = ''; transcript({ id: crypto.randomUUID(), role: 'user', text: message });
-    const result = await executor.execute(localRequest(tool)); if (result.status === 'applied' || result.status === 'noop') notice(result.message);
+    transcript({ id: crypto.randomUUID(), role: 'user', text: message });
+    const result = await executor.execute(localRequest(tool));
+    if (result.status === 'applied' || result.status === 'noop') { clearSubmittedDraft(); notice(result.message); }
     return;
   }
   const directMemory = /^remember(?: that)?\s+([\s\S]+)$/i.exec(message);
@@ -359,7 +378,7 @@ $('intention-form').addEventListener('submit', guarded(async event => {
         if ([...text].length > 1200) { showError(new Error('A saved note can contain up to 1,200 characters.')); return; }
         await memory.commitProposal({ operation: 'create_node', kind: 'insight', title: [...text].slice(0, 120).join(''), text },
           { consentEpoch: dataset.consentEpoch, revision: dataset.revision, authorship: 'user', signal: saving.signal });
-        if ($('intention-input').value.trim() === message) $('intention-input').value = '';
+        clearSubmittedDraft();
         transcript({ id: crypto.randomUUID(), role: 'user', text: message }); notice('Saved your exact note on this device.'); return;
       }
     } catch (error) { if (!saving.signal.aborted) showError(error); return; }
@@ -368,12 +387,11 @@ $('intention-form').addEventListener('submit', guarded(async event => {
   if (!serviceStatus?.ready || !conversation.getState().authorized) {
     revealAccess(); announce('AI conversation needs a private invitation and an available service. You can use the visible navigation, or write “Open Earth”.'); return;
   }
-  $('intention-input').value = ''; $('send-button').disabled = true;
+  clearSubmittedDraft();
   try {
     const result = await conversation.sendText(message);
-    if (['cancelled', 'incomplete', 'blocked'].includes(result?.status) && !$('intention-input').value) $('intention-input').value = message;
-  } catch (error) { if (!$('intention-input').value) $('intention-input').value = message; showError(error); }
-  finally { $('send-button').disabled = false; }
+    if (['cancelled', 'incomplete', 'blocked'].includes(result?.status)) restoreSubmittedDraft();
+  } catch (error) { restoreSubmittedDraft(); showError(error); }
 }));
 $('access-form').addEventListener('submit', async event => {
   event.preventDefault(); const invite = $('access-invite').value; $('access-invite').value = '';
@@ -434,6 +452,10 @@ window.addEventListener('pageshow', event => {
 });
 
 recoverUnsentDraft(); render(); setupMemory();
+if (requestedDestination !== state.destination) {
+  setUrl(state.destination, true);
+  notice('That destination is not available in this prototype. You are back at the centre.');
+}
 conversation.getStatus().then(status => {
   serviceStatus = status;
   dispatch({ type: 'service', status: status.ready ? 'available' : 'unavailable' });

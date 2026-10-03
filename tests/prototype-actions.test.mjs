@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createActionExecutor, observedView } from '../prototype/actions.js';
-import { initialState, reduceState, DESTINATIONS } from '../prototype/state.js';
+import { initialState, reduceState, DESTINATIONS, parseLocalIntention } from '../prototype/state.js';
 
 let nextId = 1;
 const uuid = () => `00000000-0000-4000-8000-${String(nextId++).padStart(12, '0')}`;
@@ -58,6 +58,23 @@ test('explicit focus replaces a provisional interpretation in the real reducer',
   assert.equal(result.status, 'applied'); assert.equal(h.state.worldFocus, 'maker'); assert.equal(h.state.reflection, null);
 });
 
+test('exact requests for restricted worlds focus their meaning without exposing an activity route', async () => {
+  for (const world of ['machine', 'maker']) {
+    const h = fixture();
+    for (const command of [`Open Dream ${world}.`, `show dream ${world}`, `visit dream ${world}`, `go to dream ${world}`, `take me to dream ${world}`]) {
+      const tool = parseLocalIntention(command);
+      assert.deepEqual(tool, { name: 'focus_world', args: { world } });
+      const result = await h.executor.execute(h.request(tool));
+      assert.equal(result.status, 'applied'); assert.equal(result.observedState.destination, 'unity');
+      assert.match(result.message, /Activities retain their current access status/);
+    }
+  }
+  for (const text of ['"Open Dream Machine"', 'If I say open Dream Maker', 'do not open Dream Machine',
+    'open Dream Machine and Earth', 'open Dream Maker games', 'open machine', 'open maker']) {
+    assert.equal(parseLocalIntention(text), null);
+  }
+});
+
 test('stale route, consent and revision are rejected before any side effect', async () => {
   for (const field of ['routeEpoch', 'consentEpoch', 'memoryRevision']) {
     const h = fixture(); const request = h.request(navigateTo('earth')); request[field]++;
@@ -90,6 +107,33 @@ test('pending duplicate ownership survives pressure from more than 128 completed
   for (let i = 0; i < 132; i++) await h.executor.execute(h.request({ name: 'focus_world', args: { world: 'world' } }));
   const duplicate = h.executor.execute(request); gate.resolve({ status: 'noop', code: 'VIEW_OBSERVED', message: 'Observed.' });
   await Promise.all([first, duplicate]); assert.equal(calls, 1);
+});
+
+test('completed requests retain the same receipt and never repeat their effect after cache pressure', async () => {
+  const h = fixture(); const request = h.request({ name: 'focus_world', args: { world: 'maker' } });
+  const original = await h.executor.execute(request);
+  for (let i = 0; i < 132; i++) await h.executor.execute(h.request({ name: 'focus_world', args: { world: 'world' } }));
+  const before = h.effects.length;
+  assert.deepEqual(await h.executor.execute(request), original);
+  assert.equal(h.effects.length, before); assert.equal(h.state.worldFocus, 'world');
+});
+
+test('request retries are identical when JSON object fields arrive in a different order', async () => {
+  const h = fixture(); const request = h.request(navigateTo('manifesto'));
+  const original = await h.executor.execute(request);
+  const reordered = Object.fromEntries(Object.entries(request).reverse());
+  reordered.tool = { args: { destination: 'manifesto' }, name: 'navigate' };
+  assert.deepEqual(await h.executor.execute(reordered), original);
+  assert.deepEqual(h.effects, ['manifesto']);
+});
+
+test('the finite visit budget blocks new operations while preserving all admitted replay identities', async () => {
+  const h = fixture(); const first = h.request({ name: 'focus_world', args: { world: 'maker' } });
+  const original = await h.executor.execute(first);
+  for (let i = 1; i < 4096; i++) await h.executor.execute(h.request({ name: 'focus_world', args: { world: 'world' } }));
+  const blocked = await h.executor.execute(h.request({ name: 'focus_world', args: { world: 'machine' } }));
+  assert.equal(blocked.status, 'blocked'); assert.equal(blocked.code, 'VISIT_ACTION_LIMIT');
+  assert.deepEqual(await h.executor.execute(first), original); assert.equal(h.effects.length, 4096);
 });
 
 test('reusing a request ID for another operation never dispatches the second operation', async () => {
@@ -132,6 +176,23 @@ test('route, consent, revision or turn changes during a pending proposal cannot 
   }
 });
 
+test('memory proposal success requires the exact observed candidate and its local ownership', async () => {
+  const pending = (candidate, request) => ({ proposalId: uuid(), turnId: request.turnId,
+    consentEpoch: request.consentEpoch, revision: request.memoryRevision, proposal: structuredClone(candidate) });
+  const valid = fixture({ proposeMemory: async (candidate, request) => pending(candidate, request) });
+  const result = await valid.executor.execute(valid.request(proposal));
+  assert.equal(result.status, 'applied'); assert.equal(result.code, 'MEMORY_PROPOSED');
+  assert.match(result.message, /Nothing has been saved/);
+  for (const alter of [() => undefined, value => ({ ...value, proposalId: 'not-a-uuid' }),
+    value => ({ ...value, turnId: uuid() }), value => ({ ...value, consentEpoch: value.consentEpoch + 1 }),
+    value => ({ ...value, revision: value.revision + 1 }),
+    value => ({ ...value, proposal: { ...value.proposal, text: 'A different candidate.' } })]) {
+    const h = fixture({ proposeMemory: async (candidate, request) => alter(pending(candidate, request)) });
+    const failed = await h.executor.execute(h.request(proposal));
+    assert.equal(failed.status, 'failed'); assert.equal(failed.code, 'MEMORY_PROPOSAL_UNCONFIRMED');
+  }
+});
+
 test('an Earth result from an old route is superseded and does not claim its effect in the new view', async () => {
   const gate = deferred(), started = deferred();
   const h = fixture({ earth: { command() { started.resolve(); return gate.promise; } } }, 'earth');
@@ -151,4 +212,16 @@ test('request ownership is copied before asynchronous execution and reporting ca
   const h = fixture({ onResult(request, result) { result.status = 'failed'; throw new Error('UI failure'); } });
   const request = h.request(navigateTo('manifesto')); const pending = h.executor.execute(request); request.tool.args.destination = 'earth';
   const result = await pending; assert.equal(result.status, 'applied'); assert.equal(result.observedState.destination, 'manifesto');
+});
+
+test('native and non-Error consumer failures yield bounded cached receipts and release action resources', async () => {
+  for (const failure of [new DOMException('Native storage failed.', 'QuotaExceededError'), null,
+    Object.assign(new Error('Long failure.'), { code: 'x'.repeat(100) })]) {
+    let calls = 0, cleared = 0;
+    const h = fixture({ focus() { calls++; throw failure; }, setTimer() { return 1; }, clearTimer() { cleared++; } });
+    const request = h.request({ name: 'focus_world', args: { world: 'maker' } });
+    const result = await h.executor.execute(request);
+    assert.equal(result.status, 'failed'); assert.equal(result.code, 'ACTION_FAILED');
+    assert.deepEqual(await h.executor.execute(request), result); assert.equal(calls, 1); assert.equal(cleared, 1);
+  }
 });

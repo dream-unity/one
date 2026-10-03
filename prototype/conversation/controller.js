@@ -34,7 +34,7 @@ export function createConversation(options = {}) {
   let ownedCall = null; let voicePromise = null; let voiceAbort = null; let activeTurn = null;
   let deadlineTimer = null; let idleTimer = null; let connectionTimer = null; let recoveryTimer = null;
   let recoveryUsed = false; let voiceIdentity = null; let pendingVoiceText = null; let currentVoiceOwner = null;
-  const responseOwners = new Map(); const voiceItems = new Map(); const executedCalls = new Set(); const controlEvents = new Set();
+  const responseOwners = new Map(); const responseRequests = new Map(); const voiceItems = new Map(); const executedCalls = new Set(); const controlEvents = new Set();
   const replay = []; const actions = new Set(); const timers = new Set();
 
   function emit(value) { try { onEvent(value); } catch { /* UI cannot weaken cleanup. */ } }
@@ -122,12 +122,13 @@ export function createConversation(options = {}) {
   function invalidateActions() { for (const action of actions) action.abort(); actions.clear(); }
   function invalidateTurn() {
     turnEpoch++; invalidateActions();
+    responseRequests.clear(); responseOwners.clear();
     if (activeTurn) {
       const old = activeTurn; activeTurn = null; old.abort.abort(); dropTimer(old.timer);
       request('turns', { version: 1, kind: 'cancel', requestId: randomUUID(), turnId: old.id }, undefined, true, true).catch(() => {});
     }
     if (pendingVoiceText) { dropTimer(pendingVoiceText.timer); pendingVoiceText.resolve({ status: 'cancelled' }); pendingVoiceText = null; }
-    currentVoiceOwner?.inputGate?.resolve(false); currentVoiceOwner = null; currentInputItemId = null;
+    dropTimer(currentVoiceOwner?.inputTimer); currentVoiceOwner?.inputGate?.resolve(false); currentVoiceOwner = null; currentInputItemId = null;
     update({ text: 'idle' });
   }
   async function closeOwned(call, reason) {
@@ -154,7 +155,8 @@ export function createConversation(options = {}) {
     responseOwners.clear(); voiceItems.clear(); executedCalls.clear(); controlEvents.clear(); voiceIdentity = null;
     update({ voice: reason === 'expired' ? 'expired' : reason === 'transport-failed' ? 'failed' : 'paused' });
     emit({ type: 'stopped', reason });
-    if (oldSender?.replaceTrack) await oldSender.replaceTrack(null).catch(() => {});
+    // Track stop and peer closure must not wait for browser sender settlement.
+    if (oldSender?.replaceTrack) oldSender.replaceTrack(null).catch(() => {});
     oldChannel?.close?.(); oldPeer?.close?.();
     if (oldAudio) { oldAudio.srcObject = null; oldAudio.remove?.(); }
     await closeOwned(call, reason);
@@ -189,6 +191,19 @@ export function createConversation(options = {}) {
   }
   function newOwner() { return { ...context(), generation, turnEpoch, turnId: randomUUID() }; }
   function providerOwner(event) { return responseOwners.get(event.response_id) || responseOwners.get(event.response?.id); }
+  function requestVoiceResponse(owned) {
+    if (!ownerValid(owned) || currentVoiceOwner !== owned || state.mode !== 'conversation' || !microphone) return false;
+    const requestId = randomUUID(); responseRequests.set(requestId, owned);
+    if (!send({ type: 'response.create', response: { metadata: { unity_response: requestId } } })) {
+      responseRequests.delete(requestId); return false;
+    }
+    return true;
+  }
+  function confirmVoiceInput(owned) {
+    if (!owned || !ownerValid(owned) || owned.inputRequested || !owned.inputCommitted || !owned.inputConfirmed) return;
+    owned.inputRequested = true; dropTimer(owned.inputTimer);
+    syncReplay(); requestVoiceResponse(owned);
+  }
   async function providerAction(item, owned) {
     if (!item.call_id || executedCalls.has(item.call_id) || !ownerValid(owned) || state.mode !== 'conversation') return;
     executedCalls.add(item.call_id);
@@ -229,7 +244,7 @@ export function createConversation(options = {}) {
         send({ type: 'conversation.item.create', item: { type: 'function_call_output', call_id: item.call_id, output: JSON.stringify(result) } });
         return true;
       }
-    } catch (failure) { if (failure.code !== 'STALE_ACTION') error(failure); }
+    } catch (failure) { if (ownerValid(owned) && failure.code !== 'STALE_ACTION') error(failure); }
   }
   async function providerEvent(event, expectedGeneration) {
     if (expectedGeneration !== generation || disposed || typeof event?.type !== 'string') return;
@@ -238,7 +253,8 @@ export function createConversation(options = {}) {
         controlEvents.delete(event.error.event_id); emit({ type: 'control-unconfirmed', code: event.error?.code || 'CONTROL_UNCONFIRMED' }); return;
       }
       error(new ConversationError(event.error?.code || 'PROVIDER_ERROR', event.error?.message || 'The voice service returned an error.'));
-      if (pendingVoiceText) { dropTimer(pendingVoiceText.timer); pendingVoiceText.resolve({ status: 'failed' }); pendingVoiceText = null; update({ text: 'idle' }); }
+      if (pendingVoiceText) { dropTimer(pendingVoiceText.timer); pendingVoiceText.resolve({ status: 'failed' }); pendingVoiceText = null; }
+      invalidateTurn(); silence(); update({ voice: microphone ? 'listening' : state.voice });
       return;
     }
     if (state.mode !== 'conversation' || !microphone) {
@@ -252,21 +268,45 @@ export function createConversation(options = {}) {
         const promise = new Promise(finish => { resolve = finish; });
         currentVoiceOwner.inputGate = { id: currentInputItemId, promise, resolve };
       }
+      send({ type: 'response.cancel' }); send({ type: 'output_audio_buffer.clear' });
       activity(); update({ voice: 'listening' }); emit({ type: 'interruption' });
       if (audio) { audio.muted = true; audio.pause?.(); audio.srcObject = null; }
     } else if (event.type === 'input_audio_buffer.speech_stopped') {
       activity(); update({ voice: 'thinking' });
+    } else if (event.type === 'input_audio_buffer.committed') {
+      if (!currentInputItemId || event.item_id !== currentInputItemId || !currentVoiceOwner) return;
+      const owned = currentVoiceOwner; owned.inputCommitted = true;
+      if (!owned.inputConfirmed && !owned.inputTimer) owned.inputTimer = registerTimer(() => {
+        if (!ownerValid(owned) || owned.inputConfirmed) return;
+        invalidateTurn(); silence(); update({ voice: 'listening' });
+        error(new ConversationError('VOICE_INTENT_UNCONFIRMED', 'The spoken intent could not be confirmed. Repeat your request or use text.'));
+      }, 3000);
+      confirmVoiceInput(owned);
     } else if (event.type === 'response.created') {
-      if (!currentVoiceOwner || !ownerValid(currentVoiceOwner)) currentVoiceOwner = newOwner();
-      responseOwners.set(event.response?.id, currentVoiceOwner); restorePlayback(expectedGeneration); update({ voice: 'thinking' });
+      const responseId = event.response?.id; const requestId = event.response?.metadata?.unity_response;
+      const owned = responseRequests.get(requestId);
+      // Provider response IDs cannot mint current user authority. The server
+      // disables automatic VAD responses; every request carries our nonce.
+      if (!owned || !ownerValid(owned) || owned !== currentVoiceOwner || typeof responseId !== 'string') {
+        if (typeof responseId === 'string') send({ type: 'response.cancel', response_id: responseId });
+        return;
+      }
+      responseRequests.delete(requestId); responseOwners.set(responseId, owned); owned.playbackAccepted = true;
+      restorePlayback(expectedGeneration); update({ voice: 'thinking' });
     } else if (event.type === 'conversation.item.input_audio_transcription.completed') {
-      if (event.item_id !== currentInputItemId) return;
+      if (!currentInputItemId || event.item_id !== currentInputItemId || !currentVoiceOwner || !ownerValid(currentVoiceOwner) || currentVoiceOwner.inputConfirmed) return;
       const id = voiceItems.get(`user:${event.item_id}`) || randomUUID(); voiceItems.set(`user:${event.item_id}`, id);
       publishTranscript('user', event.transcript || '', true, 'voice', id, context(), true); activity();
       if (event.item_id === currentInputItemId && /^(?:please )?(?:stop|stop listening|stop talking|be quiet)(?: please)?[.!?]*$/i.test((event.transcript || '').trim())) {
         emit({ type: 'spoken-stop' }); await closeVoice('stop'); return;
       }
+      if (!(event.transcript || '').trim()) return;
       if (currentVoiceOwner?.inputGate?.id === event.item_id) currentVoiceOwner.inputGate.resolve(true);
+      currentVoiceOwner.inputConfirmed = true; confirmVoiceInput(currentVoiceOwner);
+    } else if (event.type === 'conversation.item.input_audio_transcription.failed') {
+      if (!currentInputItemId || event.item_id !== currentInputItemId) return;
+      invalidateTurn(); silence(); update({ voice: 'listening' });
+      error(new ConversationError('VOICE_INTENT_UNCONFIRMED', 'The spoken intent could not be confirmed. Repeat your request or use text.'));
     } else if (['response.output_audio_transcript.delta', 'response.output_text.delta'].includes(event.type)) {
       const owned = providerOwner(event); if (!owned || !ownerValid(owned)) return;
       const key = `assistant:${event.item_id}`; const record = voiceItems.get(key) || { id: randomUUID(), text: '' };
@@ -279,6 +319,7 @@ export function createConversation(options = {}) {
       publishTranscript('assistant', text, false, 'voice', record.id, owned); voiceItems.set(key, { ...record, text, responseId: event.response_id });
     } else if (event.type === 'response.done') {
       const owned = providerOwner(event); if (!owned || !ownerValid(owned)) return;
+      responseOwners.delete(event.response.id);
       if (event.response?.status === 'completed') {
         for (const record of voiceItems.values()) {
           if (record?.responseId === event.response.id && record.text) publishTranscript('assistant', record.text, true, 'voice', record.id, owned, true);
@@ -294,7 +335,7 @@ export function createConversation(options = {}) {
         }
         let continuation = false;
         for (const item of calls) continuation = await providerAction(item, owned) || continuation;
-        if (continuation && ownerValid(owned) && state.mode === 'conversation') send({ type: 'response.create' });
+        if (continuation) requestVoiceResponse(owned);
       }
       else {
         update({ voice: 'listening', text: 'idle' }); activity();
@@ -329,7 +370,10 @@ export function createConversation(options = {}) {
   }
   async function startVoice() {
     if (voicePromise) return voicePromise;
-    if (microphone && peer?.connectionState === 'connected') { restorePlayback(generation); return snapshot(); }
+    if (microphone && peer?.connectionState === 'connected' && channel?.readyState === 'open') {
+      if (currentVoiceOwner?.playbackAccepted && ownerValid(currentVoiceOwner)) restorePlayback(generation);
+      return snapshot();
+    }
     if (peer && ownedCall) return resumeVoice();
     authorize();
     if (!PeerConnection) throw new ConversationError('VOICE_UNAVAILABLE', 'This browser cannot use live voice. Text remains available.');
@@ -340,11 +384,14 @@ export function createConversation(options = {}) {
     update({ voice: 'permission', error: null });
     const promise = (async () => {
       try {
-        microphone = await capture(expectedGeneration, expectedCaptureEpoch);
-        if (expectedGeneration !== generation) return snapshot();
+        const stream = await capture(expectedGeneration, expectedCaptureEpoch);
+        if (expectedGeneration !== generation || expectedCaptureEpoch !== captureEpoch || disposed || state.mode !== 'conversation') {
+          for (const track of stream.getTracks()) track.stop(); return snapshot();
+        }
+        microphone = stream;
         peer = new PeerConnection(); const currentPeer = peer; voiceIdentity = randomUUID(); recoveryUsed = false;
         audio = createAudio(); if (!audio) throw new ConversationError('AUDIO_UNAVAILABLE', 'This browser cannot play voice output.');
-        audio.autoplay = true; audio.playsInline = true; audio.muted = false;
+        audio.autoplay = true; audio.playsInline = true; audio.muted = true;
         currentPeer.addEventListener('track', event => {
           if (expectedGeneration !== generation) return;
           remoteStream = event.streams?.[0];
@@ -353,6 +400,7 @@ export function createConversation(options = {}) {
         sender = currentPeer.addTrack(microphone.getAudioTracks()[0], microphone);
         channel = currentPeer.createDataChannel('oai-events'); const currentChannel = channel;
         currentChannel.addEventListener('message', message => {
+          if (expectedGeneration !== generation || disposed) return;
           if (utf8Bytes(message.data) > 128 * 1024) { error(new ConversationError('EVENT_LIMIT', 'Voice returned an oversized event.')); closeVoice('transport-failed'); return; }
           let event; try { event = JSON.parse(message.data); } catch { return; }
           providerEvent(event, expectedGeneration).catch(failure => { error(failure); });
@@ -369,10 +417,17 @@ export function createConversation(options = {}) {
           } else if (['failed', 'closed'].includes(currentPeer.connectionState)) { closeVoice('transport-failed'); }
         });
         update({ voice: 'connecting' });
-        const offer = await currentPeer.createOffer(); await currentPeer.setLocalDescription(offer);
+        const offer = await currentPeer.createOffer();
+        if (expectedGeneration !== generation || expectedCaptureEpoch !== captureEpoch || signal.aborted) {
+          if (expectedGeneration === generation) await closeVoice('stop'); return snapshot();
+        }
+        await currentPeer.setLocalDescription(offer);
+        if (expectedGeneration !== generation || expectedCaptureEpoch !== captureEpoch || signal.aborted) {
+          if (expectedGeneration === generation) await closeVoice('stop'); return snapshot();
+        }
         const body = { version: 1, requestId: randomUUID(), attemptId: randomUUID(), sdp: offer.sdp, locale: 'en-AU', canonVersion: owned.canonVersion, consentEpoch: owned.consentEpoch, consentedMemories: owned.consentedMemories };
         validateContract('realtime-start', body);
-        const creationTimer = registerTimer(() => voiceAbort?.abort(), 35000);
+        const creationAbort = voiceAbort; const creationTimer = registerTimer(() => creationAbort.abort(), 35000);
         let result;
         try { result = await (await request('realtime', body, signal)).json(); } finally { dropTimer(creationTimer); }
         if (result.version !== 1 || typeof result.sessionId !== 'string' || !result.closeToken || result.transport?.type !== 'webrtc' || typeof result.transport.sdp !== 'string') throw new ConversationError('INVALID_SESSION', 'The voice service returned an invalid session.');
@@ -383,6 +438,7 @@ export function createConversation(options = {}) {
         }
         ownedCall = call;
         await currentPeer.setRemoteDescription({ type: 'answer', sdp: result.transport.sdp });
+        if (expectedGeneration !== generation || signal.aborted) return snapshot();
         await new Promise((resolve, reject) => {
           let finished = false;
           const complete = () => {
@@ -401,7 +457,10 @@ export function createConversation(options = {}) {
         else update({ voice: state.mode === 'media' ? 'paused-media' : 'paused' });
         return snapshot();
       } catch (failure) {
-        if (expectedGeneration === generation) { error(failure); await closeVoice('transport-failed'); }
+        if (expectedGeneration === generation) {
+          if (failure.code === 'ACTIVATION_CANCELLED') await closeVoice('stop');
+          else { error(failure); await closeVoice('transport-failed'); }
+        }
         if (failure.code === 'ACTIVATION_CANCELLED' || failure.name === 'AbortError') return snapshot();
         throw failure;
       } finally { if (voicePromise === promise) voicePromise = null; }
@@ -420,11 +479,11 @@ export function createConversation(options = {}) {
       currentVoiceOwner = owned;
       return new Promise(resolve => {
         const timer = registerTimer(() => {
-          if (pendingVoiceText?.owned === owned) { silence(); pendingVoiceText = null; update({ text: 'idle', voice: 'listening' }); resolve({ status: 'incomplete' }); }
+          if (pendingVoiceText?.owned === owned) { pendingVoiceText = null; invalidateTurn(); silence(); update({ text: 'idle', voice: 'listening' }); resolve({ status: 'incomplete' }); }
         }, 50000);
         pendingVoiceText = { resolve, owned, timer };
         send({ type: 'conversation.item.create', item: { type: 'message', role: 'user', content: [{ type: 'input_text', text: message }] } });
-        send({ type: 'response.create' });
+        requestVoiceResponse(owned);
       });
     }
     publishTranscript('user', message, true, 'text', randomUUID(), owned);
@@ -440,30 +499,31 @@ export function createConversation(options = {}) {
         validateContract('text-turn', body); let continuation = null;
         const response = await request('turns', body, abort.signal);
         await readFiniteSSE(response, async (name, value) => {
-          if (!ownerValid(owned) || value.turnId !== turn.id) throw new ConversationError('STALE_TURN', 'The text reply is no longer current.');
+          if (!ownerValid(owned) || abort.signal.aborted || value.turnId !== turn.id) throw new ConversationError('STALE_TURN', 'The text reply is no longer current.');
+          if (continuation || completed) throw new ConversationError('INVALID_STREAM', 'The text turn returned events after its terminal event.');
           if (name === 'text.delta') {
             if (typeof value.text !== 'string') throw new ConversationError('INVALID_STREAM', 'Invalid text delta.');
             text += value.text; publishTranscript('assistant', text, false, 'text', assistantId, owned);
           } else if (name === 'turn.complete') {
             if (continuation || completed) throw new ConversationError('INVALID_STREAM', 'The text turn returned conflicting completion events.');
             if (typeof value.text !== 'string') throw new ConversationError('INVALID_STREAM', 'Invalid completed text.');
-            text = value.text; completed = true; publishTranscript('assistant', text, true, 'text', assistantId, owned);
+            text = value.text; completed = true;
           } else if (name === 'turn.error') { throw new ConversationError(value.code || 'TURN_FAILED', value.message || 'The text turn failed.', value.retryable); }
           else if (name === 'action.request') {
             if (continuation || completed || value.actionId !== value.action?.requestId || typeof value.continuationToken !== 'string') throw new ConversationError('INVALID_ACTION', 'Invalid action continuation.');
             validateContract('action-request', value.action);
             if (value.action.turnId !== turn.id || value.action.consentEpoch !== owned.consentEpoch || value.action.memoryRevision !== owned.memoryRevision || value.action.routeEpoch !== owned.routeEpoch) throw new ConversationError('INVALID_ACTION', 'The action ownership does not match its text turn.');
-            const result = await executeAction(value.action, owned, 'text');
-            continuation = { version: 1, kind: 'result', requestId: randomUUID(), turnId: turn.id, actionId: value.actionId, continuationToken: value.continuationToken, result };
+            continuation = value;
           }
         }, abort.signal);
-        if (completed) { activity(); return { status: 'completed', text }; }
+        if (completed) { publishTranscript('assistant', text, true, 'text', assistantId, owned); activity(); return { status: 'completed', text }; }
         if (!continuation) throw new ConversationError('INCOMPLETE_TURN', 'The text turn ended without a complete reply.');
-        body = continuation;
+        const result = await executeAction(continuation.action, owned, 'text');
+        body = { version: 1, kind: 'result', requestId: randomUUID(), turnId: turn.id, actionId: continuation.actionId, continuationToken: continuation.continuationToken, result };
       }
       throw new ConversationError('TOOL_BUDGET', 'This turn reached its action limit. Please continue in a new message.');
     } catch (failure) {
-      if (failure.name === 'AbortError' || failure.code === 'STALE_TURN' || failure.code === 'STALE_ACTION') return { status: 'cancelled' };
+      if (!ownerValid(owned) || abort.signal.aborted || failure.name === 'AbortError' || failure.code === 'STALE_TURN' || failure.code === 'STALE_ACTION') return { status: 'cancelled' };
       error(failure); throw failure;
     } finally {
       dropTimer(turn.timer);
@@ -483,6 +543,11 @@ export function createConversation(options = {}) {
   async function resumeVoice() {
     if (resumePromise) return resumePromise;
     authorize();
+    if (state.mode === 'conversation' && microphone && peer?.connectionState === 'connected' && channel?.readyState === 'open') return snapshot();
+    if (peer && ownedCall && channel?.readyState !== 'open') {
+      const failure = new ConversationError('VOICE_RECONNECT_REQUIRED', 'The voice connection ended. Select Speak to start a new connection.');
+      error(failure); await closeVoice('transport-failed'); throw failure;
+    }
     const expectedGeneration = generation; const expectedCaptureEpoch = ++captureEpoch;
     const stillOwned = () => !disposed && expectedGeneration === generation && expectedCaptureEpoch === captureEpoch;
     const promise = (async () => {
