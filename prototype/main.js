@@ -13,10 +13,27 @@ const localSessionId = crypto.randomUUID();
 let memory = null, memoryView = null, memoryController = null;
 let sharedContext = [], selectedIds = [], serviceStatus = null, conversation = null;
 let routeController = null, navigationGeneration = 0, manifestoLoaded = false;
-let providerContextRevision = 0, exiting = false;
+let providerContextRevision = 0, exiting = false, textPhase = 'idle';
 const transcriptEntries = new Map();
 const directSaveControllers = new Set();
 const scene = createScene($('unity-scene'));
+const textStatus = document.createElement('p');
+textStatus.id = 'text-turn-status'; textStatus.className = 'service-status';
+textStatus.setAttribute('role', 'status'); textStatus.setAttribute('aria-live', 'polite');
+textStatus.hidden = true; $('service-status').before(textStatus);
+const DRAFT_RECOVERY_KEY = 'dream-unity:prototype:bfcache-draft:v1';
+function recoverUnsentDraft() {
+  try {
+    const raw = sessionStorage.getItem(DRAFT_RECOVERY_KEY);
+    sessionStorage.removeItem(DRAFT_RECOVERY_KEY);
+    if (!raw) return;
+    const recovery = JSON.parse(raw), age = Date.now() - recovery.savedAt;
+    if (recovery.path === location.pathname && age >= 0 && age < 15000 &&
+        typeof recovery.draft === 'string' && recovery.draft.length <= 8000 && !$('intention-input').value) {
+      $('intention-input').value = recovery.draft;
+    }
+  } catch { /* Storage restrictions must not prevent a fresh, usable visit. */ }
+}
 function dispatch(event) { state = reduceState(state, event); render(); }
 function announce(message) { $('announcement').textContent = message; }
 function trimTranscript() {
@@ -54,6 +71,8 @@ function render() {
   document.body.dataset.view = state.destination;
   document.body.dataset.mode = state.mode;
   document.body.dataset.microphone = state.microphone;
+  textStatus.hidden = textPhase !== 'thinking';
+  textStatus.textContent = textPhase === 'thinking' ? 'Considering your question… Press Stop to cancel, or write a new message.' : '';
   for (const panel of document.querySelectorAll('[data-view-panel]')) panel.hidden = panel.dataset.viewPanel !== state.destination;
   $('view-heading').hidden = state.destination === 'unity';
   $('view-title').textContent = DESTINATIONS[state.destination].title;
@@ -188,6 +207,7 @@ conversation = createConversation({ baseUrl: EARTH_ORIGIN,
     if (event.type === 'error') { showError(event); if (event.code === 'ACCESS_REQUIRED') revealAccess(); }
   },
   onState(value) {
+    textPhase = value.text;
     dispatch({ type: 'voice', status: value.voice }); dispatch({ type: 'mode', mode: value.mode });
     scene.setSpeaking(value.voice === 'speaking' ? 0.7 : 0);
   },
@@ -400,8 +420,20 @@ document.addEventListener('visibilitychange', async () => {
   } else if (state.destination === 'earth' && !earth.getState().active) navigate('earth', { replace: true }).catch(showError);
 });
 window.addEventListener('pagehide', () => { interruptLocalWork(); conversation.exit().catch(() => {}); earth.close(); memory?.close(); scene.dispose(); });
+window.addEventListener('pageshow', event => {
+  if (!event.persisted) return;
+  // pagehide disposed all owners. Recreate them rather than revive a closed call/database.
+  // This one-shot tab storage is immediately consumed; credentials/transcripts are never copied.
+  try {
+    const draft = $('intention-input').value;
+    if (draft && draft.length <= 8000) sessionStorage.setItem(DRAFT_RECOVERY_KEY,
+      JSON.stringify({ path: location.pathname, savedAt: Date.now(), draft }));
+    else sessionStorage.removeItem(DRAFT_RECOVERY_KEY);
+  } catch { /* A restricted tab still recovers by reloading without a saved draft. */ }
+  location.reload();
+});
 
-render(); setupMemory();
+recoverUnsentDraft(); render(); setupMemory();
 conversation.getStatus().then(status => {
   serviceStatus = status;
   dispatch({ type: 'service', status: status.ready ? 'available' : 'unavailable' });
