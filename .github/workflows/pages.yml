@@ -48,3 +48,24 @@ jobs:
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Install pinned browser verification runtime
+        run: |
+          npm install --prefix "$RUNNER_TEMP/dreamunity-browser" --no-save --ignore-scripts playwright@1.62.1
+          node "$RUNNER_TEMP/dreamunity-browser/node_modules/playwright/cli.js" install --with-deps chromium
+
+      - name: Verify the published prototype in Chromium
+        timeout-minutes: 2
+        env:
+          NODE_PATH: ${{ runner.temp }}/dreamunity-browser/node_modules
+          DREAMUNITY_EXPECTED_COMMIT: ${{ github.sha }}
+        run: node scripts/verify-prototype-browser.cjs
+
+      - name: Preserve published browser verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage3-browser-${{ github.run_id }}
+          path: output/stage3-browser
+          if-no-files-found: ignore
+          retention-days: 7
