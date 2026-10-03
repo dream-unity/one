@@ -43,6 +43,7 @@ export const PUBLIC_FILES = Object.freeze([
   'prototype/index.html',
   'prototype/styles.css',
   'prototype/main.js',
+  'prototype/boot.js',
   'prototype/state.js',
   'prototype/scene.js',
   'prototype/manifesto-view.js',
