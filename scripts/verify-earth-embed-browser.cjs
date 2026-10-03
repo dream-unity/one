@@ -61,7 +61,7 @@ async function check(name, action) {
   finally { evidence.timings.push({ name, durationMs: Date.now() - before, passed: evidence.checks.includes(name) }); }
 }
 async function screenshot(filename) {
-  await page.screenshot({ path: path.join(directory, filename), fullPage: true, timeout: remaining(4000) });
+  await page.screenshot({ path: path.join(directory, filename), fullPage: true, timeout: remaining(15000) });
   evidence.screenshots.push(filename);
 }
 async function collectBridge() {
