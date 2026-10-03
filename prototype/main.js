@@ -13,6 +13,7 @@ let state = initialState(requestedDestination);
 const localSessionId = crypto.randomUUID();
 let memory = null, memoryView = null, memoryController = null;
 let memoryChanging = false;
+let memoryModeIntent = null;
 let sharedContext = [], selectedIds = [], serviceStatus = null, conversation = null;
 let routeController = null, navigationGeneration = 0, manifestoLoaded = false;
 let providerContextRevision = 0, exiting = false, textPhase = 'idle', submissionGeneration = 0;
@@ -299,7 +300,8 @@ async function refreshSelection(ids = selectedIds) {
 function renderMemory(dataset) {
   const retention = memory.getStatus();
   const saving = retention.savingEnabled, visit = retention.mode === 'session';
-  $('memory-consent').checked = dataset.consent.storageEnabled;
+  $('memory-consent').checked = memoryChanging && memoryModeIntent !== null
+    ? memoryModeIntent === 'device' : dataset.consent.storageEnabled;
   $('memory-consent').disabled = memoryChanging || !retention.deviceAvailable;
   $('memory-session-mode').setAttribute('aria-pressed', String(visit));
   $('memory-session-mode').disabled = memoryChanging || visit;
@@ -312,7 +314,7 @@ function renderMemory(dataset) {
   $('memory-forget-device').hidden = !visit || !retention.deviceAvailable;
   $('memory-forget-device').disabled = memoryChanging;
   const scope = visit ? 'For this visit' : 'On this device';
-  $('memory-status').textContent = saving
+  $('memory-status').textContent = memoryChanging ? 'Changing how notes are remembered…' : saving
     ? `${scope}: ${dataset.nodes.length} saved notes and ${dataset.edges.length} connections. ${visit ? 'These notes disappear when you reload this page or choose Exit. Device notes are kept separately. ' : ''}${dataset.consent.conversationUseEnabled ? 'Choose which notes to share with the AI.' : 'Saved notes are not included in conversation.'}`
     : retention.mode === 'unavailable' ? 'Device storage is unavailable. Choose For this visit to keep temporary notes in this tab.' : 'Remembering is off. Choose For this visit or Remember on this device to begin.';
   const geometry = $('constellation-geometry'); geometry.replaceChildren();
@@ -372,20 +374,23 @@ async function changeConsent() {
 }
 async function changeMemoryMode(mode) {
   if (!memory || memoryChanging) return;
-  const current = await memory.load();
-  const retention = memory.getStatus();
-  if (mode === retention.mode && (mode !== 'device' || retention.savingEnabled)) { renderMemory(current); return; }
-  const question = retention.mode === 'session' && current.nodes.length
-    ? 'End this visit’s constellation? Its temporary notes will disappear. Device notes are kept separately.'
-    : mode === 'off' && current.nodes.length ? 'Turn remembering off and delete the notes stored on this device?' : null;
-  if (question && !window.confirm(question)) { renderMemory(current); return; }
-  memoryChanging = true; renderMemory(current);
+  memoryChanging = true; memoryModeIntent = mode;
+  $('memory-status').textContent = 'Changing how notes are remembered…';
+  for (const id of ['memory-consent', 'memory-session-mode', 'memory-share-consent', 'memory-revoke', 'memory-clear', 'memory-forget-device']) $(id).disabled = true;
   try {
+    const current = await memory.load();
+    const retention = memory.getStatus();
+    if (mode === retention.mode && (mode !== 'device' || retention.savingEnabled)) return;
+    const question = retention.mode === 'session' && current.nodes.length
+      ? 'End this visit’s constellation? Its temporary notes will disappear. Device notes are kept separately.'
+      : mode === 'off' && current.nodes.length ? 'Turn remembering off and delete the notes stored on this device?' : null;
+    if (question && !window.confirm(question)) return;
+    renderMemory(current);
     interruptLocalWork();
     await memory.setMode(mode, { consentEpoch: current.consentEpoch, revision: current.revision });
     selectedIds = []; sharedContext = []; await memoryView?.refresh(); await refreshSelection();
   } finally {
-    memoryChanging = false;
+    memoryChanging = false; memoryModeIntent = null;
     try { renderMemory(await memory.load()); } catch { /* The caller presents the original storage error. */ }
   }
 }
