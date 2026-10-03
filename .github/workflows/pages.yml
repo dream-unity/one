@@ -1,9 +1,11 @@
 name: Deploy Dream Unity
 
 on:
-  # The repository currently also has GitHub's generated legacy publisher.
-  # Run our exact allowlist release after it, so it cannot overwrite this release.
-  # Switching the Pages source to Actions later removes this compatibility chain.
+  # Push publishes only after the owner selects Pages Source: GitHub Actions.
+  push:
+    branches: [main]
+  # Until that switch, follow successful legacy publishing with the staged release.
+  # The legacy publisher still exposes an intermediate raw release during this period.
   workflow_run:
     workflows: ['pages build and deployment', 'pages-build-deployment']
     types: [completed]
@@ -18,15 +20,18 @@ permissions:
 jobs:
   preflight:
     if: >-
-      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      ((github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main') ||
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_repository.full_name == github.repository &&
        github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pages: read
     outputs:
       source_commit: ${{ steps.revision.outputs.source_commit }}
+      deploy: ${{ steps.publisher.outputs.deploy }}
+      build_type: ${{ steps.publisher.outputs.build_type }}
     steps:
       - name: Admit only the current trusted main revision
         id: revision
@@ -44,8 +49,26 @@ jobs:
           appendFileSync(process.env.GITHUB_OUTPUT, `source_commit=${selected}\n`);
           NODE
 
+      - name: Check out the admitted revision for publisher selection
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.revision.outputs.source_commit }}
+          persist-credentials: false
+
+      - name: Use the supported JavaScript runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Select the publisher from the actual Pages source
+        id: publisher
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/select-pages-publisher.mjs
+
   deploy:
     needs: preflight
+    if: needs.preflight.outputs.deploy == 'true'
     concurrency:
       group: dream-unity-pages
       cancel-in-progress: false
@@ -82,6 +105,12 @@ jobs:
         with:
           name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
           path: .public-site
+
+      - name: Recheck the active Pages publisher before publishing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DREAMUNITY_EXPECTED_PAGES_BUILD_TYPE: ${{ needs.preflight.outputs.build_type }}
+        run: node scripts/select-pages-publisher.mjs
 
       - name: Recheck the exact current revision before publishing
         run: |

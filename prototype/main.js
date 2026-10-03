@@ -92,15 +92,19 @@ function render() {
   const service = conversationState?.service;
   const checking = !service || ['unknown', 'checking'].includes(service.phase);
   const available = Boolean(service?.ready);
-  const canResume = available && authorized && !checking && (state.mode === 'media' || state.microphone === 'paused');
+  const initialCheck = checking && !available && !service?.code;
+  const canResume = available && authorized && (state.mode === 'media' || state.microphone === 'paused');
   $('resume-button').hidden = !canResume;
-  $('resume-button').disabled = !canResume;
+  $('resume-button').disabled = !canResume || checking;
   const voiceActive = ['listening', 'speaking', 'connected', 'ready'].includes(state.microphone);
   const busyLabel = { thinking: 'Thinking', recovering: 'Reconnecting', connecting: 'Connecting', permission: 'Permission' }[state.microphone];
   const voiceEngaged = voiceActive || Boolean(busyLabel);
-  $('voice-label').textContent = state.microphone === 'speaking' ? 'Speaking' : voiceActive ? 'Listening' : busyLabel || (checking ? 'Checking' : !available ? 'Voice off' : canResume ? 'Resume' : 'Speak');
-  $('voice-hint').textContent = voiceActive ? 'Stop ends the microphone' : busyLabel ? 'Press Stop to cancel' : checking ? 'conversation availability' : !available ? 'Check availability' : authorized ? 'or write below' : 'invitation required';
+  // Rechecking configuration is not a change in microphone state. Keep the
+  // last known availability visible while the separate retry control is busy.
+  $('voice-label').textContent = state.microphone === 'speaking' ? 'Speaking' : voiceActive ? 'Listening' : busyLabel || (initialCheck ? 'Checking' : !available ? 'Voice off' : canResume ? 'Resume' : 'Speak');
+  $('voice-hint').textContent = voiceActive ? 'Stop ends the microphone' : busyLabel ? 'Press Stop to cancel' : initialCheck ? 'conversation availability' : !available ? 'Check availability' : authorized ? 'or write below' : 'invitation required';
   $('voice-start').disabled = Boolean(busyLabel) || (checking && !voiceEngaged);
+  $('voice-start').setAttribute('aria-busy', String(checking || Boolean(busyLabel)));
   $('voice-start').setAttribute('aria-pressed', String(voiceEngaged));
   const descriptions = { idle: 'Write an intention, or choose Speak.', listening: 'Listening. Stop releases your microphone.',
     speaking: 'Speaking. You can interrupt or press Stop.', checking: 'Checking voice availability…', recovering: 'Voice connection interrupted. Trying to recover… Press Stop to end it.', connecting: 'Connecting your conversation…', permission: 'Waiting for microphone permission…', thinking: 'Considering your question…',
@@ -108,7 +112,7 @@ function render() {
     paused: 'Microphone paused. Choose Resume when ready.', stopped: 'Microphone stopped. You can still write.',
     expired: 'Voice ended. Text and navigation remain available.', failed: 'Voice is unavailable. You can still write.', closed: 'Microphone stopped. You can still write.' };
   const voiceDescription = state.microphone === 'paused' && !canResume ? descriptions.idle : descriptions[state.microphone] || descriptions.idle;
-  $('session-status').textContent = checking && !voiceEngaged ? 'Checking conversation availability. You can explore while we check.'
+  $('session-status').textContent = initialCheck && !voiceEngaged ? 'Checking conversation availability. You can explore while we check.'
     : !available && !voiceEngaged ? 'AI conversation is unavailable. You can still explore and keep your own notes.'
     : state.mode === 'media'
     ? `Media mode. Microphone and AI audio are off. ${canResume ? 'Choose Resume to speak again.' : 'You can still explore and keep notes.'}`
@@ -116,7 +120,7 @@ function render() {
   $('voice-invitation').textContent = available ? 'Speak or write an intention. Follow a question, a possibility, or a place.'
     : 'Follow a question, a possibility, or a place. Explore the worlds and keep your own notes in My constellation.';
   $('intention-help').textContent = available ? 'You can name a destination, ask a question, or change your mind.'
-    : checking ? 'You can name a destination or keep a note in My constellation while we check AI availability.'
+    : initialCheck ? 'You can name a destination or keep a note in My constellation while we check AI availability.'
     : 'AI replies are unavailable. You can still name a destination or keep a note in My constellation.';
   $('earth-status').textContent = state.earth?.app === 'failed' ? 'Earth could not connect.' : state.earth?.globe === 'ready' ? 'Earth is ready.' : state.earth?.app === 'ready' ? 'Earth is open. Globe and feed availability may vary.' : 'Opening God’s Earth View…';
 }
@@ -320,22 +324,24 @@ async function refreshSelection(ids = selectedIds) {
 }
 function renderMemory(dataset) {
   const retention = memory.getStatus();
+  const initializing = document.body.dataset.memory === 'loading';
+  const controlsBusy = memoryChanging || initializing;
   const saving = retention.savingEnabled, visit = retention.mode === 'session';
   $('memory-consent').checked = memoryChanging && memoryModeIntent !== null
     ? memoryModeIntent === 'device' : dataset.consent.storageEnabled;
-  $('memory-consent').disabled = memoryChanging || !retention.deviceAvailable;
+  $('memory-consent').disabled = controlsBusy || !retention.deviceAvailable;
   $('memory-session-mode').setAttribute('aria-pressed', String(visit));
-  $('memory-session-mode').disabled = memoryChanging || visit;
+  $('memory-session-mode').disabled = controlsBusy || visit;
   $('memory-share-consent').checked = dataset.consent.conversationUseEnabled;
-  $('memory-share-consent').disabled = memoryChanging || !saving;
-  $('memory-revoke').disabled = memoryChanging || !saving;
+  $('memory-share-consent').disabled = controlsBusy || !saving;
+  $('memory-revoke').disabled = controlsBusy || !saving;
   $('memory-revoke').textContent = visit ? 'End session memory' : 'Turn remembering off';
-  $('memory-clear').disabled = memoryChanging || !saving;
+  $('memory-clear').disabled = controlsBusy || !saving;
   $('memory-clear').textContent = visit ? 'Delete visit notes' : 'Delete saved notes';
   $('memory-forget-device').hidden = !visit || !retention.deviceAvailable;
-  $('memory-forget-device').disabled = memoryChanging;
+  $('memory-forget-device').disabled = controlsBusy;
   const scope = visit ? 'For this visit' : 'On this device';
-  $('memory-status').textContent = memoryChanging ? 'Changing how notes are remembered…' : saving
+  $('memory-status').textContent = initializing ? 'Opening note choices…' : memoryChanging ? 'Changing how notes are remembered…' : saving
     ? `${scope}: ${dataset.nodes.length} ${visit ? 'temporary' : 'saved'} notes and ${dataset.edges.length} connections. ${visit ? 'These notes disappear when you reload this page or choose Exit. Device notes are kept separately. ' : ''}${dataset.consent.conversationUseEnabled ? 'Choose which notes to share with the AI.' : 'Your notes are not included in conversation.'}`
     : retention.mode === 'unavailable' ? 'Device storage is unavailable. Choose For this visit to keep temporary notes in this tab.' : 'Remembering is off. Choose For this visit or Remember on this device to begin.';
   const geometry = $('constellation-geometry'); geometry.replaceChildren();
@@ -362,6 +368,7 @@ async function setupMemory() {
   try {
     memory = createMemoryStore({
       onChange(dataset, info) {
+        if (!memory || document.body.dataset.memory === 'failed') return;
         // Never stamp old selected text with a new persisted revision.
         const hadSharedContext = sharedContext.length > 0;
         sharedContext = []; providerContextRevision++;
@@ -381,7 +388,13 @@ async function setupMemory() {
     memoryView = mountMemoryView($('constellation-list'), { store: memory, controller: memoryController,
       proposalsContainer: $('memory-proposals'), onSelectionChange: ids => refreshSelection(ids) });
     await memoryView.refresh();
+    const readyDataset = await memory.load();
+    document.body.dataset.memory = 'ready';
+    renderMemory(readyDataset);
   } catch (error) {
+    document.body.dataset.memory = 'failed';
+    memoryView?.close(); memoryController?.close(); memory?.close();
+    memoryView = null; memoryController = null;
     memory = null; $('memory-status').textContent = 'Memory could not start in this browser. Try reloading this page.';
     for (const id of ['memory-session-mode', 'memory-consent', 'memory-share-consent', 'memory-revoke', 'memory-clear', 'memory-forget-device']) $(id).disabled = true;
   }

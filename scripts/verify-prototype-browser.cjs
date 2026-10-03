@@ -171,6 +171,101 @@ async function assertUnauthenticatedServiceShell(target = page) {
   }
   return shell;
 }
+// Record the real transient DOM before a fast status response can settle it.
+// This observer only reads styles/geometry: it never delays or replaces a request.
+async function captureServiceRecheck(selector, target = page) {
+  await target.evaluate(() => {
+    function rectangle(element) {
+      const box = element.getBoundingClientRect();
+      return { x: box.x + scrollX, y: box.y + scrollY, width: box.width, height: box.height };
+    }
+    function snapshot() {
+      const voice = document.getElementById('voice-start');
+      const style = getComputedStyle(voice);
+      const background = style.backgroundColor.match(/^rgba?\(([^)]+)\)$/)?.[1].split(',').map(Number);
+      let effectiveOpacity = 1;
+      for (let element = voice; element; element = element.parentElement) effectiveOpacity *= Number(getComputedStyle(element).opacity);
+      return {
+        phase: document.getElementById('service-status').dataset.phase,
+        disabled: voice.disabled, pressed: voice.getAttribute('aria-pressed'), busy: voice.getAttribute('aria-busy'),
+        microphone: document.body.dataset.microphone,
+        label: document.getElementById('voice-label').textContent,
+        hint: document.getElementById('voice-hint').textContent,
+        invitation: document.getElementById('voice-invitation').textContent,
+        sessionStatus: document.getElementById('session-status').textContent,
+        intentionHelp: document.getElementById('intention-help').textContent,
+        retryText: document.getElementById('service-retry').textContent,
+        opacity: Number(style.opacity), effectiveOpacity,
+        backgroundColor: style.backgroundColor,
+        backgroundAlpha: background?.length === 3 ? 1 : background?.length === 4 ? background[3] : null,
+        paintOrder: { voice: Number(style.zIndex), artwork: Number(getComputedStyle(document.querySelector('.scene-art')).zIndex) || 0 },
+        boxes: Object.fromEntries(['#unity-scene', '#voice-start', '#voice-start > svg', '#voice-label', '#voice-hint',
+          '#voice-invitation', '.quiet-navigation'].map(selector => [selector, rectangle(document.querySelector(selector))])),
+        conversationTop: rectangle(document.querySelector('.conversation')).y,
+      };
+    }
+    const observation = { before: snapshot(), checking: [] };
+    const observer = new MutationObserver(() => {
+      if (document.getElementById('service-status').dataset.phase === 'checking' && observation.checking.length < 16) {
+        observation.checking.push(snapshot());
+      }
+    });
+    for (const id of ['voice-start', 'service-status', 'voice-invitation', 'session-status']) {
+      observer.observe(document.getElementById(id), { attributes: true, childList: true, characterData: true, subtree: true });
+    }
+    Object.defineProperty(globalThis, '__dreamUnityServiceRecheckObservation', { configurable: true,
+      value: { finish() { observer.disconnect(); return { ...observation, after: snapshot() }; } } });
+  });
+  const isStatus = value => new URL(value.url()).pathname === '/api/unity/status' &&
+    (typeof value.method === 'function' ? value.method() : value.request().method()) === 'GET';
+  const [request, response] = await Promise.all([
+    target.waitForRequest(isStatus, { timeout: remaining(12000) }),
+    target.waitForResponse(isStatus, { timeout: remaining(12000) }),
+    target.locator(selector).click({ timeout: remaining() }),
+  ]);
+  assert.equal(response.request(), request, 'pending UI must correspond to the actual recheck request');
+  await target.waitForFunction(() => ['available', 'unavailable'].includes(document.getElementById('service-status').dataset.phase) &&
+    !document.getElementById('service-retry').disabled, null, { timeout: remaining(12000) });
+  const observation = await target.evaluate(() => {
+    const value = globalThis.__dreamUnityServiceRecheckObservation.finish();
+    delete globalThis.__dreamUnityServiceRecheckObservation;
+    return value;
+  });
+  return { response, observation: { control: selector, request: { method: request.method(), url: request.url(), status: response.status() }, ...observation } };
+}
+function assertStableVoiceRecheck(observation) {
+  assert.ok(observation.checking.length, `${observation.control} must expose the actual pending service state`);
+  for (const sample of [observation.before, ...observation.checking, observation.after]) {
+    assert.equal(sample.opacity, 1, 'the voice control must retain its opaque artwork cover');
+    assert.equal(sample.effectiveOpacity, 1, 'no translucent ancestor may reveal the bitmap text beneath the control');
+    assert.equal(sample.backgroundAlpha, 1, `the control background must stay opaque: ${sample.backgroundColor}`);
+    assert.ok(sample.paintOrder.voice > sample.paintOrder.artwork, 'the opaque control must paint over the artwork');
+    assert.equal(sample.pressed, 'false', 'checking availability must never imply active microphone capture');
+    assert.ok(!['permission', 'connecting', 'listening', 'speaking', 'connected', 'ready'].includes(sample.microphone),
+      `an unauthenticated service recheck cannot engage the microphone: ${sample.microphone}`);
+  }
+  for (const sample of observation.checking) {
+    assert.equal(sample.phase, 'checking');
+    assert.equal(sample.disabled, true, 'checking temporarily prevents duplicate voice activation');
+    assert.equal(sample.busy, 'true', 'the central control must expose the real pending check accessibly');
+    assert.match(sample.retryText, /checking/i, 'the service retry control must explain the actual pending request');
+    assert.equal(sample.sessionStatus, observation.before.sessionStatus, 'a recheck must retain the settled session guidance');
+    assert.equal(sample.intentionHelp, observation.before.intentionHelp, 'a recheck must retain the settled writing guidance');
+    assert.equal(sample.label, observation.before.label, 'a recheck must retain the settled central voice label');
+    assert.equal(sample.hint, observation.before.hint, 'a recheck must retain the settled central voice hint');
+    assert.equal(sample.invitation, observation.before.invitation, 'a recheck must retain the surrounding invitation');
+    for (const [selector, baseline] of Object.entries(observation.before.boxes)) {
+      for (const coordinate of ['x', 'y', 'width', 'height']) {
+        assert.ok(Math.abs(sample.boxes[selector][coordinate] - baseline[coordinate]) <= 0.5,
+          `${selector} ${coordinate} moved during the service recheck: ${baseline[coordinate]} → ${sample.boxes[selector][coordinate]}`);
+      }
+    }
+    assert.ok(Math.abs(sample.conversationTop - observation.before.conversationTop) <= 0.5,
+      'rechecking must not shift the conversation below the scene');
+  }
+  assert.equal(observation.after.disabled, false, 'the settled voice control must allow another deliberate availability recheck');
+  assert.equal(observation.after.busy, 'false', 'a completed check must clear the central pending indicator');
+}
 async function visitIs(enabled, target = page) {
   await target.waitForFunction(value => document.getElementById('memory-session-mode').getAttribute('aria-pressed') === String(value) &&
     (value ? !document.getElementById('memory-share-consent').disabled && document.getElementById('memory-status').textContent.includes('For this visit')
@@ -364,12 +459,8 @@ async function deploymentIsCurrent(context) {
       const initialCode = await page.locator('#service-status').getAttribute('data-code');
       const initialShell = await assertUnauthenticatedServiceShell();
       const previousCount = evidence.voiceEvidence.statusResponses?.length || 0;
-      const retryResponse = page.waitForResponse(response => new URL(response.url()).pathname === '/api/unity/status' &&
-        response.request().method() === 'GET', { timeout: remaining(12000) });
-      await page.locator('#service-retry').click({ timeout: remaining() });
-      const response = await retryResponse;
-      await page.waitForFunction(() => ['available', 'unavailable'].includes(document.getElementById('service-status').dataset.phase) &&
-        !document.getElementById('service-retry').disabled, null, { timeout: remaining(12000) });
+      const retry = await captureServiceRecheck('#service-retry');
+      const response = retry.response;
       assert.ok((evidence.voiceEvidence.statusResponses?.length || 0) > previousCount, 'retry must fetch the actual service status again');
       const phase = await page.locator('#service-status').getAttribute('data-phase');
       const code = await page.locator('#service-status').getAttribute('data-code');
@@ -394,11 +485,7 @@ async function deploymentIsCurrent(context) {
       evidence.voiceEvidence.accessProbeUrl = new URL('/api/unity/access', response.url()).href;
       const forbiddenBeforeRecheck = evidence.forbiddenRequests.length;
       const statusResponsesBeforeRecheck = evidence.voiceEvidence.statusResponses?.length || 0;
-      const speakResponse = page.waitForResponse(value => new URL(value.url()).pathname === '/api/unity/status' &&
-        value.request().method() === 'GET', { timeout: remaining(12000) });
-      await page.locator('#voice-start').click({ timeout: remaining() }); await speakResponse;
-      await page.waitForFunction(() => ['available', 'unavailable'].includes(document.getElementById('service-status').dataset.phase),
-        null, { timeout: remaining(12000) });
+      const primaryRecheck = await captureServiceRecheck('#voice-start');
       assert.equal((await browserObservation()).microphoneRequests, 0);
       assert.equal(evidence.voiceEvidence.microphoneRequests, 0);
       assert.equal(evidence.forbiddenRequests.length, forbiddenBeforeRecheck,
@@ -414,6 +501,11 @@ async function deploymentIsCurrent(context) {
         microphoneRequests: 0, unauthorizedSpeakBlocked: true, noPaidRequests: true,
         shell: { initial: initialShell, retry: retryShell, primaryRecheck: primaryRecheckShell },
         unavailableBranch: phase === 'unavailable' ? 'exercised' : 'unexercised' };
+      evidence.voiceEvidence.recheckPresentation = [retry.observation, primaryRecheck.observation];
+    });
+    await check('pending-availability-rechecks-stay-opaque-and-layout-stable', async () => {
+      assert.equal(evidence.voiceEvidence.recheckPresentation.length, 2);
+      for (const observation of evidence.voiceEvidence.recheckPresentation) assertStableVoiceRecheck(observation);
     });
     await check('ready-service-invitation-errors-stay-readable-without-microphone-capture', async () => {
       if (await page.locator('#service-status').getAttribute('data-phase') !== 'available') {
@@ -491,9 +583,27 @@ async function deploymentIsCurrent(context) {
       assert.equal(new URL(page.url()).pathname, '/prototype/');
       assert.equal(await page.evaluate(() => performance.timeOrigin), identity);
     });
+    await check('temporary-note-choice-is-visible-and-explained-before-device-storage', async () => {
+      await page.locator('.quiet-navigation [data-navigate="constellation"]').click({ timeout: remaining() });
+      await viewIs('constellation'); await rememberingIs(false);
+      const choice = page.getByRole('button', { name: 'For this visit', exact: true });
+      assert.equal(await choice.isVisible(), true); assert.equal(await choice.isEnabled(), true);
+      assert.equal(await choice.getAttribute('aria-pressed'), 'false', 'temporary notes require a deliberate choice');
+      assert.equal(await choice.getAttribute('aria-describedby'), 'memory-session-help');
+      assert.match(await page.locator('.visit-memory-choice > strong').textContent(), /temporary.*no device storage/i);
+      const help = page.locator('#memory-session-help');
+      assert.equal(await help.isVisible(), true);
+      assert.match(await help.textContent(), /temporar/i); assert.match(await help.textContent(), /reload.*exit.*clear/i);
+      assert.match(await help.textContent(), /device notes.*separat/i);
+      assert.equal(await choice.evaluate(element => Boolean(element.compareDocumentPosition(document.getElementById('memory-consent')) & Node.DOCUMENT_POSITION_FOLLOWING)), true,
+        'the temporary choice must be discoverable before the device-storage opt-in');
+      await choice.focus();
+      assert.equal(await choice.evaluate(element => element === document.activeElement), true);
+      evidence.visitEvidence.discoverability = { visibleBeforeStorageConsent: true, keyboardFocusable: true,
+        accessibleRetentionDescription: true, offByDefault: true };
+    });
     let saved;
     await check('no-consent-no-personal-persistence-and-retained-offline-input', async () => {
-      await page.locator('.quiet-navigation [data-navigate="constellation"]').click({ timeout: remaining() });
       await rememberingIs(false);
       const message = 'Remember that this unconsented browser note must remain unsaved.';
       await send(message);
@@ -918,6 +1028,22 @@ async function deploymentIsCurrent(context) {
         const control = page.locator(`#${id}`); assert.equal(await control.isVisible(), true);
         const box = await control.boundingBox(); assert.ok(box.width >= 24 && box.height >= 24, `${id} is below a 24px target`);
       }
+      const centralLayout = await page.locator('#voice-start').evaluate(control => {
+        const box = control.getBoundingClientRect();
+        return { opacity: Number(getComputedStyle(control).opacity),
+          contents: ['svg', '#voice-label', '#voice-hint'].map(selector => {
+            const element = control.querySelector(selector); const child = element.getBoundingClientRect();
+            return { selector, fits: child.left >= box.left - 0.5 && child.right <= box.right + 0.5 &&
+              child.top >= box.top - 0.5 && child.bottom <= box.bottom + 0.5,
+              overflow: selector === 'svg' ? 0 : element.scrollWidth - element.clientWidth };
+          }) };
+      });
+      assert.equal(centralLayout.opacity, 1, 'the narrow-screen central control must keep covering the bitmap lettering');
+      for (const content of centralLayout.contents) {
+        assert.equal(content.fits, true, `${content.selector} must stay inside the central control at 320px`);
+        assert.ok(content.overflow <= 1, `${content.selector} must not clip horizontally at 320px`);
+      }
+      evidence.voiceEvidence.narrowLayout = { viewport: 320, ...centralLayout };
       await page.getByRole('button', { name: 'Write', exact: true }).click({ timeout: remaining() });
       assert.equal(await page.locator('#intention-input').evaluate(element => element === document.activeElement), true);
       await screenshot('unity-reduced-motion-320px.png');

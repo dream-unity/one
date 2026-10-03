@@ -9,7 +9,7 @@
   <link rel="preload" as="image" href="../assets/dream-unity-portals-refined.webp" type="image/webp" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
-<body data-view="unity">
+<body data-view="unity" data-boot="loading" data-memory="loading">
   <a class="skip-link" href="#main-content">Skip to the experience</a>
   <header class="shell-header">
     <a class="wordmark" href="?view=unity" data-navigate="unity" aria-label="Dream Unity, return to the centre">Dream Unity</a>
@@ -41,7 +41,7 @@
           <span class="world-region-title">Dream<br />Machine</span>
           <span id="machine-meaning" class="world-region-meaning">Heart · Mind · Body</span>
         </button>
-        <button id="voice-start" class="voice-activation" type="button" aria-describedby="voice-invitation session-status service-status">
+        <button id="voice-start" class="voice-activation" type="button" aria-describedby="voice-invitation session-status service-status" disabled aria-busy="true">
           <span class="speech-orbit" aria-hidden="true"></span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" aria-hidden="true"><rect x="8" y="2" width="8" height="13" rx="4" /><path d="M5 10v1a7 7 0 0 0 14 0v-1M12 18v4M8 22h8" /></svg>
           <span id="voice-label">Checking</span>
@@ -118,15 +118,15 @@
         <h2 id="constellation-title">A constellation of your own meaning.</h2>
         <p class="view-introduction">Keep a thought, an intention or a connection. Choose temporary notes for this visit, or remember notes on this device.</p>
         <fieldset class="memory-permissions"><legend>What you choose to remember</legend>
-          <div class="visit-memory-choice"><strong>Temporary constellation · no device storage</strong><button id="memory-session-mode" type="button" aria-pressed="false" aria-describedby="memory-session-help">For this visit</button><p id="memory-session-help">Keep notes temporarily while you explore. Reloading this page or choosing Exit clears them. Device notes are kept separately.</p></div>
-          <label><input id="memory-consent" type="checkbox" /><span><strong>Remember on this device</strong><small>Only notes you explicitly save. This browser can clear them.</small></span></label>
-          <label><input id="memory-share-consent" type="checkbox" /><span><strong>Use selected notes in conversation</strong><small>Sharing with the AI is a separate choice.</small></span></label>
+          <div class="visit-memory-choice"><strong>Temporary constellation · no device storage</strong><button id="memory-session-mode" type="button" aria-pressed="false" aria-describedby="memory-session-help" disabled>For this visit</button><p id="memory-session-help">Keep notes temporarily while you explore. Reloading this page or choosing Exit clears them. Device notes are kept separately.</p></div>
+          <label><input id="memory-consent" type="checkbox" disabled /><span><strong>Remember on this device</strong><small>Only notes you explicitly save. This browser can clear them.</small></span></label>
+          <label><input id="memory-share-consent" type="checkbox" disabled /><span><strong>Use selected notes in conversation</strong><small>Sharing with the AI is a separate choice.</small></span></label>
         </fieldset>
-        <p id="memory-status" class="memory-status" role="status">Choose For this visit or Remember on this device to begin.</p>
+        <p id="memory-status" class="memory-status" role="status">Opening note choices…</p>
         <div id="constellation-geometry" class="constellation-geometry" aria-hidden="true"></div>
         <div id="constellation-list" class="constellation-list"><p class="empty-state">Nothing saved yet. Your constellation begins with a note you choose.</p></div>
         <section id="memory-proposals" class="memory-proposals" aria-label="Notes awaiting your confirmation"></section>
-        <div class="memory-actions"><button id="memory-revoke" type="button">Turn remembering off</button><button id="memory-clear" class="danger-button" type="button">Delete saved notes</button><button id="memory-forget-device" class="danger-button" type="button" hidden>Forget device notes</button></div>
+        <div class="memory-actions"><button id="memory-revoke" type="button" disabled>Turn remembering off</button><button id="memory-clear" class="danger-button" type="button" disabled>Delete saved notes</button><button id="memory-forget-device" class="danger-button" type="button" hidden disabled>Forget device notes</button></div>
       </section>
 
       <section class="view-panel quiet-view" data-view-panel="dream-machine" aria-labelledby="machine-title" hidden>
