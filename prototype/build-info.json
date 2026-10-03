@@ -1,11 +1,11 @@
 {
-  "version": "dream-unity-sol-20261003.1",
+  "version": "dream-unity-astra-20261003.2",
   "contractVersion": "du-prototype/1.0",
   "sourceCommit": null,
   "sourceBaseline": "86d1c7f253fdc337615bb1d8bff46435d8285c1a",
   "earthBaseline": "e89c9ac847448524810c00ac978e6ab4c91fa781",
-  "earthSourceCommit": "0a3f621441d966d8991021d166b3aaee6b17a80b",
   "knowledgeCoverage": "published-manifesto",
   "privatePaidAccess": true,
-  "anonymousPaidAccess": false
+  "anonymousPaidAccess": false,
+  "earthCommit": "734ca47a176e84d0bfcbafdf7c1f431c067fa9b9"
 }

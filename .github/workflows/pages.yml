@@ -109,11 +109,29 @@ jobs:
           DREAMUNITY_EXPECTED_COMMIT: ${{ needs.preflight.outputs.source_commit }}
         run: node scripts/verify-prototype-browser.cjs
 
+      - name: Verify the coordinated Earth runtime in Chromium
+        timeout-minutes: 3
+        env:
+          NODE_PATH: ${{ runner.temp }}/dreamunity-browser/node_modules
+          DREAMUNITY_EXPECTED_COMMIT: ${{ needs.preflight.outputs.source_commit }}
+          DREAMUNITY_EXPECTED_EARTH_COMMIT: 734ca47a176e84d0bfcbafdf7c1f431c067fa9b9
+          DREAMUNITY_KEYLESS_EARTH_BUILD_AT: 2026-10-03T10:38:32.175Z
+        run: node scripts/verify-earth-embed-browser.cjs
+
       - name: Preserve published browser verification evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: stage5-browser-${{ github.run_id }}
           path: output/stage5-browser
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Preserve coordinated Earth verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: astra-earth-browser-${{ github.run_id }}
+          path: output/astra-earth-browser
           if-no-files-found: ignore
           retention-days: 7

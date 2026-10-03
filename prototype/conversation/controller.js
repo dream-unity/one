@@ -12,7 +12,7 @@ const sameView = (left, right) => Boolean(left && right && left.destination === 
 /** Browser-owned conversation. Secrets and transcripts are held only in this instance. */
 export function createConversation(options = {}) {
   const {
-    baseUrl = 'https://november-1st-sable.vercel.app', getContext = () => ({}),
+    baseUrl = 'https://dream-unity-runtime.vercel.app', getContext = () => ({}),
     onEvent = () => {}, onState = () => {}, onAction = async () => { throw new ConversationError('ACTION_UNAVAILABLE', 'This action is unavailable.'); },
     ensureMediaQuiet = async () => false,
     fetch: fetcher = globalThis.fetch?.bind(globalThis),
@@ -30,7 +30,7 @@ export function createConversation(options = {}) {
   const logicalSessionId = randomUUID(); const conversationId = randomUUID();
   let state = { mode: 'conversation', voice: 'idle', text: 'idle', authorized: false, expiresAt: null, error: null, transcript: [], service: { phase: 'unknown', ready: false, code: null, message: null, reasonCodes: [] } };
   let token = null; let tokenExpiry = 0; let generation = 0; let turnEpoch = 0; let disposed = false;
-  let captureEpoch = 0; let resumePromise = null; let accessAttempt = 0; let currentInputItemId = null;
+  let captureEpoch = 0; let resumePromise = null; let accessAttempt = 0; let accessAbort = null; let currentInputItemId = null;
   let peer = null; let channel = null; let sender = null; let microphone = null; let audio = null; let remoteStream = null;
   let ownedCall = null; let voicePromise = null; let voiceAbort = null; let activeTurn = null;
   let deadlineTimer = null; let idleTimer = null; let connectionTimer = null; let recoveryTimer = null;
@@ -44,7 +44,8 @@ export function createConversation(options = {}) {
   function update(patch) { state = { ...state, ...patch }; try { onState(snapshot()); } catch { /* consumer isolation */ } }
   function error(errorValue) {
     const value = { code: errorValue?.code || 'CONNECTION_ERROR', message: (errorValue?.message || 'The conversation could not connect.').slice(0, 400), retryable: errorValue?.retryable === true };
-    const serviceFailure = ['SERVICE_NOT_READY', 'SERVICE_DEPLOYMENT_MISSING', 'NETWORK_UNAVAILABLE', 'INVALID_STATUS', 'SERVICE_STATUS_TIMEOUT'].includes(value.code);
+    const serviceFailure = ['SERVICE_NOT_READY', 'SERVICE_DEPLOYMENT_MISSING', 'NETWORK_UNAVAILABLE', 'INVALID_STATUS', 'SERVICE_STATUS_TIMEOUT', 'ACCESS_TIMEOUT',
+      'ADMISSION_UNAVAILABLE', 'ADMISSION_CONFIGURATION_ERROR', 'MODEL_UNAVAILABLE', 'PROVIDER_CONFIGURATION_ERROR', 'PROVIDER_QUOTA_EXHAUSTED', 'PROVIDER_UNAVAILABLE'].includes(value.code);
     update({ error: value, ...(serviceFailure ? { service: { ...state.service, phase: 'unavailable', ready: false, code: value.code, message: value.message } } : {}) });
     emit({ type: 'error', ...value }); return value;
   }
@@ -73,6 +74,7 @@ export function createConversation(options = {}) {
   }
   async function request(path, body, signal, useAuth = true, keepalive = false) {
     if (useAuth) authorize();
+    const requestToken = token;
     const headers = { 'Content-Type': 'application/json' };
     if (useAuth) headers.Authorization = `Bearer ${token}`;
     const serialized = JSON.stringify(body);
@@ -81,12 +83,31 @@ export function createConversation(options = {}) {
     let response;
     try { response = await fetcher(endpoint(path), { method: 'POST', headers, body: serialized, signal, credentials: 'omit', cache: 'no-store', keepalive }); }
     catch (failure) { throw connectionFailure(failure); }
-    return serviceResponse(response);
+    try { return await serviceResponse(response); }
+    catch (failure) {
+      if (useAuth && failure.code === 'ACCESS_DENIED' && requestToken === token) {
+        token = null; tokenExpiry = 0; update({ authorized: false, expiresAt: null });
+        // Reject only this request's bearer. An old response must never revoke a
+        // newer invitation, and the close-only capability still cleans up voice.
+        error(failure); closeVoice('revoked').catch(() => {});
+      }
+      throw failure;
+    }
   }
   function registerTimer(callback, delay) {
     const timer = setTimer(() => { timers.delete(timer); callback(); }, delay); timers.add(timer); return timer;
   }
   function dropTimer(timer) { if (timer != null) { clearTimer(timer); timers.delete(timer); } }
+  async function captureOperation(operation) {
+    let timer; let cancel;
+    try {
+      return await Promise.race([operation, new Promise((resolve, reject) => {
+        cancel = () => reject(new ConversationError('ACTIVATION_CANCELLED', 'Microphone activation was cancelled.'));
+        captureWaits.add(cancel);
+        timer = registerTimer(() => reject(new ConversationError('VOICE_SETUP_TIMEOUT', 'This browser did not finish updating the voice connection. Microphone capture has stopped. Choose Speak to retry or continue by writing.', true)), 15000);
+      })]);
+    } finally { dropTimer(timer); if (cancel) captureWaits.delete(cancel); }
+  }
   async function voiceSetup(operation, signal) {
     let timer; let cancel;
     try {
@@ -140,7 +161,7 @@ export function createConversation(options = {}) {
   async function releaseCapture() {
     const current = microphone; microphone = null;
     if (current) for (const track of current.getTracks()) track.stop();
-    if (sender?.replaceTrack) await sender.replaceTrack(null).catch(() => {});
+    if (sender?.replaceTrack) await captureOperation(sender.replaceTrack(null));
   }
   function invalidateActions() { for (const action of actions) action.abort(); actions.clear(); }
   function invalidateTurn() {
@@ -157,15 +178,22 @@ export function createConversation(options = {}) {
   async function closeOwned(call, reason) {
     if (!call) return;
     const body = { version: 1, sessionId: call.sessionId, closeToken: call.closeToken, reason };
+    const abort = new AbortController(); let deadline;
     try {
       validateContract('session-close', body);
-      const response = await request('sessions/close', body, undefined, false, true);
-      const result = await response.json();
+      const result = await Promise.race([
+        (async () => (await request('sessions/close', body, abort.signal, false, true)).json())(),
+        new Promise((resolve, reject) => {
+          deadline = registerTimer(() => { reject(new ConversationError('CLOSE_UNCONFIRMED', 'Remote voice closure could not be confirmed.')); abort.abort(); }, 12000);
+        }),
+      ]);
       emit({ type: 'session-closed', sessionId: call.sessionId, status: result.status });
     } catch { emit({ type: 'session-closed', sessionId: call.sessionId, status: 'closing_unconfirmed' }); }
+    finally { dropTimer(deadline); }
   }
   async function closeVoice(reason = 'stop') {
     generation++; captureEpoch++; resumePromise = null; currentInputItemId = null;
+    accessAbort?.abort(); accessAbort = null;
     for (const cancel of captureWaits) cancel();
     voiceAbort?.abort(); voiceAbort = null; voicePromise = null;
     invalidateTurn(); silence();
@@ -402,10 +430,19 @@ export function createConversation(options = {}) {
         let continuation = false;
         for (const item of calls) continuation = await providerAction(item, owned) || continuation;
         if (continuation) requestVoiceResponse(owned);
+        else if (ownerValid(owned) && currentVoiceOwner === owned) {
+          update({ voice: 'listening', text: 'idle' });
+          if (pendingVoiceText) { dropTimer(pendingVoiceText.timer); pendingVoiceText.resolve({ status: 'failed' }); pendingVoiceText = null; }
+        }
       }
       else {
+        const status = event.response?.status;
+        if (status !== 'completed') error(new ConversationError(status === 'cancelled' ? 'VOICE_REPLY_CANCELLED' : status === 'incomplete' ? 'VOICE_REPLY_INCOMPLETE' : 'VOICE_REPLY_FAILED',
+          status === 'cancelled' ? 'That voice reply was cancelled. You can repeat your question or continue by writing.'
+            : status === 'incomplete' ? 'The voice reply did not finish. You can repeat your question or continue by writing.'
+              : 'The voice service could not complete that reply. You can repeat your question or continue by writing.', true));
         update({ voice: 'listening', text: 'idle' }); activity();
-        if (pendingVoiceText) { dropTimer(pendingVoiceText.timer); pendingVoiceText.resolve({ status: event.response?.status || 'completed' }); pendingVoiceText = null; }
+        if (pendingVoiceText) { dropTimer(pendingVoiceText.timer); pendingVoiceText.resolve({ status: ['completed', 'cancelled', 'incomplete'].includes(status) ? status : 'failed' }); pendingVoiceText = null; }
       }
     }
   }
@@ -662,7 +699,14 @@ export function createConversation(options = {}) {
     const expectedCaptureEpoch = ++captureEpoch; resumePromise = null;
     for (const cancel of captureWaits) cancel();
     update({ mode: 'media' }); invalidateTurn(); silence();
-    await releaseCapture();
+    try { await releaseCapture(); }
+    catch (failure) {
+      if (expectedCaptureEpoch !== captureEpoch || disposed) throw new ConversationError('MEDIA_REQUEST_SUPERSEDED', 'This media activation was superseded.');
+      error(failure); await closeVoice('transport-failed');
+      // Physical capture was already stopped. Closing a stalled sender also
+      // makes it safe to reveal media controls without preserving a broken peer.
+      return snapshot();
+    }
     if (expectedCaptureEpoch !== captureEpoch || state.mode !== 'media' || disposed) throw new ConversationError('MEDIA_REQUEST_SUPERSEDED', 'This media activation was superseded.');
     update({ voice: ownedCall ? 'paused-media' : 'paused' }); emit({ type: 'voice-paused', reason: 'media' }); return snapshot();
   }
@@ -682,7 +726,7 @@ export function createConversation(options = {}) {
       let stream = null;
       try {
         if (state.mode === 'media') {
-          const quiet = await ensureMediaQuiet();
+          const quiet = await captureOperation(ensureMediaQuiet());
           if (!stillOwned()) return snapshot();
           if (quiet !== true && quiet?.status !== 'quiet') throw new ConversationError('MEDIA_NOT_QUIET', 'Pause or close all media before resuming voice.');
         }
@@ -698,16 +742,22 @@ export function createConversation(options = {}) {
         stream = await capture(expectedGeneration, expectedCaptureEpoch);
         if (!stillOwned() || state.mode !== 'conversation') { for (const track of stream.getTracks()) track.stop(); return snapshot(); }
         const ownedSender = sender; microphone = stream;
-        await ownedSender.replaceTrack(stream.getAudioTracks()[0]);
+        await captureOperation(ownedSender.replaceTrack(stream.getAudioTracks()[0]));
         if (!stillOwned() || state.mode !== 'conversation') { for (const track of stream.getTracks()) track.stop(); if (microphone === stream) microphone = null; return snapshot(); }
-        if (audio) { audio.srcObject = remoteStream; audio.muted = false; await audio.play?.().catch(() => emit({ type: 'playback-blocked' })); }
+        if (audio) {
+          audio.srcObject = remoteStream; audio.muted = false;
+          await captureOperation(Promise.resolve(audio.play?.()).catch(() => emit({ type: 'playback-blocked' })));
+        }
         if (!stillOwned() || state.mode !== 'conversation') { for (const track of stream.getTracks()) track.stop(); if (microphone === stream) microphone = null; return snapshot(); }
         activity(); update({ voice: 'listening' }); return snapshot();
       } catch (failure) {
         if (stream) for (const track of stream.getTracks()) track.stop();
         if (!stillOwned() || failure.code === 'ACTIVATION_CANCELLED') return snapshot();
         if (microphone === stream) microphone = null;
-        error(failure); update({ voice: 'paused' }); throw failure;
+        error(failure);
+        if (stream || failure.code === 'VOICE_SETUP_TIMEOUT') await closeVoice('transport-failed');
+        else update({ voice: 'paused' });
+        throw failure;
       } finally { if (resumePromise === promise) resumePromise = null; }
     })();
     resumePromise = promise; return promise;
@@ -718,8 +768,8 @@ export function createConversation(options = {}) {
   }
   async function clearConversation() {
     for (const record of replay) record.replayEligible = false;
-    await closeVoice('revoked'); replay.splice(0); update({ transcript: [] });
-    emit({ type: 'cleared' }); return snapshot();
+    const closing = closeVoice('revoked'); replay.splice(0); update({ transcript: [] });
+    emit({ type: 'cleared' }); await closing; return snapshot();
   }
   async function stop() { await closeVoice('stop'); return snapshot(); }
   async function exit() {
@@ -748,12 +798,28 @@ export function createConversation(options = {}) {
       if (disposed) throw new ConversationError('SESSION_EXITED', 'Start a fresh visit to reconnect.');
       const attempt = ++accessAttempt; const expectedGeneration = generation;
       const body = { version: 1, inviteCode }; validateContract('access', body);
-      const value = await (await request('access', body, undefined, false)).json();
-      if (disposed || generation !== expectedGeneration || attempt !== accessAttempt) throw new ConversationError('ACCESS_CANCELLED', 'Invite activation was cancelled.');
-      const expiresAt = Date.parse(value.expiresAt);
-      if (value.version !== 1 || typeof value.accessToken !== 'string' || !Number.isFinite(expiresAt) || expiresAt <= now()) throw new ConversationError('INVALID_ACCESS', 'The invite service returned invalid access.');
-      token = value.accessToken; tokenExpiry = expiresAt;
-      update({ authorized: true, expiresAt: value.expiresAt, error: null }); return { ...value, accessToken: undefined };
+      accessAbort?.abort(); const abort = new AbortController(); accessAbort = abort; let deadline; let cancel;
+      try {
+        const value = await Promise.race([
+          (async () => (await request('access', body, abort.signal, false)).json())(),
+          new Promise((resolve, reject) => {
+            cancel = () => reject(new ConversationError('ACCESS_CANCELLED', 'Invite activation was cancelled.'));
+            abort.signal.addEventListener('abort', cancel, { once: true });
+            deadline = registerTimer(() => { reject(new ConversationError('ACCESS_TIMEOUT', 'The invitation service did not finish connecting. Check your connection and try your invitation again.', true)); abort.abort(); }, 15000);
+          }),
+        ]);
+        if (disposed || generation !== expectedGeneration || attempt !== accessAttempt) throw new ConversationError('ACCESS_CANCELLED', 'Invite activation was cancelled.');
+        const expiresAt = Date.parse(value?.expiresAt);
+        if (value?.version !== 1 || typeof value.accessToken !== 'string' || !Number.isFinite(expiresAt) || expiresAt <= now()) throw new ConversationError('INVALID_ACCESS', 'The invite service returned invalid access.');
+        token = value.accessToken; tokenExpiry = expiresAt;
+        update({ authorized: true, expiresAt: value.expiresAt, error: null }); return { ...value, accessToken: undefined };
+      } catch (failure) {
+        if (!disposed && generation === expectedGeneration && attempt === accessAttempt && failure.code !== 'ACCESS_CANCELLED') error(failure);
+        throw failure;
+      } finally {
+        dropTimer(deadline); if (cancel) abort.signal.removeEventListener('abort', cancel);
+        if (accessAbort === abort) accessAbort = null;
+      }
     },
   };
 }

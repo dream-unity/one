@@ -1,7 +1,7 @@
 import { schemas } from '../wire-contracts.js';
 import { validate } from '../validate.js';
 
-export const EARTH_ORIGIN = 'https://november-1st-sable.vercel.app';
+export const EARTH_ORIGIN = 'https://dream-unity-runtime.vercel.app';
 const CHILD_KINDS = new Set(['HELLO', 'READY', 'FAILED', 'RESULT', 'ACK', 'SNAPSHOT',
   'MEDIA_FOCUS_REQUEST', 'QUIET_ACK', 'STATUS', 'REQUEST_HOME']);
 const EMPTY_READY = { app: 'waiting', globe: 'not-started', restore: 'none', providers: [] };

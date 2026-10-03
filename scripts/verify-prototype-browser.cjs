@@ -14,16 +14,22 @@ const DEVICE_NOTE = 'The existing device note stays on this device.';
 const VISIT_NOTE = 'This deliberately temporary constellation note belongs only to this visit.';
 const EDITED_VISIT_NOTE = 'This deliberately temporary constellation note was revised during this visit.';
 const SECOND_VISIT_NOTE = 'A second temporary note for the visit relationship.';
+const INVALID_INVITE = `browser-verification-invalid-${require('node:crypto').randomUUID()}`;
 const started = Date.now();
 const deadline = started + BUDGET_MS - 10000;
 const directory = path.resolve('output/stage5-browser');
 fs.mkdirSync(directory, { recursive: true });
 const evidence = { liveUrl: LIVE, expectedCommit: process.env.DREAMUNITY_EXPECTED_COMMIT || '',
-  status: 'running', checks: [], gateErrors: [], deployment: [], responses: [], failedRequests: [], pageErrors: [],
+  status: 'running', checks: [], unexercisedChecks: [], gateErrors: [], deployment: [], responses: [], failedRequests: [], pageErrors: [],
   consoleErrors: [], forbiddenRequests: [], screenshots: [], pageShows: [], historyRecovery: null,
-  publicationChecks: [], checkTimings: [], memoryEvidence: {}, visitEvidence: {}, voiceEvidence: {},
-  capabilityProbes: [], scope: 'Real deployed UI and IndexedDB with passive native storage/microphone observation. One isolated context deliberately denies IndexedDB.open to verify the unavailable-storage path. No mocked HTTP responses, provider calls, microphone permission grants, or injected application state.' };
-let browser, page, secondPage;
+  publicationChecks: [], checkTimings: [], memoryEvidence: {}, visitEvidence: {}, voiceEvidence: {}, accessProbes: [],
+  limitations: [
+    'No authorized or paid conversation is created. Provider responses, actual microphone/audio, delayed remote hangup, and access expiry/revocation during an active session are not exercised.',
+    'Correction requires an AI interpretation; its asynchronous ownership is not claimed by this unauthenticated live run.',
+    'Configured-but-unavailable service is checked only when the deployed status or the single invalid-invitation probe returns that condition. A ready response is not evidence of provider usability.'
+  ],
+  capabilityProbes: [], scope: 'Real deployed UI and IndexedDB with passive native storage/microphone observation. One isolated context deliberately denies IndexedDB.open to verify the unavailable-storage path. A ready private service receives at most one obviously invalid invitation submission; every provider/session/text write remains forbidden. No mocked HTTP responses, microphone permission grants, or injected application state.' };
+let browser, page, secondPage, accessProbeOpen = false;
 
 function remaining(maximum = 8000) {
   const value = deadline - Date.now();
@@ -36,8 +42,9 @@ function prototypeUrl(value) {
 }
 function summary() {
   const result = { status: evidence.status, liveUrl: LIVE, expectedCommit: evidence.expectedCommit,
-    durationMs: Date.now() - started, checks: evidence.checks, gateErrors: evidence.gateErrors, screenshots: evidence.screenshots,
-    pageShows: evidence.pageShows, historyRecovery: evidence.historyRecovery,
+    durationMs: Date.now() - started, checks: evidence.checks, unexercisedChecks: evidence.unexercisedChecks, gateErrors: evidence.gateErrors, screenshots: evidence.screenshots,
+    pageShows: evidence.pageShows, historyRecovery: evidence.historyRecovery, limitations: evidence.limitations,
+    voiceEvidence: evidence.voiceEvidence,
     artifact: 'output/stage5-browser/verification.json' };
   if (evidence.error) Object.assign(result, { error: evidence.error, prototypeHttp: evidence.responses,
     deployment: evidence.deployment, failedRequests: evidence.failedRequests,
@@ -55,8 +62,14 @@ const hardDeadline = setTimeout(() => {
 
 async function check(name, action) {
   remaining(); const checkStarted = Date.now();
-  try { await action(); evidence.checks.push(name); }
-  finally { evidence.checkTimings.push({ name, durationMs: Date.now() - checkStarted, passed: evidence.checks.includes(name) }); }
+  try {
+    const result = await action();
+    if (result?.unexercised) evidence.unexercisedChecks.push({ name, reason: result.unexercised });
+    else evidence.checks.push(name);
+  } finally {
+    evidence.checkTimings.push({ name, durationMs: Date.now() - checkStarted, passed: evidence.checks.includes(name),
+      unexercised: evidence.unexercisedChecks.some(item => item.name === name) });
+  }
 }
 async function screenshot(name) {
   await page.screenshot({ path: path.join(directory, name), fullPage: true, timeout: remaining(3000) });
@@ -240,7 +253,7 @@ async function deploymentIsCurrent(context) {
     });
     page.on('pageerror', error => { if (prototypeUrl(page.url())) evidence.pageErrors.push({ message: error.message, stack: error.stack || '' }); });
     page.on('console', message => { if (prototypeUrl(page.url()) && message.type() === 'error') evidence.consoleErrors.push(message.text()); });
-    context.on('request', request => {
+    function observeRequest(request) {
       const url = new URL(request.url());
       if (url.origin === ORIGIN && url.pathname === '/symbol-motion.js') {
         // Bind provenance when requested: a late old-home response can arrive after Back.
@@ -248,9 +261,16 @@ async function deploymentIsCurrent(context) {
       }
       if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method()) &&
         (url.pathname.startsWith('/api/unity/') || /(?:^|\.)openai\.com$/.test(url.hostname))) {
-        evidence.forbiddenRequests.push({ method: request.method(), url: request.url() });
+        let allowedRejectionProbe = false;
+        if (accessProbeOpen && request.method() === 'POST' && url.href === evidence.voiceEvidence.accessProbeUrl &&
+            evidence.accessProbes.length === 0 && !request.headers().authorization) {
+          try { allowedRejectionProbe = JSON.stringify(request.postDataJSON()) === JSON.stringify({ version: 1, inviteCode: INVALID_INVITE }); }
+          catch { /* Unexpected request bodies remain forbidden. */ }
+        }
+        (allowedRejectionProbe ? evidence.accessProbes : evidence.forbiddenRequests).push({ method: request.method(), url: request.url() });
       }
-    });
+    }
+    context.on('request', observeRequest);
     await check('real-module-boot', async () => {
       const response = await page.goto(`${LIVE}?ci=${evidence.expectedCommit}`, { waitUntil: 'domcontentloaded', timeout: remaining(12000) });
       assert.equal(response.status(), 200); await boot();
@@ -274,6 +294,19 @@ async function deploymentIsCurrent(context) {
       assert.equal(await page.locator('#transcript').getAttribute('role'), 'log');
       assert.equal(await page.locator('#announcement').getAttribute('aria-live'), 'polite');
       assert.equal(await page.getByRole('link', { name: 'Exit', exact: true }).isVisible(), true);
+    });
+    await check('stop-acknowledgement-cannot-overwrite-the-next-local-navigation', async () => {
+      // Invoke the real controls in one task, so an old deferred Stop acknowledgement
+      // cannot hide behind Playwright's waits between separate clicks. No state is injected.
+      await page.evaluate(() => {
+        document.getElementById('stop-button').click();
+        document.querySelector('.quiet-navigation [data-navigate="dream-world"]').click();
+      });
+      await viewIs('dream-world');
+      assert.equal(await page.locator('#announcement').textContent(), 'Opened Dream World.');
+      assert.equal(await page.locator('#voice-start').getAttribute('aria-pressed'), 'false');
+      await page.locator('.wordmark[data-navigate="unity"]').click({ timeout: remaining() }); await viewIs('unity');
+      evidence.voiceEvidence.stopAcknowledgement = { nextNavigationOwnsAnnouncement: true, activeRemoteHangup: 'unexercised' };
     });
     await check('service-readiness-and-safe-retry-never-request-microphone', async () => {
       await page.waitForFunction(() => ['available', 'unavailable'].includes(document.getElementById('service-status').dataset.phase),
@@ -299,9 +332,15 @@ async function deploymentIsCurrent(context) {
         const status = await response.json();
         assert.equal(typeof status.ready, 'boolean');
         assert.equal(phase, status.ready ? 'available' : 'unavailable');
-        if (!status.ready) assert.equal(code, 'SERVICE_NOT_READY');
+        if (!status.ready) {
+          assert.equal(code, 'SERVICE_NOT_READY');
+          assert.match(message, /configuration|configured|setup|not ready|turned off/i);
+          assert.doesNotMatch(message, /microphone.*(?:denied|blocked)|permission.*(?:denied|blocked)/i);
+        }
         evidence.voiceEvidence.publicReadiness = { ready: status.ready, reasonCodes: status.reasonCodes || [] };
+        evidence.voiceEvidence.configuredUnavailable = !status.ready && status.voiceConfigured === true && status.textConfigured === true ? 'exercised' : 'unexercised';
       }
+      evidence.voiceEvidence.accessProbeUrl = new URL('/api/unity/access', response.url()).href;
       const speakResponse = page.waitForResponse(value => new URL(value.url()).pathname === '/api/unity/status' &&
         value.request().method() === 'GET', { timeout: remaining(12000) });
       await page.locator('#voice-start').click({ timeout: remaining() }); await speakResponse;
@@ -315,6 +354,50 @@ async function deploymentIsCurrent(context) {
       } else assert.equal(await page.locator('#access-panel').isVisible(), true, 'a ready private service must require an invitation before microphone capture');
       evidence.voiceEvidence.readinessRetry = { initialPhase, initialCode, retryHttp: response.status(), phase, code,
         microphoneRequests: 0, unauthorizedSpeakBlocked: true, unavailableBranch: phase === 'unavailable' ? 'exercised' : 'unexercised' };
+    });
+    await check('ready-service-invitation-errors-stay-readable-without-microphone-capture', async () => {
+      if (await page.locator('#service-status').getAttribute('data-phase') !== 'available') {
+        evidence.voiceEvidence.invalidInvitation = { status: 'unexercised', reason: 'The deployed conversation service is unavailable.' };
+        return { unexercised: evidence.voiceEvidence.invalidInvitation.reason };
+      }
+      assert.equal(await page.locator('#access-panel').isVisible(), true);
+      const beforeMessage = await page.locator('#access-status').textContent();
+      const responsePromise = page.waitForResponse(response => response.url() === evidence.voiceEvidence.accessProbeUrl &&
+        response.request().method() === 'POST', { timeout: remaining(12000) });
+      accessProbeOpen = true;
+      let response;
+      try {
+        await page.locator('#access-invite').fill(INVALID_INVITE, { timeout: remaining() });
+        await page.locator('#access-form button[type="submit"]').click({ timeout: remaining() });
+        response = await responsePromise;
+      } finally { accessProbeOpen = false; }
+      assert.ok([401, 429, 503].includes(response.status()), 'an obviously invalid invitation must not create access');
+      const failure = await response.json();
+      assert.ok(['ACCESS_DENIED', 'ACCESS_RATE_LIMITED', 'SERVICE_NOT_READY', 'ADMISSION_UNAVAILABLE', 'ADMISSION_CONFIGURATION_ERROR'].includes(failure.code));
+      await page.waitForFunction(previous => {
+        const status = document.getElementById('access-status');
+        return status.textContent.trim() && status.textContent !== previous;
+      }, beforeMessage, { timeout: remaining() });
+      assert.equal(await page.locator('#access-status').getAttribute('role'), 'status');
+      const message = await page.locator('#access-status').textContent();
+      assert.notEqual(message.trim(), failure.code, 'the UI must provide an explanation rather than only an internal error code');
+      assert.equal(await page.locator('#access-invite').inputValue(), '', 'rejected invitation text must be cleared');
+      assert.equal(await page.locator('#voice-start').getAttribute('aria-pressed'), 'false');
+      assert.equal(await page.locator('#resume-button').isVisible(), false);
+      assert.equal((await browserObservation()).microphoneRequests, 0);
+      if (failure.code === 'ACCESS_DENIED' || failure.code === 'ACCESS_RATE_LIMITED') {
+        assert.equal(await page.locator('#access-status').isVisible(), true);
+        assert.match(message, /invitation|invite|access|attempt/i);
+      } else {
+        assert.equal(await page.locator('#service-status').getAttribute('data-phase'), 'unavailable');
+        assert.equal(await page.locator('#service-status').getAttribute('data-code'), failure.code);
+        assert.equal(await page.locator('#service-status').isVisible(), true);
+        assert.match(await page.locator('#service-status').textContent(), /configuration|configured|access service|unavailable|ready/i);
+        assert.equal(await page.locator('#access-panel').isVisible(), false, 'an admission outage must replace the invitation prompt with honest service guidance');
+        evidence.voiceEvidence.configuredUnavailable = 'exercised-by-access';
+      }
+      evidence.voiceEvidence.invalidInvitation = { status: failure.code === 'ACCESS_DENIED' ? 'rejection-exercised' : 'blocked-before-invitation-check',
+        http: response.status(), code: failure.code, explanationVisible: true, microphoneRequests: 0 };
     });
     await check('public-world-history-and-restricted-semantic-focus', async () => {
       await page.locator('.quiet-navigation [data-navigate="dream-world"]').focus(); await page.keyboard.press('Enter');
@@ -489,7 +572,7 @@ async function deploymentIsCurrent(context) {
       await page.waitForFunction(() => document.getElementById('memory-status').textContent.includes('Choose which notes'), null, { timeout: remaining() });
       await noteCard(SECOND_NOTE).getByRole('checkbox').check({ timeout: remaining() });
       await waitForMemoryMessage('Only these selected');
-      await secondPage.getByRole('button', { name: 'Add a note', exact: true }).click({ timeout: remaining() });
+      await secondPage.getByRole('button', { name: `Edit ${SECOND_NOTE}`, exact: true }).click({ timeout: remaining() });
       await secondPage.getByRole('textbox', { name: 'Title', exact: true }).fill('Revoked second-tab draft');
       await secondPage.getByRole('textbox', { name: 'Note', exact: true }).fill('This open draft must not restore revoked storage.');
       await page.bringToFront();
@@ -503,19 +586,36 @@ async function deploymentIsCurrent(context) {
       assert.equal(await secondPage.locator('#intention-input').inputValue(), attempt);
       const revoked = await readMemory(secondPage); assert.deepEqual(revoked.nodes, []); assert.deepEqual(revoked.edges, []);
       assert.equal(revoked.consent.storageEnabled, false); assert.equal(revoked.consent.conversationUseEnabled, false);
+      // Renewing consent in the same document must not resurrect the erased editor.
+      await secondPage.locator('#memory-consent').check({ timeout: remaining() }); await rememberingIs(true, secondPage);
+      assert.equal(await secondPage.locator('.memory-editor').count(), 0);
+      await secondPage.getByRole('button', { name: 'Add a note', exact: true }).click({ timeout: remaining() });
+      assert.equal(await secondPage.getByRole('textbox', { name: 'Title', exact: true }).inputValue(), '');
+      assert.equal(await secondPage.getByRole('textbox', { name: 'Note', exact: true }).inputValue(), '');
+      await secondPage.getByRole('button', { name: 'Cancel editing', exact: true }).click({ timeout: remaining() });
+      await secondPage.locator('#memory-consent').uncheck({ timeout: remaining() }); await rememberingIs(false, secondPage); await rememberingIs(false);
       await secondPage.reload({ waitUntil: 'domcontentloaded', timeout: remaining(12000) }); await boot(secondPage); await rememberingIs(false, secondPage);
       assert.deepEqual((await readMemory(secondPage)).nodes, []);
-      evidence.memoryEvidence.revocation = { bothTabsOff: true, nodesAndEdgesRemoved: true, oldTabSaveBlocked: true, survivesReload: true };
+      evidence.memoryEvidence.revocation = { bothTabsOff: true, nodesAndEdgesRemoved: true, oldTabSaveBlocked: true, erasedEditorCannotReturnAfterReconsent: true, survivesReload: true };
       await secondPage.close(); secondPage = null; await page.bringToFront();
     });
     await check('delete-all-requires-fresh-consent-and-leaves-no-records', async () => {
       await page.locator('#memory-consent').check({ timeout: remaining() }); await rememberingIs(true);
       await send(`Remember that ${NOTE}`); await waitForNote(NOTE);
+      await page.getByRole('button', { name: `Edit ${NOTE}`, exact: true }).click({ timeout: remaining() });
+      await page.getByRole('textbox', { name: 'Note', exact: true }).fill('This private device edit must be erased with its graph.');
       await confirmDialog(() => page.locator('#memory-clear').click({ timeout: remaining() }), /Delete all saved notes and connections/);
       await rememberingIs(false);
       const cleared = await readMemory(); assert.deepEqual(cleared.nodes, []); assert.deepEqual(cleared.edges, []);
       assert.equal(cleared.consent.storageEnabled, false); assert.equal(cleared.consent.conversationUseEnabled, false);
       assert.equal(await page.locator('article.memory-card').count(), 0);
+      await page.locator('#memory-consent').check({ timeout: remaining() }); await rememberingIs(true);
+      assert.equal(await page.locator('.memory-editor').count(), 0);
+      await page.getByRole('button', { name: 'Add a note', exact: true }).click({ timeout: remaining() });
+      assert.equal(await page.getByRole('textbox', { name: 'Title', exact: true }).inputValue(), '');
+      assert.equal(await page.getByRole('textbox', { name: 'Note', exact: true }).inputValue(), '');
+      await page.getByRole('button', { name: 'Cancel editing', exact: true }).click({ timeout: remaining() });
+      await page.locator('#memory-consent').uncheck({ timeout: remaining() }); await rememberingIs(false);
     });
     let deviceBaseline, visitObservation;
     await check('explicit-visit-mode-keeps-device-record-and-separate-sharing', async () => {
@@ -580,6 +680,49 @@ async function deploymentIsCurrent(context) {
       await assertNoVisitStorage(visitObservation);
       evidence.visitEvidence.navigation = { sameDocument: true, notesAndRelationshipsRetained: true };
     });
+    await check('visit-clear-erases-editor-copies-while-sharing-revocation-retains-authored-drafts', async () => {
+      const draftTitle = 'An unsaved private visit edit';
+      const draftText = 'This draft must disappear when I delete the visit graph.';
+      const edgeLabel = 'This unsaved relationship edit must also disappear.';
+      const relationDraftLabel = 'An unsaved new connection belongs only to this visit graph.';
+      await page.getByRole('button', { name: `Edit ${VISIT_NOTE}`, exact: true }).click({ timeout: remaining() });
+      await page.getByRole('textbox', { name: 'Title', exact: true }).fill(draftTitle);
+      await page.getByRole('textbox', { name: 'Note', exact: true }).fill(draftText);
+      await page.getByRole('button', { name: `Edit the relationship from ${VISIT_NOTE} to ${SECOND_VISIT_NOTE}`, exact: true }).click({ timeout: remaining() });
+      await page.locator('.memory-edge-editor').getByLabel('Optional label', { exact: true }).fill(edgeLabel);
+      const relations = page.locator('.memory-relations');
+      if (!await relations.evaluate(element => element.open)) await relations.locator('summary').click({ timeout: remaining() });
+      await relations.getByLabel('From', { exact: true }).selectOption({ label: VISIT_NOTE });
+      await relations.getByLabel('To', { exact: true }).selectOption({ label: SECOND_VISIT_NOTE });
+      await relations.getByLabel('Optional label', { exact: true }).fill(relationDraftLabel);
+      await page.locator('#memory-share-consent').uncheck({ timeout: remaining() });
+      await page.waitForFunction(() => document.getElementById('memory-status').textContent.includes('Saved notes are not included'), null, { timeout: remaining() });
+      assert.equal(await page.getByRole('textbox', { name: 'Title', exact: true }).inputValue(), draftTitle);
+      assert.equal(await page.getByRole('textbox', { name: 'Note', exact: true }).inputValue(), draftText);
+      assert.equal(await page.locator('.memory-edge-editor').getByLabel('Optional label', { exact: true }).inputValue(), edgeLabel);
+      assert.equal(await relations.getByLabel('Optional label', { exact: true }).inputValue(), relationDraftLabel);
+      await confirmDialog(() => page.locator('#memory-clear').click({ timeout: remaining() }), /Delete all saved notes and connections from this visit/);
+      await page.waitForFunction(() => document.querySelectorAll('#constellation-list article.memory-card').length === 0 &&
+        document.querySelector('#constellation-list .memory-editor') === null, null, { timeout: remaining() });
+      await visitIs(true);
+      assert.equal(await page.locator('.memory-edge-editor').count(), 0);
+      assert.equal(await page.locator('#memory-share-consent').isChecked(), false);
+      await page.getByRole('button', { name: 'Add a note', exact: true }).click({ timeout: remaining() });
+      assert.equal(await page.getByRole('textbox', { name: 'Title', exact: true }).inputValue(), '');
+      assert.equal(await page.getByRole('textbox', { name: 'Note', exact: true }).inputValue(), '');
+      await page.getByRole('button', { name: 'Cancel editing', exact: true }).click({ timeout: remaining() });
+      await send(`Remember that ${VISIT_NOTE}`); await waitForNote(VISIT_NOTE);
+      await send(`Remember that ${SECOND_VISIT_NOTE}`); await waitForNote(SECOND_VISIT_NOTE);
+      await relations.locator('summary').click({ timeout: remaining() });
+      assert.equal(await relations.getByLabel('From', { exact: true }).inputValue(), '');
+      assert.equal(await relations.getByLabel('To', { exact: true }).inputValue(), '');
+      assert.equal(await relations.getByLabel('Optional label', { exact: true }).inputValue(), '');
+      assert.deepEqual(await readMemory(), deviceBaseline);
+      await assertNoVisitStorage(visitObservation);
+      evidence.visitEvidence.draftErasure = { sharingRevocationRetainsDrafts: true, noteEditorRemovedAndFreshNoteEmpty: true,
+        newRelationshipDraftCleared: true, deletedRelationshipEditorHidden: true,
+        freshEditorsEmpty: true, deviceGraphPreserved: true, indexedDBWrites: 0, webStorageWrites: 0 };
+    });
     await check('visit-to-device-switch-does-not-promote-temporary-notes', async () => {
       await confirmDialog(() => page.locator('#memory-consent').check({ timeout: remaining() }), /visit|temporary|session/i);
       await rememberingIs(true); await visitIs(false); await waitForNote(DEVICE_NOTE);
@@ -633,8 +776,34 @@ async function deploymentIsCurrent(context) {
       await confirmDialog(() => page.locator('#memory-clear').click({ timeout: remaining() }), /Delete all saved notes and connections/);
       await rememberingIs(false);
     });
+    await check('deleting-separate-device-notes-preserves-the-active-visit-and-its-draft', async () => {
+      await page.locator('#memory-consent').check({ timeout: remaining() }); await rememberingIs(true);
+      await send(`Remember that ${DEVICE_NOTE}`); await waitForNote(DEVICE_NOTE);
+      await page.locator('#memory-session-mode').click({ timeout: remaining() }); await visitIs(true);
+      await send(`Remember that ${VISIT_NOTE}`); await waitForNote(VISIT_NOTE);
+      await page.getByRole('button', { name: `Edit ${VISIT_NOTE}`, exact: true }).click({ timeout: remaining() });
+      const draft = 'The active visit draft survives deletion of separate device notes.';
+      await page.getByRole('textbox', { name: 'Note', exact: true }).fill(draft);
+      await confirmDialog(() => page.locator('#memory-forget-device').click({ timeout: remaining() }), /Delete all device notes and connections/);
+      await page.waitForFunction(() => document.getElementById('announcement').textContent === 'Device notes and connections deleted.', null, { timeout: remaining() });
+      const clearedDevice = await readMemory();
+      assert.deepEqual(clearedDevice.nodes, []); assert.deepEqual(clearedDevice.edges, []);
+      assert.equal(clearedDevice.consent.storageEnabled, false);
+      await visitIs(true); await waitForNote(VISIT_NOTE);
+      assert.equal(await page.getByRole('textbox', { name: 'Note', exact: true }).inputValue(), draft);
+      assert.equal(await noteCard(DEVICE_NOTE).count(), 0);
+      await confirmDialog(() => page.locator('#memory-revoke').click({ timeout: remaining() }), /visit|temporary|session/i);
+      await rememberingIs(false); await visitIs(false);
+      assert.equal(await page.locator('.memory-editor').count(), 0);
+      assert.equal(await noteCard(VISIT_NOTE).count(), 0);
+      assert.deepEqual(await readMemory(), clearedDevice);
+      evidence.visitEvidence.separateDeviceDeletion = { deviceGraphCleared: true, temporaryGraphPreserved: true,
+        temporaryDraftPreserved: true, subsequentEndVisitErasesDraft: true };
+    });
     await check('unavailable-indexeddb-allows-explicit-visit-mode', async () => {
       const restricted = await browser.newContext({ viewport: { width: 1280, height: 900 }, permissions: [] });
+      restricted.on('request', observeRequest);
+      await restricted.exposeBinding('__dreamUnityObserveMicrophone', () => { evidence.voiceEvidence.microphoneRequests += 1; });
       await restricted.clearPermissions(); await restricted.addInitScript(observeBrowserCapabilities);
       await restricted.addInitScript(() => {
         IDBFactory.prototype.open = function () { throw new DOMException('Device storage is disabled for this acceptance probe.', 'SecurityError'); };
@@ -724,6 +893,7 @@ async function deploymentIsCurrent(context) {
     });
     await check('no-provider-writes-or-runtime-errors', async () => {
       assert.deepEqual(evidence.forbiddenRequests, []); assert.deepEqual(evidence.pageErrors, []);
+      assert.equal(evidence.accessProbes.length, evidence.voiceEvidence.invalidInvitation?.status === 'unexercised' ? 0 : 1);
       assert.equal(evidence.voiceEvidence.microphoneRequests, 0, 'unauthorized verification must never request microphone access');
       assert.deepEqual(evidence.failedRequests, []);
       assert.ok(evidence.responses.every(item => item.status < 400), 'a prototype resource returned an HTTP failure');

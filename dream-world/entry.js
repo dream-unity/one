@@ -1,7 +1,7 @@
 (() => {
   // Never take the application host or path from query parameters or the hash.
   // Those values are only shared camera/layer/feed state on the fixed app.
-  const application = 'https://november-1st-sable.vercel.app/';
+  const application = 'https://dream-unity-runtime.vercel.app/';
   const destination = application + window.location.search + window.location.hash;
   // Entry is always explicit. No timers, stored preference or URL can skip it.
   for (const id of ['open-world', 'guide-continue']) {

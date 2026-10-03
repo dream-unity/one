@@ -219,7 +219,7 @@ conversation = createConversation({ baseUrl: EARTH_ORIGIN,
       if (event.role === 'user' && event.final) memoryController?.invalidate();
       transcript(event);
     }
-    if (event.type === 'error') { showError(event); if (event.code === 'ACCESS_REQUIRED') revealAccess(); }
+    if (event.type === 'error') { showError(event); if (['ACCESS_REQUIRED', 'ACCESS_DENIED'].includes(event.code)) revealAccess(); }
     if (event.type === 'playback-blocked') notice('Audio playback was blocked. Select the voice button to retry playback, or continue by writing.');
   },
   onState(value) {
@@ -404,13 +404,16 @@ for (const element of document.querySelectorAll('[data-focus-world]')) element.a
 });
 $('voice-start').addEventListener('click', () => startVoice().catch(showError));
 $('resume-button').addEventListener('click', () => startVoice().catch(showError));
-$('stop-button').addEventListener('click', guarded(async () => {
+$('stop-button').addEventListener('click', guarded(() => {
   interruptLocalWork();
-  await Promise.allSettled([conversation.stop(), earth.cancelActions()]); announce('Microphone and speaking stopped.');
+  // stop() releases local tracks synchronously. Remote lease cleanup must not
+  // publish a late acknowledgement over a newer conversation or route.
+  conversation.stop().catch(() => {}); earth.cancelActions().catch(() => {});
+  announce('Microphone and speaking stopped.');
 }));
 $('text-toggle').addEventListener('click', () => { $('intention-input').focus(); $('conversation').scrollIntoView({ behavior: 'auto', block: 'nearest' }); });
-$('correct-interpretation').addEventListener('click', guarded(async () => {
-  interruptLocalWork(); dispatch({ type: 'correct-reflection' }); await conversation.stop();
+$('correct-interpretation').addEventListener('click', guarded(() => {
+  interruptLocalWork(); dispatch({ type: 'correct-reflection' }); conversation.stop().catch(() => {});
   notice('That interpretation has been withdrawn. Tell me how you would describe it.'); $('intention-input').focus();
 }));
 $('intention-form').addEventListener('submit', guarded(async event => {
@@ -460,7 +463,7 @@ $('intention-form').addEventListener('submit', guarded(async event => {
   clearSubmittedDraft();
   try {
     const result = await conversation.sendText(message);
-    if (['cancelled', 'incomplete', 'blocked'].includes(result?.status)) restoreSubmittedDraft();
+    if (['cancelled', 'incomplete', 'blocked', 'failed'].includes(result?.status)) restoreSubmittedDraft();
   } catch (error) { restoreSubmittedDraft(); showError(error); }
 }));
 $('access-form').addEventListener('submit', async event => {
@@ -491,8 +494,9 @@ $('memory-clear').addEventListener('click', guarded(async () => {
   }
   selectedIds = []; sharedContext = []; await memoryView.refresh();
 }));
-$('clear-transcript').addEventListener('click', guarded(async () => {
-  executor.cancel(); memoryController?.invalidate(); await conversation.clearConversation(); transcriptEntries.clear(); $('transcript').replaceChildren();
+$('clear-transcript').addEventListener('click', guarded(() => {
+  executor.cancel(); memoryController?.invalidate(); conversation.clearConversation().catch(() => {});
+  transcriptEntries.clear(); $('transcript').replaceChildren();
   notice('Conversation cleared for this visit. Saved notes are unchanged.');
 }));
 $('earth-retry').addEventListener('click', () => navigateFromUser('earth').catch(showError));
@@ -502,8 +506,10 @@ $('earth-fullscreen').addEventListener('click', async () => {
 });
 document.addEventListener('fullscreenchange', () => { $('earth-fullscreen').textContent = document.fullscreenElement ? 'Leave fullscreen' : 'Expand Earth'; });
 $('exit-link').addEventListener('click', guarded(async event => {
-  event.preventDefault(); exiting = true; interruptLocalWork(); dispatch({ type: 'visible', visible: false }); await conversation.exit();
-  await earth.suspend(state.routeEpoch + 1, 'exit'); memoryView?.close(); memory?.close(); scene.dispose(); location.href = '../';
+  event.preventDefault(); exiting = true; interruptLocalWork(); dispatch({ type: 'visible', visible: false });
+  // Dispose browser owners before navigating. Leaving must not depend on an
+  // external close request completing; server cleanup remains best effort.
+  conversation.exit().catch(() => {}); earth.close(); memoryView?.close(); memory?.close(); scene.dispose(); location.href = '../';
 }));
 $('earth-fallback').addEventListener('click', () => { pauseForUserControl(); earth.quiet().catch(() => {}); });
 window.addEventListener('popstate', () => {

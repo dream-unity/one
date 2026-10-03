@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import vm from 'node:vm';
 
-const production = 'https://november-1st-sable.vercel.app/';
+const production = 'https://dream-unity-runtime.vercel.app/';
 const script = await readFile(new URL('../dream-world/entry.js', import.meta.url), 'utf8');
 const html = await readFile(new URL('../dream-world/gods-earth-view/index.html', import.meta.url), 'utf8');
 const hubHtml = await readFile(new URL('../dream-world/index.html', import.meta.url), 'utf8');
@@ -93,7 +93,7 @@ test('initial HTML exposes exactly New User and Continue with the guide hidden a
   assert.match(html, /<section[^>]*id="welcome-guide"[^>]*hidden/);
   assert.doesNotMatch(html, /http-equiv="refresh"|<iframe\b/i);
   for (const id of ['open-world', 'guide-continue']) {
-    assert.match(html, new RegExp(`<a[^>]*id="${id}"[^>]*href="https://november-1st-sable\\.vercel\\.app/"[^>]*>Continue</a>`));
+    assert.match(html, new RegExp(`<a[^>]*id="${id}"[^>]*href="https://dream-unity-runtime\\.vercel\\.app/"[^>]*>Continue</a>`));
   }
   assert.match(html, /src="\.\.\/entry\.js\?v=20260921-welcome"/);
   assert.match(html, /href="\.\.\/entry\.css\?v=20260921-parchment"/);
@@ -118,7 +118,7 @@ test('Dream World exposes both named native portals and Minds Eye has its own re
   assert.match(mindsHtml.replaceAll('’', "'"), />God's Minds Eye View</);
   assert.match(mindsHtml, /Coming soon/i);
   assert.match(mindsHtml, /<a\b[^>]*href="\.\.\/"/);
-  assert.doesNotMatch(mindsHtml, /november-1st-sable\.vercel\.app|http-equiv="refresh"|<iframe\b/i);
+  assert.doesNotMatch(mindsHtml, /dream-unity-runtime\.vercel\.app|http-equiv="refresh"|<iframe\b/i);
 });
 
 test('the hub preserves old Earth link state through the nested welcome without redirecting', () => {

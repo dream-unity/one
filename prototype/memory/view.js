@@ -16,7 +16,7 @@ function sameIdentifiers(a, b) { return a.length === b.length && a.every((item, 
 /** Accessible text is authoritative; any constellation geometry is only a view of these notes. */
 export function mountMemoryView(container, { store, controller, proposalsContainer = container, onSelectionChange = () => {}, onConfirmProposal } = {}) {
   if (!container || !store || !controller) throw new TypeError('A container, memory store and proposal controller are required.');
-  let state = null, selection = [], desiredSelection = [], pending = null, closed = false, busy = false, message = '', selectionGeneration = 0;
+  let state = null, selection = [], desiredSelection = [], pending = null, closed = false, busy = false, message = '', selectionGeneration = 0, stateGeneration = 0;
   let editorOpen = false, editing = null, editExpected = null;
   let draft = { kind: 'goal', title: '', text: '', status: 'active' };
   let relationDraft = { from: '', to: '', relation: 'relates_to', label: '' };
@@ -61,7 +61,7 @@ export function mountMemoryView(container, { store, controller, proposalsContain
     } catch (error) {
       if (closed) return;
       say(`Not saved. ${error.message}`);
-      if (['STALE_STATE', 'STALE_RECORD', 'RECORD_NOT_FOUND'].includes(error.code)) { try { state = await store.load(); } catch { /* Keep the honest original error. */ } }
+      if (['STALE_STATE', 'STALE_RECORD', 'RECORD_NOT_FOUND'].includes(error.code)) { try { await refresh(); } catch { /* Keep the honest original error. */ } }
     } finally {
       busy = false;
       if (!closed) {
@@ -238,9 +238,15 @@ export function mountMemoryView(container, { store, controller, proposalsContain
     review.append(confirm, decline);
     if (focusKey) [...review.querySelectorAll('[data-focus-key]')].find(node => node.dataset.focusKey === focusKey)?.focus();
   }
-  function acceptState(next) {
+  function acceptState(next, detail = {}) {
+    stateGeneration++;
     const nextMode = store.getStatus().mode;
-    if (stateMode !== null && nextMode !== stateMode) {
+    const scopeChanged = stateMode !== null && nextMode !== stateMode;
+    const storageRevoked = state?.consent.storageEnabled && !next.consent.storageEnabled;
+    // A successful clear must remove editor copies as well as authoritative records.
+    // Sharing-only changes and deletion of the separate device graph during a visit
+    // do not erase an unrelated, still-authorized visit draft.
+    if (scopeChanged || storageRevoked || detail.reason === 'clear' || detail.reason === 'clear-device') {
       resetEditor(); relationDraft = { from: '', to: '', relation: 'relates_to', label: '' }; relationsOpen = false;
       edgeEditing = null; edgeDraft = null; edgeExpected = null; pending = null;
       selectionGeneration++; selection = []; desiredSelection = []; notifySelection([]);
@@ -253,8 +259,21 @@ export function mountMemoryView(container, { store, controller, proposalsContain
     render(); renderProposal();
   }
   const unsubscribe = store.subscribe(acceptState);
+  async function refresh() {
+    const generation = stateGeneration;
+    try {
+      const next = await store.load();
+      // A subscription can publish a newer graph between load's final check and
+      // this continuation. Neither its stale result nor a late error owns the view.
+      if (!closed && generation === stateGeneration) acceptState(next);
+      return next;
+    } catch (error) {
+      if (!closed && generation === stateGeneration) { say(`Saved notes are unavailable. ${error.message}`); content.replaceChildren(element('p', 'Nothing was saved or restored.')); }
+      throw error;
+    }
+  }
   const api = {
-    async refresh() { try { const next = await store.load(); if (!closed) acceptState(next); return next; } catch (error) { if (!closed) { say(`Saved notes are unavailable. ${error.message}`); content.replaceChildren(element('p', 'Nothing was saved or restored.')); } throw error; } },
+    refresh,
     setProposal(value) { pending = value ? clone(value) : null; renderProposal(); },
     getSelection() { return [...selection]; },
     close() {

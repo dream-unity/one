@@ -2,7 +2,7 @@
 
 ## Public route and source ownership
 
-The main screen at https://dreamunity.one/ belongs to `dream-unity/one`. Its Dream World circle is a native link to `./dream-world/`. That hub offers two native portals: **God’s Earth View** at `./gods-earth-view/` and **God’s Minds Eye View** at `./gods-minds-eye-view/`. The latter is a dedicated Coming soon page with a link back to Dream World. The Earth portal always shows **New User** and **Continue** first. New User opens a short guide. Both Continue links navigate to https://november-1st-sable.vercel.app/, the complete God’s Earth application maintained in `dream-unity/November-1st`.
+The main screen at https://dreamunity.one/ belongs to `dream-unity/one`. Its Dream World circle is a native link to `./dream-world/`. That hub offers two native portals: **God’s Earth View** at `./gods-earth-view/` and **God’s Minds Eye View** at `./gods-minds-eye-view/`. The latter is a dedicated Coming soon page with a link back to Dream World. The Earth portal always shows **New User** and **Continue** first. New User opens a short guide. Both Continue links navigate to https://dream-unity-runtime.vercel.app/, the complete God’s Earth application maintained in `dream-unity/November-1st`.
 
 `one` owns the home navigation, Dream World hub, nested portal pages and publication boundary. `November-1st` continues to own the entire God’s Earth frontend, server/provider endpoints, camera and radio directories, third-party attribution and deployment configuration. This integration does not fork or copy a reduced God’s Earth implementation into static hosting. Future app improvements become available through the same entry without a second app build in `one`.
 

@@ -35,7 +35,7 @@ function harness(options = {}) {
     restartIce() { this.restarted = true; }
   }
   const doc = new EventTarget(); doc.hidden = false; const win = new EventTarget();
-  const audio = { srcObject: null, muted: false, autoplay: false, paused: false, removed: false, async play() { this.paused = false; }, pause() { this.paused = true; }, remove() { this.removed = true; } };
+  const audio = { srcObject: null, muted: false, autoplay: false, paused: false, removed: false, async play() { this.paused = false; if (options.audioPlay) await options.audioPlay(); }, pause() { this.paused = true; }, remove() { this.removed = true; } };
   async function fetcher(url, init = {}) {
     const path = new URL(url).pathname; const body = init.body ? JSON.parse(init.body) : null;
     requests.push({ path, body, init });
@@ -659,4 +659,153 @@ test('Stage5: cancelling a preflight clears checking and Exit settles a standalo
   assert.notEqual(h.conversation.getState().service.phase, 'checking');
   const checking = h.conversation.getStatus(); const rejected = assert.rejects(checking, { name: 'AbortError' });
   await h.conversation.exit(); await rejected; assert.equal(h.timers.size, 0);
+});
+
+test('Astra: a stalled remote close cannot indefinitely block Stop, Clear or Exit', async () => {
+  for (const operation of ['stop', 'clearConversation', 'exit']) {
+    let complete;
+    const h = await authorized({ fetch: path => path.endsWith('/sessions/close') ? new Promise(resolve => { complete = resolve; }) : null });
+    await h.conversation.sendText('A temporary conversation'); await h.conversation.startVoice();
+    const ending = h.conversation[operation](); await tick();
+    assert.ok(h.tracks.every(track => track.stopped)); assert.equal(h.peers[0].connectionState, 'closed');
+    const timeout = [...h.timers.values()].find(timer => timer.delay === 12000); assert.ok(timeout); timeout.fn();
+    await ending;
+    assert.equal(h.requests.find(request => request.path.endsWith('/sessions/close')).init.signal.aborted, true);
+    assert.equal(h.events.filter(event => event.type === 'session-closed').at(-1).status, 'closing_unconfirmed');
+    if (operation === 'clearConversation') assert.deepEqual(h.conversation.getState().transcript, []);
+    if (operation === 'exit') assert.equal(h.conversation.getState().authorized, false);
+    complete(Response.json({ version: 1, status: 'closed' })); await tick();
+    assert.equal(h.events.filter(event => event.type === 'session-closed').length, 1);
+    await h.conversation.exit(); assert.equal(h.timers.size, 0);
+  }
+});
+
+test('Astra: stalled Resume sender and playback settle on Stop or their deadline and release capture', async () => {
+  for (const stage of ['replaceTrack', 'audioPlay']) for (const ending of ['stop', 'deadline']) {
+    let complete; const pending = new Promise(resolve => { complete = resolve; });
+    const h = await authorized({ [stage]: stage === 'replaceTrack' ? track => track ? pending : undefined : () => pending });
+    await h.conversation.startVoice(); await h.conversation.enterMedia();
+    const resuming = h.conversation.resumeVoice();
+    const rejection = ending === 'deadline' ? assert.rejects(resuming, { code: 'VOICE_SETUP_TIMEOUT' }) : null;
+    await tick(); assert.equal(h.tracks.length, 2); assert.equal(h.tracks[1].stopped, false);
+    if (ending === 'stop') { await h.conversation.stop(); await resuming; }
+    else { const timeout = [...h.timers.values()].find(timer => timer.delay === 15000); assert.ok(timeout); timeout.fn(); await rejection; }
+    assert.ok(h.tracks.every(track => track.stopped)); assert.equal(h.peers[0].connectionState, 'closed');
+    complete(); await tick();
+    assert.equal(h.audio.srcObject, null); assert.notEqual(h.conversation.getState().voice, 'listening');
+    await h.conversation.exit();
+  }
+});
+
+test('Astra: stalled Media detachment closes the broken peer before media controls can proceed', async () => {
+  const h = await authorized({ replaceTrack: track => track ? undefined : new Promise(() => {}) });
+  await h.conversation.startVoice(); const media = h.conversation.enterMedia(); await tick();
+  assert.ok(h.tracks.every(track => track.stopped));
+  const timeout = [...h.timers.values()].find(timer => timer.delay === 15000); assert.ok(timeout); timeout.fn(); await media;
+  assert.equal(h.conversation.getState().mode, 'media'); assert.equal(h.peers[0].connectionState, 'closed');
+  await h.conversation.exit();
+});
+
+test('Astra: rejected session access releases voice and permits a fresh invitation', async () => {
+  let denied = true;
+  const h = await authorized({ fetch: path => path.endsWith('/knowledge') && denied ? Response.json({ code: 'ACCESS_DENIED' }, { status: 401 }) : null });
+  await h.conversation.startVoice();
+  await assert.rejects(h.conversation.lookupKnowledge('practice'), { code: 'ACCESS_DENIED' }); await tick();
+  assert.equal(h.conversation.getState().authorized, false); assert.ok(h.tracks.every(track => track.stopped));
+  assert.equal(h.peers[0].connectionState, 'closed');
+  denied = false; await h.conversation.access('b'.repeat(24));
+  assert.equal(h.conversation.getState().authorized, true); await h.conversation.sendText('After renewing access');
+  await h.conversation.exit();
+});
+
+test('Astra: late rejection of an older bearer cannot revoke a newer successful invitation', async () => {
+  let rejectOld; let invitations = 0;
+  const h = await authorized({ fetch: path => {
+    if (path.endsWith('/access')) return Response.json({ version: 1, accessToken: `token-${++invitations}`, expiresAt: '2026-10-03T03:00:00Z' });
+    if (path.endsWith('/knowledge')) return new Promise(resolve => { rejectOld = resolve; });
+  } });
+  const oldRequest = h.conversation.lookupKnowledge('practice');
+  const rejected = assert.rejects(oldRequest, { code: 'ACCESS_DENIED' });
+  await h.conversation.access('b'.repeat(24));
+  rejectOld(Response.json({ code: 'ACCESS_DENIED' }, { status: 401 })); await rejected;
+  assert.equal(h.conversation.getState().authorized, true); await h.conversation.sendText('Current access');
+  assert.equal(h.requests.find(request => request.body?.kind === 'start').init.headers.Authorization, 'Bearer token-2');
+  await h.conversation.exit();
+});
+
+test('Astra: operational provider and admission failures replace the configured-ready service status', async () => {
+  for (const code of ['ADMISSION_UNAVAILABLE', 'ADMISSION_CONFIGURATION_ERROR', 'MODEL_UNAVAILABLE', 'PROVIDER_QUOTA_EXHAUSTED']) {
+    const h = await authorized({ fetch: (path, body) => path.endsWith('/turns') && body.kind === 'start'
+      ? Response.json({ code, message: 'The configured service cannot complete this request.' }, { status: 503 }) : null });
+    await h.conversation.getStatus(); assert.equal(h.conversation.getState().service.ready, true);
+    await assert.rejects(h.conversation.sendText('Current question'), { code });
+    assert.equal(h.conversation.getState().service.ready, false); assert.equal(h.conversation.getState().service.code, code);
+    await h.conversation.getStatus(); assert.equal(h.conversation.getState().service.ready, true);
+    await h.conversation.exit();
+  }
+});
+
+test('Astra: delayed remote closure from Clear cannot erase a newly started conversation', async () => {
+  let complete;
+  const h = await authorized({ fetch: path => path.endsWith('/sessions/close') ? new Promise(resolve => { complete = resolve; }) : null });
+  await h.conversation.sendText('Old conversation'); await h.conversation.startVoice();
+  const clearing = h.conversation.clearConversation();
+  assert.deepEqual(h.conversation.getState().transcript, []);
+  await h.conversation.sendText('New conversation');
+  complete(Response.json({ version: 1, status: 'closed' })); await clearing;
+  assert.ok(h.conversation.getState().transcript.some(item => item.text === 'New conversation'));
+  await h.conversation.sendText('Continue');
+  assert.ok(h.requests.findLast(request => request.body?.kind === 'start').body.history.some(item => item.content === 'New conversation'));
+  await h.conversation.exit();
+});
+
+test('Astra: stalled invitations settle on Stop, Exit or deadline and cannot restore late authorization', async () => {
+  for (const ending of ['stop', 'exit', 'deadline']) {
+    let complete;
+    const h = harness({ fetch: path => path.endsWith('/access') ? new Promise(resolve => { complete = resolve; }) : null });
+    const activation = h.conversation.access('a'.repeat(24));
+    const rejected = assert.rejects(activation, { code: ending === 'deadline' ? 'ACCESS_TIMEOUT' : 'ACCESS_CANCELLED' });
+    await tick();
+    if (ending === 'deadline') { const timeout = [...h.timers.values()].find(timer => timer.delay === 15000); assert.ok(timeout); timeout.fn(); }
+    else await h.conversation[ending]();
+    await rejected;
+    complete(Response.json({ version: 1, accessToken: 'late-private-token', expiresAt: '2026-10-03T03:00:00Z' })); await tick();
+    assert.equal(h.conversation.getState().authorized, false); assert.equal(h.tracks.length, 0);
+    await h.conversation.exit(); assert.equal(h.timers.size, 0);
+  }
+});
+
+test('Astra: admission outages during invitation entry replace stale configured-ready guidance', async () => {
+  const h = harness({ fetch: path => path.endsWith('/access') ? Response.json({ code: 'ADMISSION_UNAVAILABLE', message: 'The access service is temporarily unavailable.' }, { status: 503 }) : null });
+  await h.conversation.getStatus(); assert.equal(h.conversation.getState().service.ready, true);
+  await assert.rejects(h.conversation.access('a'.repeat(24)), { code: 'ADMISSION_UNAVAILABLE' });
+  assert.equal(h.conversation.getState().service.ready, false); assert.equal(h.conversation.getState().service.code, 'ADMISSION_UNAVAILABLE');
+  assert.equal(h.tracks.length, 0); await h.conversation.exit();
+});
+
+test('Astra: unsuccessful Realtime replies settle the typed draft with honest failure guidance', async () => {
+  for (const status of ['failed', 'cancelled', 'incomplete', undefined]) {
+    const h = await authorized(); await h.conversation.startVoice(); const dc = h.peers[0].channel;
+    const sending = h.conversation.sendText('My question'); await responseCreated(dc, 'terminal-reply');
+    dc.receive({ type: 'response.output_text.delta', response_id: 'terminal-reply', item_id: 'partial-reply', delta: 'Unfinished' });
+    dc.receive({ type: 'response.done', response: { id: 'terminal-reply', status, output: [] } });
+    assert.equal((await sending).status, status || 'failed'); assert.equal(h.conversation.getState().text, 'idle');
+    assert.match(h.conversation.getState().error.code, /^VOICE_REPLY_/);
+    assert.ok(h.conversation.getState().transcript.filter(item => item.role === 'assistant').every(item => !item.final));
+    await h.conversation.stop(); await h.conversation.startVoice();
+    assert.equal(h.peers[1].channel.sent.some(event => event.item?.content?.[0]?.text === 'Unfinished'), false);
+    await h.conversation.exit();
+  }
+});
+
+test('Astra: a failed Realtime tool lookup settles its typed owner without waiting for the turn deadline', async () => {
+  const h = await authorized({ fetch: path => path.endsWith('/knowledge') ? Response.json({ code: 'ADMISSION_UNAVAILABLE', message: 'Access service is unavailable.' }, { status: 503 }) : null });
+  await h.conversation.startVoice(); const dc = h.peers[0].channel;
+  const sending = h.conversation.sendText('Explain the philosophy'); await responseCreated(dc, 'lookup-reply');
+  dc.receive({ type: 'response.done', response: { id: 'lookup-reply', status: 'completed', output: [{ type: 'function_call', call_id: 'lookup-failure', name: 'lookup_knowledge', arguments: '{"query":"philosophy","topics":[]}' }] } });
+  assert.equal((await sending).status, 'failed'); assert.equal(h.conversation.getState().text, 'idle');
+  assert.equal(h.conversation.getState().error.code, 'ADMISSION_UNAVAILABLE');
+  assert.equal(dc.sent.filter(event => event.type === 'response.create').length, 1);
+  assert.equal([...h.timers.values()].some(timer => timer.delay === 50000), false);
+  await h.conversation.exit();
 });

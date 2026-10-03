@@ -673,3 +673,87 @@ test('a nested device choice retains its operation lock until its own transactio
   release(); persistence.pause = null; const recalled = await nested;
   assert.equal(recalled.consent.storageEnabled, true); assert.equal(store.getStatus().switching, false); store.close();
 });
+
+test('clearing visit notes also discards open note and relationship drafts', async () => {
+  await withMemoryView(async ({ store, container }) => {
+    await visit(store);
+    await save(store, node('Visit note to erase', 'Deleted visit text'));
+    await save(store, node('Other visit note'));
+    byText(container, 'Edit').click();
+    const title = container.querySelector('[data-focus-key="title"]');
+    title.value = 'Unsaved private visit edit'; title.listeners.input();
+    const label = container.querySelector('[data-focus-key="label"]');
+    label.value = 'Unsaved private relationship'; label.listeners.input();
+    await store.clear(expected(await store.load()));
+    assert.equal(container.querySelector('[data-focus-key="title"]'), null);
+    byText(container, 'Add a note').click();
+    assert.equal(container.querySelector('[data-focus-key="title"]').value, '');
+    assert.equal(container.querySelector('[data-focus-key="text"]').value, '');
+    await save(store, node('Fresh A')); await save(store, node('Fresh B'));
+    assert.equal(container.querySelector('[data-focus-key="label"]').value, '');
+  });
+});
+
+test('device revocation drops deleted-note drafts before remembering is re-enabled', async () => {
+  await withMemoryView(async ({ store, container }) => {
+    byText(container, 'Edit').click();
+    const title = container.querySelector('[data-focus-key="title"]');
+    title.value = 'Deleted device draft'; title.listeners.input();
+    await store.clear(expected(await store.load()));
+    await store.setMode('device', expected(await store.load()));
+    assert.equal(container.querySelector('[data-focus-key="title"]'), null);
+    byText(container, 'Add a note').click();
+    assert.equal(container.querySelector('[data-focus-key="title"]').value, '');
+    assert.equal(container.querySelector('[data-focus-key="text"]').value, '');
+  });
+});
+
+test('cross-tab device revocation purges local editor copies of deleted notes', async () => {
+  const previous = globalThis.document; globalThis.document = memoryDocument();
+  const persistence = new TransactionalMemory();
+  const a = fixture({ persistence, BroadcastChannel: LocalBroadcast }).store;
+  const b = fixture({ persistence, BroadcastChannel: LocalBroadcast }).store;
+  const controller = createMemoryController({ store: a });
+  const container = document.createElement('div'); document.body.append(container);
+  let view;
+  try {
+    await enable(a); await save(a, node('Delete remotely'));
+    view = mountMemoryView(container, { store: a, controller }); await view.refresh();
+    byText(container, 'Edit').click();
+    await b.clear(expected(await b.load())); await settleView();
+    await a.setMode('device', expected(await a.load()));
+    assert.equal(container.querySelector('[data-focus-key="title"]'), null);
+    byText(container, 'Add a note').click();
+    assert.equal(container.querySelector('[data-focus-key="text"]').value, '');
+  } finally { view?.close(); controller.close(); a.close(); b.close(); globalThis.document = previous; }
+});
+
+test('sharing revocation and separate device deletion preserve an authorized visit draft', async () => {
+  await withMemoryView(async ({ store, container }) => {
+    await visit(store); await save(store, node('Keep this visit note'));
+    await store.setConsent({ storageEnabled: false, conversationUseEnabled: true }, expected(await store.load()));
+    byText(container, 'Edit').click();
+    const title = container.querySelector('[data-focus-key="title"]');
+    title.value = 'Keep this authorized draft'; title.listeners.input();
+    await store.setConsent({ storageEnabled: false, conversationUseEnabled: false }, expected(await store.load()));
+    assert.equal(container.querySelector('[data-focus-key="title"]').value, 'Keep this authorized draft');
+    await store.clearDevice();
+    assert.equal(container.querySelector('[data-focus-key="title"]').value, 'Keep this authorized draft');
+    assert.equal((await store.load()).nodes[0].title, 'Keep this visit note');
+  });
+});
+
+test('an outstanding view refresh cannot restore device text into a new empty visit', async () => {
+  for (let turns = 0; turns < 8; turns++) {
+    await withMemoryView(async ({ store, container, view }) => {
+      const state = await store.load();
+      const refreshing = view.refresh();
+      for (let turn = 0; turn < turns; turn++) await Promise.resolve();
+      await store.setMode('session', expected(state));
+      await refreshing.catch(error => assert.equal(error.code, 'STALE_STATE'));
+      assert.equal(container.textContent.includes('A recoverable goal'), false, `refresh crossed scope at microtask ${turns}`);
+      assert.match(container.textContent, /No notes are saved yet/, `a late refresh error erased the visit at microtask ${turns}`);
+      assert.equal((await store.load()).nodes.length, 0);
+    });
+  }
+});
