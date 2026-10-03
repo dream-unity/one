@@ -438,14 +438,14 @@ function memoryDocument() {
 }
 const byText = (container, title) => container.querySelectorAll('button').find(button => button.textContent === title);
 const settleView = async () => { for (let turn = 0; turn < 4; turn++) await new Promise(resolve => setImmediate(resolve)); };
-async function withMemoryView(run) {
+async function withMemoryView(run, { transformViewStore = store => store, onConfirmProposal, onSelectionChange } = {}) {
   const previous = globalThis.document; globalThis.document = memoryDocument();
   const { store, persistence } = fixture(); await enable(store);
   const saved = await save(store, node('A recoverable goal'));
   const container = document.createElement('div'), proposals = document.createElement('div'); document.body.append(container, proposals);
   let view;
   const controller = createMemoryController({ store, onPendingChange: proposal => view?.setProposal(proposal) });
-  view = mountMemoryView(container, { store, controller, proposalsContainer: proposals });
+  view = mountMemoryView(container, { store: transformViewStore(store), controller, proposalsContainer: proposals, onConfirmProposal, onSelectionChange });
   try { await view.refresh(); await run({ store, persistence, saved, container, proposals, controller, view }); }
   finally { view.close(); controller.close(); store.close(); globalThis.document = previous; }
 }
@@ -752,8 +752,149 @@ test('an outstanding view refresh cannot restore device text into a new empty vi
       await store.setMode('session', expected(state));
       await refreshing.catch(error => assert.equal(error.code, 'STALE_STATE'));
       assert.equal(container.textContent.includes('A recoverable goal'), false, `refresh crossed scope at microtask ${turns}`);
-      assert.match(container.textContent, /No notes are saved yet/, `a late refresh error erased the visit at microtask ${turns}`);
+      assert.match(container.textContent, /No notes are kept for this visit yet/, `a late refresh error erased the visit at microtask ${turns}`);
       assert.equal((await store.load()).nodes.length, 0);
     });
   }
+});
+
+test('visit editing and AI review explicitly identify temporary retention before confirmation', async () => {
+  await withMemoryView(async ({ store, container, proposals, controller, persistence }) => {
+    const deviceBefore = structuredClone(persistence.state);
+    await visit(store);
+    assert.match(container.textContent, /For this visit only/);
+    byText(container, 'Add a note').click();
+    assert.match(container.textContent, /Nothing is kept until you choose Keep this note for this visit/);
+    await controller.propose(node('A temporary suggestion'), { ...expected(await store.load()), turnId: uuid() });
+    assert.match(proposals.textContent, /For this visit only/);
+    assert.match(proposals.textContent, /not saved on this device/i);
+    assert.ok(byText(proposals, 'Confirm for this visit'));
+    assert.deepEqual(persistence.state, deviceBefore);
+    assert.equal((await store.load()).consent.conversationUseEnabled, false);
+  });
+});
+
+test('deleting an edited note discards its editor copy without clearing an unrelated new draft', async () => {
+  await withMemoryView(async ({ store, container, saved }) => {
+    byText(container, 'Edit').click();
+    const title = container.querySelector('[data-focus-key="title"]');
+    title.value = 'Copy of the deleted note'; title.listeners.input();
+    await store.deleteNode(saved.record.id, { ...expected(await store.load()), expectedRevision: saved.record.revision });
+    assert.equal(container.querySelector('[data-focus-key="title"]'), null);
+    const next = await save(store, node('Delete separately'));
+    byText(container, 'Add a note').click();
+    const unrelated = container.querySelector('[data-focus-key="title"]');
+    unrelated.value = 'Keep this new draft'; unrelated.listeners.input();
+    await store.deleteNode(next.record.id, { ...expected(await store.load()), expectedRevision: next.record.revision });
+    assert.equal(container.querySelector('[data-focus-key="title"]').value, 'Keep this new draft');
+  });
+});
+
+test('a delayed save completion cannot claim retention or close a draft in a newer scope', async () => {
+  let release, finished;
+  const completion = new Promise(resolve => { release = resolve; });
+  const committed = new Promise(resolve => { finished = resolve; });
+  await withMemoryView(async ({ store, container }) => {
+    byText(container, 'Add a note').click();
+    for (const [key, value] of [['title', 'Device note'], ['text', 'Device text']]) {
+      const input = container.querySelector(`[data-focus-key="${key}"]`); input.value = value; input.listeners.input();
+    }
+    container.querySelector('form').listeners.submit({ preventDefault() {} });
+    await committed;
+    await visit(store);
+    assert.equal(byText(container, 'Add a note').disabled, false, 'the obsolete save must not lock the new visit');
+    byText(container, 'Add a note').click();
+    const title = container.querySelector('[data-focus-key="title"]'); title.value = 'New visit draft'; title.listeners.input();
+    release(); await settleView();
+    assert.equal(container.querySelector('[data-focus-key="title"]').value, 'New visit draft');
+    assert.doesNotMatch(container.textContent, /Kept for this visit\./);
+  }, { transformViewStore: store => ({ ...store, async commitProposal(...args) {
+    const result = await store.commitProposal(...args); finished(); await completion; return result;
+  } }) });
+});
+
+test('a delayed first selection cannot restore an identifier deleted during selection', async () => {
+  let release, prepared;
+  const completion = new Promise(resolve => { release = resolve; });
+  const selected = new Promise(resolve => { prepared = resolve; });
+  await withMemoryView(async ({ store, container, saved, view }) => {
+    const checkbox = container.querySelector(`[data-focus-key="share-${saved.record.id}"]`);
+    checkbox.checked = true;
+    const choosing = checkbox.listeners.change();
+    await selected;
+    await store.deleteNode(saved.record.id, { ...expected(await store.load()), expectedRevision: saved.record.revision });
+    release(); await choosing;
+    assert.deepEqual(view.getSelection(), []);
+  }, { transformViewStore: store => ({ ...store, async selectContext(...args) {
+    const result = await store.selectContext(...args); prepared(); await completion; return result;
+  } }) });
+});
+
+test('a late old-scope completion cannot unlock a newer save', async () => {
+  const releases = [], committed = [];
+  const completions = [0, 1].map(index => new Promise(resolve => { releases[index] = resolve; }));
+  const commits = [0, 1].map(index => new Promise(resolve => { committed[index] = resolve; }));
+  let saveNumber = 0;
+  await withMemoryView(async ({ store, container }) => {
+    async function submit(title, index) {
+      byText(container, 'Add a note').click();
+      for (const [key, value] of [['title', title], ['text', 'Exact text']]) {
+        const input = container.querySelector(`[data-focus-key="${key}"]`); input.value = value; input.listeners.input();
+      }
+      container.querySelector('form').listeners.submit({ preventDefault() {} });
+      await commits[index];
+    }
+    await submit('Old device note', 0);
+    await visit(store);
+    await submit('New visit note', 1);
+    releases[0](); await settleView();
+    assert.equal(container.querySelector('[data-focus-key="save-note"]').disabled, true);
+    assert.equal(container.querySelector('[data-focus-key="title"]').value, 'New visit note');
+    releases[1](); await settleView();
+    assert.equal(container.querySelector('[data-focus-key="title"]'), null);
+    assert.match(container.textContent, /Kept for this visit\./);
+    assert.deepEqual((await store.load()).nodes.map(note => note.title), ['New visit note']);
+  }, { transformViewStore: store => ({ ...store, async commitProposal(...args) {
+    const index = saveNumber++, result = await store.commitProposal(...args);
+    committed[index](); await completions[index]; return result;
+  } }) });
+});
+
+test('late AI confirmation and selection failures cannot overwrite a new visit', async () => {
+  let release, finished, confirm;
+  const completion = new Promise(resolve => { release = resolve; });
+  const committed = new Promise(resolve => { finished = resolve; });
+  let rejectSharing;
+  const sharingFailure = new Promise((resolve, reject) => { rejectSharing = reject; });
+  await withMemoryView(async ({ store, container, proposals, saved, controller }) => {
+    const checkbox = container.querySelector(`[data-focus-key="share-${saved.record.id}"]`);
+    checkbox.checked = true; await checkbox.listeners.change();
+    await controller.propose(node('Reviewed device note'), { ...expected(await store.load()), turnId: uuid() });
+    confirm = exact => controller.confirm(exact.proposalId, { turnId: exact.turnId });
+    const confirming = byText(proposals, 'Confirm this exact change').click();
+    await committed;
+    await visit(store);
+    byText(container, 'Add a note').click();
+    const title = container.querySelector('[data-focus-key="title"]'); title.value = 'Private new visit draft'; title.listeners.input();
+    release(); rejectSharing(new Error('Obsolete sharing failure')); await confirming; await settleView();
+    assert.equal(container.querySelector('[data-focus-key="title"]').value, 'Private new visit draft');
+    assert.doesNotMatch(container.textContent, /Confirmed\.|Obsolete sharing failure/);
+  }, { onSelectionChange: identifiers => identifiers.length ? sharingFailure : undefined,
+    async onConfirmProposal(exact) { const result = await confirm(exact); finished(); await completion; return result; } });
+});
+
+test('endpoint deletion clears its connection draft and preserves unrelated note edits', async () => {
+  await withMemoryView(async ({ store, container, saved }) => {
+    const second = await save(store, node('Second endpoint'));
+    byText(container, 'Add a note').click();
+    const title = container.querySelector('[data-focus-key="title"]'); title.value = 'Unrelated exact draft'; title.listeners.input();
+    for (const [key, value] of [['from', saved.record.id], ['to', second.record.id], ['label', 'Private deleted connection draft']]) {
+      const input = container.querySelector(`[data-focus-key="${key}"]`); input.value = value; input.listeners.input();
+    }
+    await store.deleteNode(saved.record.id, { ...expected(await store.load()), expectedRevision: saved.record.revision });
+    await save(store, node('Fresh endpoint'));
+    assert.equal(container.querySelector('[data-focus-key="label"]').value, '');
+    assert.equal(container.querySelector('[data-focus-key="from"]').value, '');
+    assert.equal(container.querySelector('[data-focus-key="title"]').value, 'Unrelated exact draft');
+  });
 });

@@ -14,6 +14,7 @@ const DEVICE_NOTE = 'The existing device note stays on this device.';
 const VISIT_NOTE = 'This deliberately temporary constellation note belongs only to this visit.';
 const EDITED_VISIT_NOTE = 'This deliberately temporary constellation note was revised during this visit.';
 const SECOND_VISIT_NOTE = 'A second temporary note for the visit relationship.';
+const VISIT_DRAFT = 'Remember that this unsent visit draft must disappear when I leave.';
 const INVALID_INVITE = `browser-verification-invalid-${require('node:crypto').randomUUID()}`;
 const started = Date.now();
 const deadline = started + BUDGET_MS - 10000;
@@ -21,7 +22,7 @@ const directory = path.resolve('output/stage5-browser');
 fs.mkdirSync(directory, { recursive: true });
 const evidence = { liveUrl: LIVE, expectedCommit: process.env.DREAMUNITY_EXPECTED_COMMIT || '',
   status: 'running', checks: [], unexercisedChecks: [], gateErrors: [], deployment: [], responses: [], failedRequests: [], pageErrors: [],
-  consoleErrors: [], forbiddenRequests: [], screenshots: [], pageShows: [], historyRecovery: null,
+  consoleErrors: [], forbiddenRequests: [], screenshots: [], pageShows: [], historyRecovery: null, webStorageWriteEvents: [],
   publicationChecks: [], checkTimings: [], memoryEvidence: {}, visitEvidence: {}, voiceEvidence: {}, accessProbes: [],
   limitations: [
     'No authorized or paid conversation is created. Provider responses, actual microphone/audio, delayed remote hangup, and access expiry/revocation during an active session are not exercised.',
@@ -135,6 +136,41 @@ async function waitForAccessOrUnreadyService(target = page) {
   await target.waitForFunction(() => !document.getElementById('access-panel').hidden ||
     document.getElementById('service-status').dataset.phase === 'unavailable', null, { timeout: remaining() });
 }
+async function assertUnauthenticatedServiceShell(target = page) {
+  const shell = await target.evaluate(() => ({
+    phase: document.getElementById('service-status').dataset.phase,
+    banner: document.getElementById('service-status').textContent,
+    voiceLabel: document.getElementById('voice-label').textContent,
+    voiceHint: document.querySelector('#voice-start .voice-activation-hint').textContent,
+    voiceEnabled: !document.getElementById('voice-start').disabled,
+    voicePressed: document.getElementById('voice-start').getAttribute('aria-pressed'),
+    sessionStatus: document.getElementById('session-status').textContent,
+    intentionHelp: document.getElementById('intention-help').textContent,
+    sendEnabled: !document.getElementById('send-button').disabled,
+    inputEnabled: !document.getElementById('intention-input').disabled,
+    accessHidden: document.getElementById('access-panel').hidden,
+  }));
+  assert.ok(['available', 'unavailable'].includes(shell.phase), 'assert the settled service state');
+  assert.equal(shell.voiceEnabled, true, 'the primary voice control must allow a deliberate availability recheck');
+  assert.equal(shell.voicePressed, 'false', 'readiness must never claim active capture');
+  assert.equal(shell.sendEnabled, true, 'local navigation and manual remembering must remain submit-able');
+  assert.equal(shell.inputEnabled, true);
+  if (shell.phase === 'unavailable') {
+    assert.match(shell.voiceLabel, /voice off/i);
+    assert.match(shell.voiceHint, /check availability/i);
+    assert.match(shell.sessionStatus, /AI conversation is unavailable/i);
+    assert.match(shell.sessionStatus, /explore.*(?:own )?notes/i);
+    assert.match(shell.intentionHelp, /AI replies are unavailable/i);
+    assert.match(shell.intentionHelp, /destination.*note.*constellation/i);
+    assert.equal(shell.accessHidden, true, 'unavailable AI must not invite access entry');
+  } else {
+    assert.equal(shell.voiceLabel, 'Speak');
+    assert.match(shell.banner, /configured.*invitation.*connect/i);
+    assert.doesNotMatch(shell.banner, /conversation available/i,
+      'configuration readiness alone cannot establish provider availability');
+  }
+  return shell;
+}
 async function visitIs(enabled, target = page) {
   await target.waitForFunction(value => document.getElementById('memory-session-mode').getAttribute('aria-pressed') === String(value) &&
     (value ? !document.getElementById('memory-share-consent').disabled && document.getElementById('memory-status').textContent.includes('For this visit')
@@ -156,7 +192,11 @@ function observeBrowserCapabilities() {
   Storage.prototype.setItem = function (...args) {
     let area = 'unknown';
     try { area = this === globalThis.localStorage ? 'localStorage' : this === globalThis.sessionStorage ? 'sessionStorage' : area; } catch { /* Native call below retains the browser's actual behavior. */ }
-    observation.webStorageWrites.push({ area, key: typeof args[0] === 'string' ? args[0] : '[non-string key]' });
+    const write = { area, key: typeof args[0] === 'string' ? args[0] : '[non-string key]' };
+    observation.webStorageWrites.push(write);
+    // Forward metadata only to the runner, so a BFCache-triggered reload cannot
+    // erase evidence that the departed document wrote a supposedly temporary draft.
+    globalThis.__dreamUnityObserveWebStorageWrite?.({ ...write, url: location.href, documentTimeOrigin: performance.timeOrigin }).catch(() => {});
     return Reflect.apply(nativeSetItem, this, args);
   };
   const nativeGetUserMedia = navigator.mediaDevices?.getUserMedia;
@@ -171,6 +211,11 @@ function observeBrowserCapabilities() {
 async function browserObservation(target = page) {
   return target.evaluate(() => structuredClone(globalThis.__dreamUnityBrowserObservation));
 }
+async function storageWritesFromDocument(documentTimeOrigin) {
+  // Wait behind observation messages already sent by the departed document.
+  await page.evaluate(() => globalThis.__dreamUnityObserveWebStorageWrite({ barrier: true }));
+  return evidence.webStorageWriteEvents.filter(value => value.documentTimeOrigin === documentTimeOrigin && prototypeUrl(value.url));
+}
 async function assertNoVisitStorage(before, target = page) {
   const after = await browserObservation(target);
   assert.deepEqual(after.indexedDBWrites, before.indexedDBWrites, 'visit notes and relationships must make no IndexedDB writes');
@@ -183,7 +228,7 @@ async function assertNoVisitStorage(before, target = page) {
       }
     }
     return false;
-  }, [VISIT_NOTE, EDITED_VISIT_NOTE, SECOND_VISIT_NOTE]);
+  }, [VISIT_NOTE, EDITED_VISIT_NOTE, SECOND_VISIT_NOTE, VISIT_DRAFT]);
   assert.equal(leaked, false, 'temporary note text must never be copied into browser Web Storage');
   return after;
 }
@@ -220,6 +265,10 @@ async function deploymentIsCurrent(context) {
     await context.clearPermissions();
     evidence.voiceEvidence.microphoneRequests = 0;
     await context.exposeBinding('__dreamUnityObserveMicrophone', () => { evidence.voiceEvidence.microphoneRequests += 1; });
+    await context.exposeBinding('__dreamUnityObserveWebStorageWrite', (_, value) => {
+      if (value?.barrier === true) return;
+      evidence.webStorageWriteEvents.push(value);
+    });
     await context.addInitScript(observeBrowserCapabilities);
     try { await check('published-commit', () => deploymentIsCurrent(context)); }
     catch (error) {
@@ -313,6 +362,7 @@ async function deploymentIsCurrent(context) {
         null, { timeout: remaining(12000) });
       const initialPhase = await page.locator('#service-status').getAttribute('data-phase');
       const initialCode = await page.locator('#service-status').getAttribute('data-code');
+      const initialShell = await assertUnauthenticatedServiceShell();
       const previousCount = evidence.voiceEvidence.statusResponses?.length || 0;
       const retryResponse = page.waitForResponse(response => new URL(response.url()).pathname === '/api/unity/status' &&
         response.request().method() === 'GET', { timeout: remaining(12000) });
@@ -324,6 +374,7 @@ async function deploymentIsCurrent(context) {
       const phase = await page.locator('#service-status').getAttribute('data-phase');
       const code = await page.locator('#service-status').getAttribute('data-code');
       const message = await page.locator('#service-status').textContent();
+      const retryShell = await assertUnauthenticatedServiceShell();
       if (response.status() === 404) {
         assert.equal(phase, 'unavailable'); assert.equal(code, 'SERVICE_DEPLOYMENT_MISSING');
         assert.match(message, /deploy|route|not installed/i);
@@ -341,6 +392,8 @@ async function deploymentIsCurrent(context) {
         evidence.voiceEvidence.configuredUnavailable = !status.ready && status.voiceConfigured === true && status.textConfigured === true ? 'exercised' : 'unexercised';
       }
       evidence.voiceEvidence.accessProbeUrl = new URL('/api/unity/access', response.url()).href;
+      const forbiddenBeforeRecheck = evidence.forbiddenRequests.length;
+      const statusResponsesBeforeRecheck = evidence.voiceEvidence.statusResponses?.length || 0;
       const speakResponse = page.waitForResponse(value => new URL(value.url()).pathname === '/api/unity/status' &&
         value.request().method() === 'GET', { timeout: remaining(12000) });
       await page.locator('#voice-start').click({ timeout: remaining() }); await speakResponse;
@@ -348,12 +401,19 @@ async function deploymentIsCurrent(context) {
         null, { timeout: remaining(12000) });
       assert.equal((await browserObservation()).microphoneRequests, 0);
       assert.equal(evidence.voiceEvidence.microphoneRequests, 0);
+      assert.equal(evidence.forbiddenRequests.length, forbiddenBeforeRecheck,
+        'a primary availability recheck must not create access, paid sessions, or text requests');
+      assert.ok((evidence.voiceEvidence.statusResponses?.length || 0) > statusResponsesBeforeRecheck,
+        'the primary control must actually recheck the deployed service');
       assert.equal(await page.locator('#voice-start').getAttribute('aria-pressed'), 'false');
+      const primaryRecheckShell = await assertUnauthenticatedServiceShell();
       if (await page.locator('#service-status').getAttribute('data-phase') === 'unavailable') {
         assert.equal(await page.locator('#access-panel').isVisible(), false, 'an unavailable service must not show a misleading invitation prompt');
       } else assert.equal(await page.locator('#access-panel').isVisible(), true, 'a ready private service must require an invitation before microphone capture');
       evidence.voiceEvidence.readinessRetry = { initialPhase, initialCode, retryHttp: response.status(), phase, code,
-        microphoneRequests: 0, unauthorizedSpeakBlocked: true, unavailableBranch: phase === 'unavailable' ? 'exercised' : 'unexercised' };
+        microphoneRequests: 0, unauthorizedSpeakBlocked: true, noPaidRequests: true,
+        shell: { initial: initialShell, retry: retryShell, primaryRecheck: primaryRecheckShell },
+        unavailableBranch: phase === 'unavailable' ? 'exercised' : 'unexercised' };
     });
     await check('ready-service-invitation-errors-stay-readable-without-microphone-capture', async () => {
       if (await page.locator('#service-status').getAttribute('data-phase') !== 'available') {
@@ -394,6 +454,7 @@ async function deploymentIsCurrent(context) {
         assert.equal(await page.locator('#service-status').isVisible(), true);
         assert.match(await page.locator('#service-status').textContent(), /configuration|configured|access service|unavailable|ready/i);
         assert.equal(await page.locator('#access-panel').isVisible(), false, 'an admission outage must replace the invitation prompt with honest service guidance');
+        evidence.voiceEvidence.admissionFailureShell = await assertUnauthenticatedServiceShell();
         evidence.voiceEvidence.configuredUnavailable = 'exercised-by-access';
       }
       evidence.voiceEvidence.invalidInvitation = { status: failure.code === 'ACCESS_DENIED' ? 'rejection-exercised' : 'blocked-before-invitation-check',
@@ -550,7 +611,7 @@ async function deploymentIsCurrent(context) {
       await waitForMemoryMessage('Not saved.', secondPage);
       assert.equal((await readMemory(secondPage)).nodes.find(node => node.id === saved.nodes[0].id).text, currentText);
       assert.equal(await secondPage.getByRole('textbox', { name: 'Note', exact: true }).inputValue(), staleDraft);
-      await secondPage.getByRole('button', { name: 'Reload saved version', exact: true }).click({ timeout: remaining() });
+      await secondPage.getByRole('button', { name: 'Reload current version', exact: true }).click({ timeout: remaining() });
       assert.equal(await secondPage.getByRole('textbox', { name: 'Note', exact: true }).inputValue(), currentText);
       await secondPage.getByRole('button', { name: 'Cancel editing', exact: true }).click({ timeout: remaining() });
       evidence.memoryEvidence.staleTab = { rejected: true, draftRetained: true, savedVersionRecoverable: true };
@@ -638,7 +699,7 @@ async function deploymentIsCurrent(context) {
       await send(`Remember that ${VISIT_NOTE}`); await waitForNote(VISIT_NOTE);
       await page.getByRole('button', { name: `Edit ${VISIT_NOTE}`, exact: true }).click({ timeout: remaining() });
       await page.getByRole('textbox', { name: 'Note', exact: true }).fill(EDITED_VISIT_NOTE);
-      await page.getByRole('button', { name: 'Save changes', exact: true }).click({ timeout: remaining() });
+      await page.locator('.memory-editor [data-focus-key="save-note"]').click({ timeout: remaining() });
       await page.locator('.memory-editor').waitFor({ state: 'hidden', timeout: remaining() });
       assert.equal(await noteCard(VISIT_NOTE).getByText(EDITED_VISIT_NOTE, { exact: true }).isVisible(), true);
       await send(`Remember that ${SECOND_VISIT_NOTE}`); await waitForNote(SECOND_VISIT_NOTE);
@@ -648,14 +709,14 @@ async function deploymentIsCurrent(context) {
       await relations.getByLabel('To', { exact: true }).selectOption({ label: SECOND_VISIT_NOTE });
       await relations.getByLabel('Relationship', { exact: true }).selectOption('supports');
       await relations.getByLabel('Optional label', { exact: true }).fill('A relationship authored only during this visit.');
-      await relations.getByRole('button', { name: 'Save this relationship', exact: true }).click({ timeout: remaining() });
+      await relations.locator('[data-focus-key="save-new-edge"]').click({ timeout: remaining() });
       await page.locator('article.memory-edge').waitFor({ state: 'visible', timeout: remaining() });
       assert.equal(await page.locator('article.memory-edge').count(), 1);
       await page.getByRole('button', { name: `Edit the relationship from ${VISIT_NOTE} to ${SECOND_VISIT_NOTE}`, exact: true }).click({ timeout: remaining() });
       const edgeEditor = page.locator('.memory-edge-editor');
       const revisedLabel = 'This temporary relationship was deliberately revised.';
       await edgeEditor.getByLabel('Optional label', { exact: true }).fill(revisedLabel);
-      await edgeEditor.getByRole('button', { name: 'Save relationship changes', exact: true }).click({ timeout: remaining() });
+      await edgeEditor.locator('[data-focus-key="save-edge"]').click({ timeout: remaining() });
       await edgeEditor.waitFor({ state: 'hidden', timeout: remaining() });
       assert.equal(await page.locator('article.memory-edge').getByText(revisedLabel, { exact: true }).isVisible(), true);
       await page.locator('#memory-share-consent').check({ timeout: remaining() });
@@ -759,20 +820,31 @@ async function deploymentIsCurrent(context) {
       evidence.visitEvidence.reload = { temporaryGraphCleared: true, deviceGraphPreserved: true };
     });
     await check('visit-exit-and-native-back-clear-temporary-memory', async () => {
-      await page.locator('#memory-session-mode').click({ timeout: remaining() }); await visitIs(true);
-      await send(`Remember that ${VISIT_NOTE}`); await waitForNote(VISIT_NOTE);
-      assert.equal(await page.locator('#intention-input').inputValue(), '');
-      const oldDocument = await page.evaluate(() => performance.timeOrigin);
-      await page.locator('#exit-link').click({ timeout: remaining(6000) });
-      await page.waitForURL(new URL('/', LIVE).href, { waitUntil: 'domcontentloaded', timeout: remaining(6000) });
-      await page.goBack({ waitUntil: 'domcontentloaded', timeout: remaining(7000) });
-      await page.waitForFunction(previous => document.body.dataset.boot === 'ready' && performance.timeOrigin !== previous,
-        oldDocument, { timeout: remaining(8000) });
-      await boot(); await visitIs(false); await waitForNote(DEVICE_NOTE);
-      assert.equal(await noteCard(VISIT_NOTE).count(), 0); assert.equal(await page.locator('article.memory-edge').count(), 0);
-      assert.deepEqual(await readMemory(), deviceBaseline);
-      assert.equal(await page.locator('#voice-start').getAttribute('aria-pressed'), 'false');
-      evidence.visitEvidence.exit = { temporaryGraphClearedAfterBack: true, deviceGraphPreserved: true, voiceOff: true };
+      for (const departure of ['ordinaryNavigation', 'exit']) {
+        await page.locator('#memory-session-mode').click({ timeout: remaining() }); await visitIs(true);
+        await send(`Remember that ${VISIT_NOTE}`); await waitForNote(VISIT_NOTE);
+        await page.locator('#intention-input').fill(VISIT_DRAFT, { timeout: remaining() });
+        const oldDocument = await page.evaluate(() => performance.timeOrigin);
+        const eventsBeforeDeparture = evidence.pageShows.length;
+        assert.deepEqual(await storageWritesFromDocument(oldDocument), []);
+        if (departure === 'exit') await page.locator('#exit-link').click({ timeout: remaining(6000) });
+        else await page.goto(new URL('/', LIVE).href, { waitUntil: 'domcontentloaded', timeout: remaining(6000) });
+        await page.waitForURL(new URL('/', LIVE).href, { waitUntil: 'domcontentloaded', timeout: remaining(6000) });
+        await page.goBack({ waitUntil: 'domcontentloaded', timeout: remaining(7000) });
+        await page.waitForFunction(previous => document.body.dataset.boot === 'ready' && performance.timeOrigin !== previous,
+          oldDocument, { timeout: remaining(8000) });
+        await boot(); await visitIs(false); await waitForNote(DEVICE_NOTE);
+        assert.equal(await noteCard(VISIT_NOTE).count(), 0); assert.equal(await page.locator('article.memory-edge').count(), 0);
+        assert.deepEqual(await readMemory(), deviceBaseline);
+        assert.equal(await page.locator('#intention-input').inputValue(), '', 'leaving a visit must discard its unsent draft');
+        assert.deepEqual(await storageWritesFromDocument(oldDocument), [],
+          'neither visit departure nor BFCache restoration may persist its unsent draft');
+        assert.equal(await page.locator('#voice-start').getAttribute('aria-pressed'), 'false');
+        const restoredFromCache = evidence.pageShows.slice(eventsBeforeDeparture).some(value => prototypeUrl(value.url) && value.persisted);
+        evidence.visitEvidence[departure] = { temporaryGraphClearedAfterBack: true, deviceGraphPreserved: true,
+          unsentDraftCleared: true, departedDocumentWebStorageWrites: 0, voiceOff: true,
+          bfcacheObserved: restoredFromCache, bfcacheDraftBranch: restoredFromCache ? 'exercised' : 'unexercised' };
+      }
       await confirmDialog(() => page.locator('#memory-clear').click({ timeout: remaining() }), /Delete all saved notes and connections/);
       await rememberingIs(false);
     });
@@ -863,13 +935,16 @@ async function deploymentIsCurrent(context) {
       await screenshot('constellation-mobile.png');
     });
     await check('exit-native-back-reboots-with-voice-off', async () => {
-        const draft = 'An unsent browser verification draft.';
-        await page.locator('.wordmark[data-navigate="unity"]').click({ timeout: remaining() });
-        await page.waitForFunction(() => document.body.dataset.view === 'unity', null, { timeout: remaining() });
+      const draft = 'An unsent browser verification draft.';
+      await page.locator('.wordmark[data-navigate="unity"]').click({ timeout: remaining() });
+      await page.waitForFunction(() => document.body.dataset.view === 'unity', null, { timeout: remaining() });
+      evidence.historyRecovery = { status: 'running' };
+      for (const departure of ['exit', 'ordinaryNavigation']) {
         await page.locator('#intention-input').fill(draft, { timeout: remaining() });
         const oldDocument = await page.evaluate(() => performance.timeOrigin);
         const eventsBeforeExit = evidence.pageShows.length;
-        await page.locator('#exit-link').click({ timeout: remaining(6000) });
+        if (departure === 'exit') await page.locator('#exit-link').click({ timeout: remaining(6000) });
+        else await page.goto(new URL('/', LIVE).href, { waitUntil: 'domcontentloaded', timeout: remaining(6000) });
         await page.waitForURL(new URL('/', LIVE).href, { waitUntil: 'domcontentloaded', timeout: remaining(6000) });
         await page.goBack({ waitUntil: 'domcontentloaded', timeout: remaining(7000) });
         await page.waitForFunction(previous => document.body.dataset.boot === 'ready' &&
@@ -877,12 +952,21 @@ async function deploymentIsCurrent(context) {
         await boot();
         const restoredFromCache = evidence.pageShows.slice(eventsBeforeExit).some(value => prototypeUrl(value.url) && value.persisted);
         const retained = await page.locator('#intention-input').inputValue() === draft;
-        evidence.historyRecovery = { status: 'completed', bfcacheObserved: restoredFromCache,
+        evidence.historyRecovery[departure] = { bfcacheObserved: restoredFromCache,
           draftRetained: retained, bfcacheDraftBranch: restoredFromCache ? 'exercised' : 'unexercised' };
-        if (restoredFromCache) assert.equal(retained, true, 'actual BFCache recovery must retain the exact unsent draft');
+        if (departure === 'exit') {
+          assert.equal(await page.locator('#intention-input').inputValue(), '', 'explicit Exit must discard the unsent draft');
+          assert.deepEqual(await storageWritesFromDocument(oldDocument), [], 'explicit Exit must not persist an unsent draft');
+        } else if (restoredFromCache) {
+          assert.equal(retained, true, 'ordinary nonvisit BFCache recovery must retain the exact unsent draft');
+          const writes = await storageWritesFromDocument(oldDocument);
+          assert.ok(writes.some(value => value.area === 'sessionStorage' && value.key === 'dream-unity:prototype:bfcache-draft:v1'));
+        }
         assert.equal(new URL(page.url()).pathname, '/prototype/');
         assert.equal(await page.locator('#voice-start').getAttribute('aria-pressed'), 'false');
         assert.ok(!['permission', 'connecting', 'listening', 'speaking'].includes(await page.locator('body').getAttribute('data-microphone')));
+      }
+      evidence.historyRecovery.status = 'completed';
     });
     await check('publication-excludes-retired-activities-and-raw-contracts', async () => {
       for (const pathname of ['/games/empire-dawn/', '/dream-machine/', '/prototype/contracts/access.schema.json']) {

@@ -17,6 +17,7 @@ let memoryModeIntent = null;
 let sharedContext = [], selectedIds = [], serviceStatus = null, conversation = null;
 let routeController = null, navigationGeneration = 0, manifestoLoaded = false;
 let providerContextRevision = 0, exiting = false, textPhase = 'idle', submissionGeneration = 0;
+let allowDraftRecovery = true;
 const transcriptEntries = new Map();
 const directSaveControllers = new Set();
 const scene = createScene($('unity-scene'));
@@ -86,21 +87,37 @@ function render() {
   scene.setFocus(state.reflection?.worlds || (state.worldFocus ? [state.worldFocus] : []), state.reflection?.summary || '');
   $('interpretation-panel').hidden = !state.reflection;
   $('interpretation-text').textContent = state.reflection?.summary || '';
-  const authorized = Boolean(conversation?.getState().authorized);
-  $('resume-button').hidden = !authorized || (state.mode !== 'media' && !['paused', 'idle', 'failed', 'expired', 'closed'].includes(state.microphone));
-  $('resume-button').disabled = !authorized;
+  const conversationState = conversation?.getState();
+  const authorized = Boolean(conversationState?.authorized);
+  const service = conversationState?.service;
+  const checking = !service || ['unknown', 'checking'].includes(service.phase);
+  const available = Boolean(service?.ready);
+  const canResume = available && authorized && !checking && (state.mode === 'media' || state.microphone === 'paused');
+  $('resume-button').hidden = !canResume;
+  $('resume-button').disabled = !canResume;
   const voiceActive = ['listening', 'speaking', 'connected', 'ready'].includes(state.microphone);
-  $('voice-label').textContent = state.microphone === 'speaking' ? 'Speaking' : voiceActive ? 'Listening' : state.mode === 'media' ? 'Resume' : 'Speak';
-  $('voice-start').setAttribute('aria-pressed', String(voiceActive));
+  const busyLabel = { thinking: 'Thinking', recovering: 'Reconnecting', connecting: 'Connecting', permission: 'Permission' }[state.microphone];
+  const voiceEngaged = voiceActive || Boolean(busyLabel);
+  $('voice-label').textContent = state.microphone === 'speaking' ? 'Speaking' : voiceActive ? 'Listening' : busyLabel || (checking ? 'Checking' : !available ? 'Voice off' : canResume ? 'Resume' : 'Speak');
+  $('voice-hint').textContent = voiceActive ? 'Stop ends the microphone' : busyLabel ? 'Press Stop to cancel' : checking ? 'conversation availability' : !available ? 'Check availability' : authorized ? 'or write below' : 'invitation required';
+  $('voice-start').disabled = Boolean(busyLabel) || (checking && !voiceEngaged);
+  $('voice-start').setAttribute('aria-pressed', String(voiceEngaged));
   const descriptions = { idle: 'Write an intention, or choose Speak.', listening: 'Listening. Stop releases your microphone.',
     speaking: 'Speaking. You can interrupt or press Stop.', checking: 'Checking voice availability…', recovering: 'Voice connection interrupted. Trying to recover… Press Stop to end it.', connecting: 'Connecting your conversation…', permission: 'Waiting for microphone permission…', thinking: 'Considering your question…',
     ready: 'Your conversation is ready.', connected: 'Listening. Stop releases your microphone.',
     paused: 'Microphone paused. Choose Resume when ready.', stopped: 'Microphone stopped. You can still write.',
     expired: 'Voice ended. Text and navigation remain available.', failed: 'Voice is unavailable. You can still write.', closed: 'Microphone stopped. You can still write.' };
-  const voiceDescription = state.microphone === 'paused' && !authorized ? descriptions.idle : descriptions[state.microphone] || descriptions.idle;
-  $('session-status').textContent = state.mode === 'media'
-    ? `Media mode. Microphone and AI audio are off. ${authorized ? 'Choose Resume to speak again.' : 'You can still explore and write.'}`
+  const voiceDescription = state.microphone === 'paused' && !canResume ? descriptions.idle : descriptions[state.microphone] || descriptions.idle;
+  $('session-status').textContent = checking && !voiceEngaged ? 'Checking conversation availability. You can explore while we check.'
+    : !available && !voiceEngaged ? 'AI conversation is unavailable. You can still explore and keep your own notes.'
+    : state.mode === 'media'
+    ? `Media mode. Microphone and AI audio are off. ${canResume ? 'Choose Resume to speak again.' : 'You can still explore and keep notes.'}`
     : voiceDescription;
+  $('voice-invitation').textContent = available ? 'Speak or write an intention. Follow a question, a possibility, or a place.'
+    : 'Follow a question, a possibility, or a place. Explore the worlds and keep your own notes in My constellation.';
+  $('intention-help').textContent = available ? 'You can name a destination, ask a question, or change your mind.'
+    : checking ? 'You can name a destination or keep a note in My constellation while we check AI availability.'
+    : 'AI replies are unavailable. You can still name a destination or keep a note in My constellation.';
   $('earth-status').textContent = state.earth?.app === 'failed' ? 'Earth could not connect.' : state.earth?.globe === 'ready' ? 'Earth is ready.' : state.earth?.app === 'ready' ? 'Earth is open. Globe and feed availability may vary.' : 'Opening God’s Earth View…';
 }
 function setUrl(destination, replace = false) {
@@ -262,7 +279,9 @@ function renderService(service) {
   $('service-retry').disabled = checking;
   $('service-retry').textContent = checking ? 'Checking conversation…' : 'Check conversation again';
   $('service-status').textContent = service.ready
-    ? 'Private conversation available. Grounded in the published Dream Unity manifesto.'
+    ? conversation?.getState().authorized
+      ? 'Invitation accepted. Start speaking or send a question to connect. Grounded in the published Dream Unity manifesto.'
+      : 'Private conversation is configured. Enter your invitation to connect. Grounded in the published Dream Unity manifesto.'
     : service.message || 'Checking conversation availability…';
   if (!service.ready) $('access-panel').hidden = true;
   dispatch({ type: 'service', status: service.ready ? 'available' : 'unavailable' });
@@ -317,7 +336,7 @@ function renderMemory(dataset) {
   $('memory-forget-device').disabled = memoryChanging;
   const scope = visit ? 'For this visit' : 'On this device';
   $('memory-status').textContent = memoryChanging ? 'Changing how notes are remembered…' : saving
-    ? `${scope}: ${dataset.nodes.length} saved notes and ${dataset.edges.length} connections. ${visit ? 'These notes disappear when you reload this page or choose Exit. Device notes are kept separately. ' : ''}${dataset.consent.conversationUseEnabled ? 'Choose which notes to share with the AI.' : 'Saved notes are not included in conversation.'}`
+    ? `${scope}: ${dataset.nodes.length} ${visit ? 'temporary' : 'saved'} notes and ${dataset.edges.length} connections. ${visit ? 'These notes disappear when you reload this page or choose Exit. Device notes are kept separately. ' : ''}${dataset.consent.conversationUseEnabled ? 'Choose which notes to share with the AI.' : 'Your notes are not included in conversation.'}`
     : retention.mode === 'unavailable' ? 'Device storage is unavailable. Choose For this visit to keep temporary notes in this tab.' : 'Remembering is off. Choose For this visit or Remember on this device to begin.';
   const geometry = $('constellation-geometry'); geometry.replaceChildren();
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 640 260'); svg.setAttribute('focusable', 'false');
@@ -508,7 +527,8 @@ $('earth-fullscreen').addEventListener('click', async () => {
 });
 document.addEventListener('fullscreenchange', () => { $('earth-fullscreen').textContent = document.fullscreenElement ? 'Leave fullscreen' : 'Expand Earth'; });
 $('exit-link').addEventListener('click', guarded(async event => {
-  event.preventDefault(); exiting = true; interruptLocalWork(); dispatch({ type: 'visible', visible: false });
+  event.preventDefault(); exiting = true; allowDraftRecovery = false; interruptLocalWork(); dispatch({ type: 'visible', visible: false });
+  $('intention-input').value = '';
   // Dispose browser owners before navigating. Leaving must not depend on an
   // external close request completing; server cleanup remains best effort.
   conversation.exit().catch(() => {}); earth.close(); memoryView?.close(); memory?.close(); scene.dispose(); location.href = '../';
@@ -525,14 +545,19 @@ document.addEventListener('visibilitychange', async () => {
     await Promise.allSettled([conversation.stop(), earth.cancelActions(), earth.quiet()]);
   } else if (state.destination === 'earth' && !earth.getState().active) navigate('earth', { replace: true }).catch(showError);
 });
-window.addEventListener('pagehide', () => { interruptLocalWork(); conversation.exit().catch(() => {}); earth.close(); memoryView?.close(); memory?.close(); scene.dispose(); });
+window.addEventListener('pagehide', () => {
+  allowDraftRecovery &&= memory?.getStatus().mode !== 'session';
+  if (!allowDraftRecovery) $('intention-input').value = '';
+  interruptLocalWork(); conversation.exit().catch(() => {}); earth.close(); memoryView?.close(); memory?.close(); scene.dispose();
+});
 window.addEventListener('pageshow', event => {
   if (!event.persisted) return;
   // pagehide disposed all owners. Recreate them rather than revive a closed call/database.
-  // This one-shot tab storage is immediately consumed; credentials/transcripts are never copied.
+  // Never persist a visit-mode draft, or revive a draft after an explicit Exit.
+  // Other unsent drafts use one-shot tab storage; credentials/transcripts are never copied.
   try {
     const draft = $('intention-input').value;
-    if (draft && draft.length <= 8000) sessionStorage.setItem(DRAFT_RECOVERY_KEY,
+    if (allowDraftRecovery && draft && draft.length <= 8000) sessionStorage.setItem(DRAFT_RECOVERY_KEY,
       JSON.stringify({ path: location.pathname, savedAt: Date.now(), draft }));
     else sessionStorage.removeItem(DRAFT_RECOVERY_KEY);
   } catch { /* A restricted tab still recovers by reloading without a saved draft. */ }

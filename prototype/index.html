@@ -41,11 +41,11 @@
           <span class="world-region-title">Dream<br />Machine</span>
           <span id="machine-meaning" class="world-region-meaning">Heart · Mind · Body</span>
         </button>
-        <button id="voice-start" class="voice-activation" type="button" aria-describedby="voice-invitation session-status">
+        <button id="voice-start" class="voice-activation" type="button" aria-describedby="voice-invitation session-status service-status">
           <span class="speech-orbit" aria-hidden="true"></span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" aria-hidden="true"><rect x="8" y="2" width="8" height="13" rx="4" /><path d="M5 10v1a7 7 0 0 0 14 0v-1M12 18v4M8 22h8" /></svg>
-          <span id="voice-label">Speak</span>
-          <span class="voice-activation-hint">or write below</span>
+          <span id="voice-label">Checking</span>
+          <span id="voice-hint" class="voice-activation-hint">conversation availability</span>
         </button>
         <button class="world-region world-region--maker" type="button" data-focus-world="maker" aria-describedby="maker-meaning">
           <span class="world-region-title">Dream<br />Maker</span>
@@ -116,11 +116,11 @@
 
       <section class="view-panel constellation-view" data-view-panel="constellation" aria-labelledby="constellation-title" hidden>
         <h2 id="constellation-title">A constellation of your own meaning.</h2>
-        <p class="view-introduction">Keep a thought, an intention or a connection you choose to carry forward.</p>
+        <p class="view-introduction">Keep a thought, an intention or a connection. Choose temporary notes for this visit, or remember notes on this device.</p>
         <fieldset class="memory-permissions"><legend>What you choose to remember</legend>
-          <div class="visit-memory-choice"><button id="memory-session-mode" type="button" aria-pressed="false">For this visit</button><p>Keep notes temporarily while you explore. Reloading this page or choosing Exit clears them. Device notes are kept separately.</p></div>
+          <div class="visit-memory-choice"><strong>Temporary constellation · no device storage</strong><button id="memory-session-mode" type="button" aria-pressed="false" aria-describedby="memory-session-help">For this visit</button><p id="memory-session-help">Keep notes temporarily while you explore. Reloading this page or choosing Exit clears them. Device notes are kept separately.</p></div>
           <label><input id="memory-consent" type="checkbox" /><span><strong>Remember on this device</strong><small>Only notes you explicitly save. This browser can clear them.</small></span></label>
-          <label><input id="memory-share-consent" type="checkbox" /><span><strong>Use selected saved notes in conversation</strong><small>Sharing with the AI is a separate choice.</small></span></label>
+          <label><input id="memory-share-consent" type="checkbox" /><span><strong>Use selected notes in conversation</strong><small>Sharing with the AI is a separate choice.</small></span></label>
         </fieldset>
         <p id="memory-status" class="memory-status" role="status">Choose For this visit or Remember on this device to begin.</p>
         <div id="constellation-geometry" class="constellation-geometry" aria-hidden="true"></div>
@@ -138,7 +138,7 @@
     </section>
 
     <section id="conversation" class="conversation" aria-label="Your conversation">
-      <div class="conversation-status"><span class="status-dot" aria-hidden="true"></span><p id="session-status" role="status">Write an intention, or choose Speak.</p><button id="resume-button" type="button" hidden>Resume</button></div>
+      <div class="conversation-status"><span class="status-dot" aria-hidden="true"></span><p id="session-status" role="status">Checking conversation availability. You can explore while we check.</p><button id="resume-button" type="button" hidden>Resume</button></div>
       <p id="service-status" class="service-status" role="status">Checking conversation availability…</p>
       <button id="service-retry" class="text-button" type="button">Check conversation again</button>
       <form id="intention-form" class="intention-form">

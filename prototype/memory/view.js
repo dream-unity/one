@@ -17,6 +17,7 @@ function sameIdentifiers(a, b) { return a.length === b.length && a.every((item, 
 export function mountMemoryView(container, { store, controller, proposalsContainer = container, onSelectionChange = () => {}, onConfirmProposal } = {}) {
   if (!container || !store || !controller) throw new TypeError('A container, memory store and proposal controller are required.');
   let state = null, selection = [], desiredSelection = [], pending = null, closed = false, busy = false, message = '', selectionGeneration = 0, stateGeneration = 0;
+  let operationOwner = null, selectionNotification = 0;
   let editorOpen = false, editing = null, editExpected = null;
   let draft = { kind: 'goal', title: '', text: '', status: 'active' };
   let relationDraft = { from: '', to: '', relation: 'relates_to', label: '' };
@@ -35,7 +36,9 @@ export function mountMemoryView(container, { store, controller, proposalsContain
     target?.focus();
   }
   function notifySelection(identifiers) {
-    try { const result = onSelectionChange([...identifiers]); result?.catch?.(error => say(`Selected notes were not shared. ${error.message}`)); } catch (error) { say(`Selected notes were not shared. ${error.message}`); }
+    const notification = ++selectionNotification;
+    const failed = error => { if (!closed && notification === selectionNotification) say(`Selected notes were not shared. ${error.message}`); };
+    try { const result = onSelectionChange([...identifiers]); result?.catch?.(failed); } catch (error) { failed(error); }
   }
   function field(form, title, key, input, value, target) {
     const label = element('label', title); input.id = `${prefix}-${key}`; label.htmlFor = input.id;
@@ -48,23 +51,29 @@ export function mountMemoryView(container, { store, controller, proposalsContain
     for (const value of values) { const option = element('option', value.replaceAll('_', ' ')); option.value = value; input.append(option); }
     return input;
   }
-  function savedMessage() { return store.getStatus().mode === 'session' ? 'Kept for this visit. Reloading the page or choosing Exit clears it.' : 'Saved on this device.'; }
-  function retentionPlace() { return store.getStatus().mode === 'session' ? 'this visit' : 'this device'; }
+  function isVisit() { return store.getStatus().mode === 'session'; }
+  function savedMessage() { return isVisit() ? 'Kept for this visit. Reloading, leaving the page or choosing Exit clears it.' : 'Saved on this device.'; }
+  function retentionPlace() { return isVisit() ? 'this visit' : 'this device'; }
+  function retentionMessage() { return isVisit()
+    ? 'For this visit only. Notes and connections are not saved on this device. Reloading, leaving the page or choosing Exit clears them.'
+    : 'On this device. Only confirmed notes and connections are stored in this browser. They remain until you delete them or the browser clears its storage.'; }
+  function ownsOperation(owner) { return !closed && operationOwner === owner; }
   async function run(operation, success, completion) {
     if (busy || closed) return;
     const initiatingKey = container.contains(document.activeElement) ? document.activeElement.dataset?.focusKey : null;
+    const owner = {}; operationOwner = owner;
     busy = true; render();
     try {
       const result = await operation();
-      if (closed) return;
+      if (!ownsOperation(owner)) return;
       if (success) success(result); say(result?.duplicate ? 'That relationship already exists. Its saved label was kept.' : completion || savedMessage());
     } catch (error) {
-      if (closed) return;
+      if (!ownsOperation(owner)) return;
       say(`Not saved. ${error.message}`);
       if (['STALE_STATE', 'STALE_RECORD', 'RECORD_NOT_FOUND'].includes(error.code)) { try { await refresh(); } catch { /* Keep the honest original error. */ } }
     } finally {
-      busy = false;
-      if (!closed) {
+      if (ownsOperation(owner)) {
+        operationOwner = null; busy = false;
         render();
         if (initiatingKey && document.activeElement === document.body) {
           focusContent(initiatingKey);
@@ -83,9 +92,10 @@ export function mountMemoryView(container, { store, controller, proposalsContain
     const requestGeneration = ++selectionGeneration;
     desiredSelection = next;
     try {
-      await store.selectContext(next);
+      const context = await store.selectContext(next);
       if (closed || requestGeneration !== selectionGeneration || !state?.consent.conversationUseEnabled) return;
-      selection = next; desiredSelection = [...next]; say('Only these selected saved records will be offered to the conversation.'); notifySelection(selection);
+      if (context.consentEpoch !== state.consentEpoch || context.revision !== state.revision) { desiredSelection = [...selection]; render(); return; }
+      selection = next; desiredSelection = [...next]; say('Only these selected notes and relationships will be offered to the conversation.'); notifySelection(selection);
     } catch (error) { if (!closed && requestGeneration === selectionGeneration) { desiredSelection = [...selection]; say(error.message); } }
     if (!closed) render();
   }
@@ -100,22 +110,24 @@ export function mountMemoryView(container, { store, controller, proposalsContain
   function renderEditor() {
     if (!editorOpen) return;
     const form = element('form', undefined, 'memory-card memory-editor');
-    form.append(element('h3', editing ? 'Edit this saved note' : 'A new note'));
+    const saveLabel = isVisit() ? editing ? 'Keep changes for this visit' : 'Keep this note for this visit' : editing ? 'Save changes' : 'Remember this note';
+    form.setAttribute('aria-describedby', `${prefix}-retention`);
+    form.append(element('h3', editing ? isVisit() ? 'Edit this visit note' : 'Edit this saved note' : 'A new note'));
     const kind = field(form, 'Kind', 'kind', select(NODE_KINDS), draft.kind, draft);
     const title = field(form, 'Title', 'title', element('input'), draft.title, draft); title.required = true;
     const note = field(form, 'Note', 'text', element('textarea'), draft.text, draft); note.required = true; note.rows = 5;
-    form.append(element('p', 'Title: up to 120 characters. Note: up to 1,200 characters. Nothing is saved until you choose Save.'));
+    form.append(element('p', `Title: up to 120 characters. Note: up to 1,200 characters. Nothing is ${isVisit() ? 'kept' : 'saved'} until you choose ${saveLabel}.`));
     if (editing) {
       field(form, 'Status', 'status', select(NODE_STATUSES), draft.status, draft);
       const original = state.nodes.find(node => node.id === editing);
       const stale = !original || original.revision !== editExpected.expectedRevision || state.revision !== editExpected.revision || state.consentEpoch !== editExpected.consentEpoch;
       if (stale) {
-        form.append(element('p', 'Memory changed while you were editing. Your draft remains here; review the current saved version before replacing it.', 'memory-error'));
-        if (original) form.append(button('Reload saved version', () => edit(original)));
+        form.append(element('p', 'Memory changed while you were editing. Your draft remains here; review the current note before replacing it.', 'memory-error'));
+        if (original) form.append(button('Reload current version', () => edit(original)));
       }
     }
     const actions = element('div', undefined, 'memory-actions');
-    const save = element('button', editing ? 'Save changes' : store.getStatus().mode === 'session' ? 'Keep this note for this visit' : 'Remember this note'); save.type = 'submit'; save.dataset.focusKey = 'save-note'; save.disabled = busy || !store.getStatus().savingEnabled;
+    const save = element('button', saveLabel); save.type = 'submit'; save.dataset.focusKey = 'save-note'; save.disabled = busy || !store.getStatus().savingEnabled;
     actions.append(save, button('Cancel editing', () => { const target = editing ? `edit-${editing}` : 'add-note'; resetEditor(); render(); focusContent(target); })); form.append(actions);
     for (const input of form.querySelectorAll('input, select, textarea')) input.disabled = busy;
     form.addEventListener('submit', event => {
@@ -130,7 +142,7 @@ export function mountMemoryView(container, { store, controller, proposalsContain
     if (state.nodes.length < 2) return;
     const details = element('details', undefined, 'memory-card memory-relations');
     details.open = relationsOpen; details.addEventListener('toggle', () => { if (details.isConnected) relationsOpen = details.open; });
-    details.append(element('summary', 'Connect two saved notes'));
+    details.append(element('summary', isVisit() ? 'Connect two visit notes' : 'Connect two saved notes'));
     const form = element('form');
     function options() { const input = element('select'); const empty = element('option', 'Choose a note'); empty.value = ''; input.append(empty); for (const note of state.nodes) { const option = element('option', note.title); option.value = note.id; input.append(option); } return input; }
     field(form, 'From', 'from', options(), relationDraft.from, relationDraft);
@@ -139,10 +151,11 @@ export function mountMemoryView(container, { store, controller, proposalsContain
     const label = field(form, 'Optional label', 'label', element('input'), relationDraft.label, relationDraft);
     label.setAttribute('aria-describedby', `${prefix}-label-limit`);
     const limit = element('p', 'Up to 240 characters. The direction and relation are explicit; they do not measure you.'); limit.id = `${prefix}-label-limit`; form.append(limit);
-    const submit = element('button', 'Save this relationship'); submit.type = 'submit'; submit.dataset.focusKey = 'save-new-edge'; submit.disabled = busy; form.append(submit);
+    const submit = element('button', isVisit() ? 'Keep this connection for this visit' : 'Save this relationship'); submit.type = 'submit'; submit.dataset.focusKey = 'save-new-edge'; submit.disabled = busy; form.append(submit);
+    for (const input of form.querySelectorAll('input, select')) input.disabled = busy;
     form.addEventListener('submit', event => {
       event.preventDefault(); const from = state.nodes.find(node => node.id === relationDraft.from), to = state.nodes.find(node => node.id === relationDraft.to);
-      if (!from || !to) { say('Choose both saved notes first.'); return; }
+      if (!from || !to) { say('Choose both notes first.'); return; }
       const candidate = { operation: 'create_edge', from: from.id, fromRevision: from.revision, to: to.id, toRevision: to.revision, relation: relationDraft.relation, label: relationDraft.label };
       run(() => store.commitProposal(candidate, expected(state)), () => { relationDraft = { from: '', to: '', relation: 'relates_to', label: '' }; });
     });
@@ -156,9 +169,10 @@ export function mountMemoryView(container, { store, controller, proposalsContain
     content.replaceChildren(); status.textContent = message;
     if (!state) { content.append(element('p', 'Loading saved notes…')); return; }
     if (!store.getStatus().savingEnabled) { content.append(element('p', 'Notes are optional. Choose For this visit or Remember on this device to begin.')); return; }
+    const retention = element('p', retentionMessage(), 'memory-retention'); retention.id = `${prefix}-retention`; content.append(retention);
     const add = button(editorOpen && !editing ? 'New note form is open' : 'Add a note', () => { if (editorOpen && !editing) { content.querySelector('[data-focus-key="title"]')?.focus(); return; } resetEditor(); editorOpen = true; render(); content.querySelector('[data-focus-key="title"]')?.focus(); }); add.dataset.focusKey = 'add-note'; add.disabled = busy; content.append(add);
     renderEditor();
-    if (!state.nodes.length) content.append(element('p', 'No notes are saved yet. A goal, question or possibility can begin here.'));
+    if (!state.nodes.length) content.append(element('p', isVisit() ? 'No notes are kept for this visit yet. A goal, question or possibility can begin here.' : 'No notes are saved yet. A goal, question or possibility can begin here.'));
     for (const node of state.nodes) {
       const card = element('article', undefined, 'memory-card'); card.append(element('h3', node.title), element('p', `${node.kind} · ${node.status}`, 'memory-meta'), element('p', node.text));
       card.append(shareCheckbox(node.id, node.title));
@@ -192,9 +206,9 @@ export function mountMemoryView(container, { store, controller, proposalsContain
         const label = element('input'); label.value = edgeDraft.label; label.id = `${prefix}-edge-label`; label.dataset.focusKey = 'edge-label';
         const labelText = element('label', 'Optional label'); labelText.htmlFor = label.id; label.addEventListener('input', () => { edgeDraft.label = label.value; }); form.append(labelText, label);
         if (edgeExpected.revision !== state.revision || edgeExpected.consentEpoch !== state.consentEpoch || edgeExpected.expectedRevision !== edge.revision) {
-          form.append(element('p', 'Memory changed. Your relationship draft remains here; reload the saved version before replacing it.', 'memory-error'), button('Reload saved relationship', () => { edgeDraft = { relation: edge.relation, label: edge.label }; edgeExpected = { ...expected(state), expectedRevision: edge.revision }; render(); }));
+          form.append(element('p', 'Memory changed. Your relationship draft remains here; reload the current version before replacing it.', 'memory-error'), button('Reload current relationship', () => { edgeDraft = { relation: edge.relation, label: edge.label }; edgeExpected = { ...expected(state), expectedRevision: edge.revision }; render(); }));
         }
-        const submit = element('button', 'Save relationship changes'); submit.type = 'submit'; submit.dataset.focusKey = 'save-edge'; submit.disabled = busy; form.append(submit, button('Cancel', () => { edgeEditing = null; edgeDraft = null; edgeExpected = null; render(); focusContent(`edit-edge-${edge.id}`); }));
+        const submit = element('button', isVisit() ? 'Keep connection changes for this visit' : 'Save relationship changes'); submit.type = 'submit'; submit.dataset.focusKey = 'save-edge'; submit.disabled = busy; form.append(submit, button('Cancel', () => { edgeEditing = null; edgeDraft = null; edgeExpected = null; render(); focusContent(`edit-edge-${edge.id}`); }));
         relation.disabled = busy; label.disabled = busy;
         form.addEventListener('submit', event => { event.preventDefault(); const candidate = { operation: 'update_edge', edgeId: edge.id, expectedRevision: edgeExpected.expectedRevision, ...clone(edgeDraft) }, binding = clone(edgeExpected); run(() => store.commitProposal(candidate, binding), () => { edgeEditing = null; edgeDraft = null; edgeExpected = null; }); });
         card.append(form);
@@ -215,23 +229,24 @@ export function mountMemoryView(container, { store, controller, proposalsContain
     review.replaceChildren(); review.hidden = !pending;
     if (!pending) { if (focusedProposal) focusContent(); return; }
     const exact = pending;
-    review.append(element('h3', 'Review before remembering'), element('p', 'This AI suggestion is not saved. Confirm only if the exact change expresses what you want.'));
+    review.append(element('h3', isVisit() ? 'Review before keeping for this visit' : 'Review before remembering'), element('p', 'This AI suggestion is not saved. Confirm only if the exact change expresses what you want.'), element('p', retentionMessage(), 'memory-retention'));
     function recordText(record) {
-      if (!record) return 'Nothing is saved for this suggestion yet.';
+      if (!record) return 'This suggestion has not been added.';
       if (record.kind) return `Kind: ${record.kind}\nTitle: ${record.title}\nNote: ${record.text}\nStatus: ${record.status || 'active'}`;
       const from = record.from || exact.before?.from, to = record.to || exact.before?.to;
       return `From: ${state?.nodes.find(node => node.id === from)?.title || from}\nTo: ${state?.nodes.find(node => node.id === to)?.title || to}\nRelationship: ${record.relation}\nLabel: ${record.label}`;
     }
     review.append(element('h4', 'Before'), element('pre', recordText(exact.before), 'memory-review-text'), element('h4', exact.duplicate ? 'After: unchanged existing relationship' : 'After'), element('pre', recordText(exact.duplicate ? exact.before : exact.after), 'memory-review-text'));
     if (exact.duplicate) review.append(element('p', 'This directed relationship already exists. Confirmation keeps its saved identity and label; the proposed label will not overwrite it.'));
-    const confirm = button(exact.duplicate ? 'Keep existing relationship' : 'Confirm this exact change', async () => {
+    const confirm = button(exact.duplicate ? 'Keep existing relationship' : isVisit() ? 'Confirm for this visit' : 'Confirm this exact change', async () => {
       if (busy || pending?.proposalId !== exact.proposalId) return;
-      busy = true; confirm.disabled = true;
+      const owner = {}; operationOwner = owner;
+      busy = true; confirm.disabled = true; render();
       try {
         const result = await (onConfirmProposal ? onConfirmProposal(clone(exact)) : controller.confirm(exact.proposalId, { turnId: exact.turnId }));
-        if (!closed) say(result?.duplicate ? 'Existing relationship kept.' : result?.dataset && result?.record ? `Confirmed. ${savedMessage()}` : 'Confirmation handled. Check the saved notes for the result.');
-      } catch (error) { if (!closed) say(`Not saved. ${error.message}`); }
-      finally { busy = false; if (!closed) { render(); renderProposal(); } }
+        if (ownsOperation(owner)) say(result?.duplicate ? 'Existing relationship kept.' : result?.dataset && result?.record ? `Confirmed. ${savedMessage()}` : 'Confirmation handled. Check the notes for the result.');
+      } catch (error) { if (ownsOperation(owner)) say(`Not saved. ${error.message}`); }
+      finally { if (ownsOperation(owner)) { operationOwner = null; busy = false; render(); renderProposal(); } }
     });
     confirm.disabled = busy; confirm.dataset.focusKey = 'confirm-proposal';
     const decline = button('Decline this suggestion', () => controller.reject(exact.proposalId)); decline.dataset.focusKey = 'decline-proposal';
@@ -243,13 +258,22 @@ export function mountMemoryView(container, { store, controller, proposalsContain
     const nextMode = store.getStatus().mode;
     const scopeChanged = stateMode !== null && nextMode !== stateMode;
     const storageRevoked = state?.consent.storageEnabled && !next.consent.storageEnabled;
+    const consentChanged = state && state.consentEpoch !== next.consentEpoch;
+    if (consentChanged) { selectionGeneration++; desiredSelection = [...selection]; }
     // A successful clear must remove editor copies as well as authoritative records.
     // Sharing-only changes and deletion of the separate device graph during a visit
     // do not erase an unrelated, still-authorized visit draft.
     if (scopeChanged || storageRevoked || detail.reason === 'clear' || detail.reason === 'clear-device') {
+      // The old operation no longer owns editor cleanup, status or the busy lock.
+      operationOwner = null; busy = false; message = '';
       resetEditor(); relationDraft = { from: '', to: '', relation: 'relates_to', label: '' }; relationsOpen = false;
       edgeEditing = null; edgeDraft = null; edgeExpected = null; pending = null;
       selectionGeneration++; selection = []; desiredSelection = []; notifySelection([]);
+    }
+    if (editing && !next.nodes.some(node => node.id === editing)) resetEditor();
+    if (edgeEditing && !next.edges.some(edge => edge.id === edgeEditing)) { edgeEditing = null; edgeDraft = null; edgeExpected = null; }
+    if ([relationDraft.from, relationDraft.to].some(identifier => identifier && !next.nodes.some(node => node.id === identifier))) {
+      relationDraft = { from: '', to: '', relation: 'relates_to', label: '' };
     }
     stateMode = nextMode;
     state = clone(next); const validIds = new Set([...state.nodes, ...state.edges].map(record => record.id));
@@ -277,7 +301,7 @@ export function mountMemoryView(container, { store, controller, proposalsContain
     setProposal(value) { pending = value ? clone(value) : null; renderProposal(); },
     getSelection() { return [...selection]; },
     close() {
-      closed = true; selectionGeneration++; unsubscribe(); state = null; pending = null; selection = []; desiredSelection = []; message = ''; resetEditor();
+      closed = true; operationOwner = null; busy = false; selectionGeneration++; selectionNotification++; unsubscribe(); state = null; pending = null; selection = []; desiredSelection = []; message = ''; resetEditor();
       relationDraft = { from: '', to: '', relation: 'relates_to', label: '' }; edgeEditing = null; edgeDraft = null; edgeExpected = null; relationsOpen = false;
       review.replaceChildren(); review.remove(); container.replaceChildren();
     }

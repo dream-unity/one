@@ -115,6 +115,8 @@ test('Media retains quiet transport, uses Responses text and Resume syncs finals
 test('Resume requires actual media QUIET acknowledgement before reacquiring capture', async () => {
   const h = await authorized({ ensureMediaQuiet: async () => false }); await h.conversation.startVoice(); await h.conversation.enterMedia();
   await assert.rejects(h.conversation.resumeVoice(), { code: 'MEDIA_NOT_QUIET' }); assert.equal(h.tracks.length, 1);
+  assert.equal(h.conversation.getState().voice, 'paused-media'); assert.equal(h.conversation.getState().mode, 'media');
+  assert.equal(h.peers[0].connectionState, 'connected');
   await h.conversation.exit();
 });
 
@@ -487,7 +489,7 @@ test('Stage5: insecure, unsupported, and policy-blocked microphone environments 
     const h = await authorized({ ...option, getUserMedia: () => { captures++; throw new Error('must not capture'); } });
     if (code === 'MICROPHONE_POLICY_BLOCKED') h.doc.permissionsPolicy = { allowsFeature: () => false };
     await assert.rejects(h.conversation.startVoice(), { code }); assert.equal(captures, 0);
-    assert.equal(h.conversation.getState().error.code, code); await h.conversation.exit();
+    assert.equal(h.conversation.getState().error.code, code); assert.equal(h.conversation.getState().voice, 'failed'); await h.conversation.exit();
   }
 });
 
@@ -597,13 +599,46 @@ test('Stage5: a failed response write ends the owned call instead of leaving a t
   assert.ok(h.tracks.every(track => track.stopped)); assert.equal(h.peers[0].connectionState, 'closed'); await h.conversation.exit();
 });
 
-test('Stage5: unavailable service on Resume leaves the microphone physically paused', async () => {
+test('unavailable service on Resume releases the retained call and permits a fresh retry after recovery', async () => {
   let available = true;
   const h = await authorized({ fetch: path => path.endsWith('/status') && !available ? Response.json({ version: 1, enabled: false, ready: false, access: 'invite', voiceConfigured: true, textConfigured: true, reason: 'SERVICE_NOT_READY', reasonCodes: ['AI_DISABLED'] }) : null });
   await h.conversation.startVoice(); await h.conversation.enterMedia(); available = false;
   await assert.rejects(h.conversation.resumeVoice(), { code: 'SERVICE_NOT_READY' });
   assert.equal(h.tracks.length, 1); assert.ok(h.tracks.every(track => track.stopped));
-  assert.equal(h.conversation.getState().service.phase, 'unavailable'); await h.conversation.exit();
+  assert.equal(h.conversation.getState().service.phase, 'unavailable'); assert.equal(h.conversation.getState().voice, 'failed');
+  assert.equal(h.peers[0].connectionState, 'closed');
+  assert.equal(h.requests.filter(request => request.path.endsWith('/sessions/close')).length, 1);
+  available = true; await h.conversation.startVoice();
+  assert.equal(h.conversation.getState().voice, 'listening'); assert.equal(h.conversation.getState().error, null);
+  assert.equal(h.peers.length, 2); assert.equal(h.tracks.filter(track => !track.stopped).length, 1);
+  await h.conversation.exit();
+});
+
+test('cleanup before voice or after a failed attempt never invents a paused microphone', async () => {
+  const h = await authorized({ getUserMedia: () => Promise.reject(new DOMException('permission blocked', 'NotAllowedError')) });
+  await h.conversation.stop(); assert.equal(h.conversation.getState().voice, 'idle');
+  h.doc.hidden = true; h.doc.dispatchEvent(new Event('visibilitychange')); await tick();
+  assert.equal(h.conversation.getState().voice, 'idle');
+  h.doc.hidden = false;
+  await assert.rejects(h.conversation.startVoice(), { code: 'MICROPHONE_PERMISSION_BLOCKED' });
+  await h.conversation.stop();
+  h.doc.hidden = true; h.doc.dispatchEvent(new Event('visibilitychange')); await tick();
+  assert.equal(h.conversation.getState().voice, 'failed');
+  assert.equal(h.conversation.getState().error.code, 'MICROPHONE_PERMISSION_BLOCKED');
+  assert.equal(h.requests.some(request => request.path.endsWith('/realtime')), false);
+  await h.conversation.exit();
+});
+
+test('a microphone permission failure on Resume closes the call and preserves its truthful failure state', async () => {
+  let captures = 0;
+  const h = await authorized({ getUserMedia: () => ++captures === 1 ? h.captureStream() : Promise.reject(new DOMException('permission blocked', 'NotAllowedError')) });
+  await h.conversation.startVoice(); await h.conversation.enterMedia();
+  await assert.rejects(h.conversation.resumeVoice(), { code: 'MICROPHONE_PERMISSION_BLOCKED' });
+  assert.equal(h.conversation.getState().voice, 'failed'); assert.equal(h.conversation.getState().mode, 'conversation');
+  assert.ok(h.tracks.every(track => track.stopped)); assert.equal(h.peers[0].connectionState, 'closed');
+  assert.equal(h.requests.filter(request => request.path.endsWith('/sessions/close')).length, 1);
+  await h.conversation.stop(); assert.equal(h.conversation.getState().voice, 'failed');
+  await h.conversation.exit();
 });
 
 test('Stage5: a failed typed user-item write cannot authorize a provider response', async () => {

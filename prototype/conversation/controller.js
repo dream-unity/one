@@ -205,7 +205,11 @@ export function createConversation(options = {}) {
     for (const timer of [deadlineTimer, idleTimer, connectionTimer, recoveryTimer]) dropTimer(timer);
     deadlineTimer = idleTimer = connectionTimer = recoveryTimer = null;
     responseOwners.clear(); voiceItems.clear(); executedCalls.clear(); controlEvents.clear(); voiceIdentity = null;
-    update({ voice: reason === 'expired' ? 'expired' : reason === 'transport-failed' ? 'failed' : 'paused' });
+    // Cleanup also runs before a first voice attempt and after failed attempts.
+    // It must not manufacture a resumable microphone state in either case.
+    const voice = reason === 'expired' ? 'expired' : reason === 'transport-failed' ? 'failed'
+      : ['idle', 'failed', 'expired', 'closed'].includes(state.voice) ? state.voice : 'paused';
+    update({ voice });
     emit({ type: 'stopped', reason });
     // Track stop and peer closure must not wait for browser sender settlement.
     if (oldSender?.replaceTrack) oldSender.replaceTrack(null).catch(() => {});
@@ -505,7 +509,7 @@ export function createConversation(options = {}) {
     }
     if (peer && ownedCall) return resumeVoice();
     authorize();
-    if (!PeerConnection) { const failure = new ConversationError('VOICE_UNAVAILABLE', 'This browser cannot use live voice. Open the site in a supported browser or continue by writing.'); error(failure); throw failure; }
+    if (!PeerConnection) { const failure = new ConversationError('VOICE_UNAVAILABLE', 'This browser cannot use live voice. Open the site in a supported browser or continue by writing.'); update({ voice: 'failed' }); error(failure); throw failure; }
     if (state.mode === 'media') throw new ConversationError('MEDIA_ACTIVE', 'Pause media before resuming voice.');
     invalidateTurn();
     const expectedGeneration = ++generation; const expectedCaptureEpoch = ++captureEpoch; const owned = context();
@@ -762,8 +766,12 @@ export function createConversation(options = {}) {
         if (!stillOwned() || failure.code === 'ACTIVATION_CANCELLED') return snapshot();
         if (microphone === stream) microphone = null;
         error(failure);
-        if (stream || failure.code === 'VOICE_SETUP_TIMEOUT') await closeVoice('transport-failed');
-        else update({ voice: 'paused' });
+        // A failed reconnect is not a successfully paused microphone. Retire
+        // the retained call so a deliberate retry starts a fresh connection.
+        // Media that has not acknowledged quiet is still safely paused and can
+        // be corrected without discarding an otherwise healthy transport.
+        if (failure.code === 'MEDIA_NOT_QUIET') update({ voice: ownedCall ? 'paused-media' : state.voice });
+        else await closeVoice('transport-failed');
         throw failure;
       } finally { if (resumePromise === promise) resumePromise = null; }
     })();
