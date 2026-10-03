@@ -48,7 +48,7 @@ export const PUBLIC_FILES = Object.freeze([
   'prototype/scene.js',
   'prototype/manifesto-view.js',
   'prototype/actions.js',
-  'prototype/contracts.js',
+  'prototype/wire-contracts.js',
   'prototype/validate.js',
   'prototype/earth/adapter.js',
   'prototype/conversation/controller.js',
@@ -60,6 +60,11 @@ export const PUBLIC_FILES = Object.freeze([
 ]);
 
 export async function stagePublicSite() {
+  const explicitSourceCommit = process.env.DREAMUNITY_SOURCE_COMMIT;
+  if (explicitSourceCommit !== undefined && !/^[a-f0-9]{40}$/.test(explicitSourceCommit)) {
+    throw new Error('DREAMUNITY_SOURCE_COMMIT must identify an exact 40-character source revision.');
+  }
+  const sourceCommit = explicitSourceCommit || process.env.GITHUB_SHA;
   // Validate before replacing the output. The destination is fixed to this
   // repository; no command-line path can expand the removal scope.
   for (const file of PUBLIC_FILES) {
@@ -73,9 +78,9 @@ export async function stagePublicSite() {
     const destination = resolve(PUBLIC_DIRECTORY, file);
     await mkdir(dirname(destination), { recursive: true });
     if (file === '.nojekyll') await writeFile(destination, '');
-    else if (file === 'prototype/build-info.json' && /^[a-f0-9]{40}$/.test(process.env.GITHUB_SHA || '')) {
+    else if (file === 'prototype/build-info.json' && /^[a-f0-9]{40}$/.test(sourceCommit || '')) {
       const info = JSON.parse(await readFile(resolve(repository, file), 'utf8'));
-      await writeFile(destination, JSON.stringify({ ...info, sourceCommit: process.env.GITHUB_SHA }) + '\n');
+      await writeFile(destination, JSON.stringify({ ...info, sourceCommit }) + '\n');
     } else await copyFile(resolve(repository, file), destination);
   }
   return PUBLIC_DIRECTORY;

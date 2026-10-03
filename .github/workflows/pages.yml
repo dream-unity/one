@@ -1,7 +1,12 @@
 name: Deploy Dream Unity
 
 on:
-  push:
+  # The repository currently also has GitHub's generated legacy publisher.
+  # Run our exact allowlist release after it, so it cannot overwrite this release.
+  # Switching the Pages source to Actions later removes this compatibility chain.
+  workflow_run:
+    workflows: ['pages build and deployment']
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
@@ -10,12 +15,43 @@ permissions:
   pages: write
   id-token: write
 
-concurrency:
-  group: dream-unity-pages
-  cancel-in-progress: true
-
 jobs:
+  preflight:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_repository.full_name == github.repository &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      source_commit: ${{ steps.revision.outputs.source_commit }}
+    steps:
+      - name: Admit only the current trusted main revision
+        id: revision
+        env:
+          DREAMUNITY_SOURCE_COMMIT: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          node <<'NODE'
+          const { execFileSync } = require('node:child_process');
+          const { appendFileSync } = require('node:fs');
+          const selected = process.env.DREAMUNITY_SOURCE_COMMIT;
+          if (!/^[a-f0-9]{40}$/.test(selected || '')) throw new Error('Release revision must be an exact Git commit.');
+          const current = execFileSync('git', ['ls-remote', 'https://github.com/dream-unity/one.git', 'refs/heads/main'],
+            { encoding: 'utf8', timeout: 10000 }).trim().split(/\s+/)[0];
+          if (current !== selected) throw new Error('A newer main revision exists; this stale completion cannot deploy.');
+          appendFileSync(process.env.GITHUB_OUTPUT, `source_commit=${selected}\n`);
+          NODE
+
   deploy:
+    needs: preflight
+    concurrency:
+      group: dream-unity-pages
+      cancel-in-progress: false
+      queue: max
+    env:
+      DREAMUNITY_SOURCE_COMMIT: ${{ needs.preflight.outputs.source_commit }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -23,11 +59,12 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.preflight.outputs.source_commit }}
+          persist-credentials: false
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - name: Use the supported JavaScript runtime
         uses: actions/setup-node@v4
@@ -45,6 +82,17 @@ jobs:
         with:
           path: .public-site
 
+      - name: Recheck the exact current revision before publishing
+        run: |
+          node <<'NODE'
+          const { execFileSync } = require('node:child_process');
+          const selected = process.env.DREAMUNITY_SOURCE_COMMIT;
+          const checkedOut = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+          const current = execFileSync('git', ['ls-remote', 'origin', 'refs/heads/main'],
+            { encoding: 'utf8', timeout: 10000 }).trim().split(/\s+/)[0];
+          if (checkedOut !== selected || current !== selected) throw new Error('Release superseded; no stale publication is permitted.');
+          NODE
+
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
@@ -58,7 +106,7 @@ jobs:
         timeout-minutes: 2
         env:
           NODE_PATH: ${{ runner.temp }}/dreamunity-browser/node_modules
-          DREAMUNITY_EXPECTED_COMMIT: ${{ github.sha }}
+          DREAMUNITY_EXPECTED_COMMIT: ${{ needs.preflight.outputs.source_commit }}
         run: node scripts/verify-prototype-browser.cjs
 
       - name: Preserve published browser verification evidence

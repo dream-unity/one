@@ -1,4 +1,4 @@
-import { schemas } from './contracts.js';
+import { schemas } from './wire-contracts.js';
 import { assertValid } from './validate.js';
 
 const clone = value => JSON.parse(JSON.stringify(value));

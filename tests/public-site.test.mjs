@@ -22,13 +22,14 @@ const permitted = [
   'prototype/index.html', 'prototype/styles.css', 'prototype/main.js', 'prototype/state.js',
   'prototype/boot.js',
   'prototype/scene.js', 'prototype/manifesto-view.js', 'prototype/actions.js',
-  'prototype/contracts.js', 'prototype/validate.js', 'prototype/earth/adapter.js',
+  'prototype/wire-contracts.js', 'prototype/validate.js', 'prototype/earth/adapter.js',
   'prototype/conversation/controller.js', 'prototype/conversation/text.js',
   'prototype/memory/store.js', 'prototype/memory/consent.js', 'prototype/memory/view.js',
   'prototype/build-info.json',
 ].sort();
 
 test('publication contains only the approved home and prototype dependencies and removes stale applications', async () => {
+  const expectedSourceCommit = process.env.DREAMUNITY_SOURCE_COMMIT || process.env.GITHUB_SHA || '';
   assert.deepEqual([...PUBLIC_FILES].sort(), permitted);
   const stale = join(PUBLIC_DIRECTORY, 'portals/dream-world/index.html');
   await mkdir(dirname(stale), { recursive: true });
@@ -44,9 +45,9 @@ test('publication contains only the approved home and prototype dependencies and
       assert.equal(await readFile(join(PUBLIC_DIRECTORY, file), 'utf8'), '');
       continue;
     }
-    if (file === 'prototype/build-info.json' && /^[a-f0-9]{40}$/.test(process.env.GITHUB_SHA || '')) {
+    if (file === 'prototype/build-info.json' && /^[a-f0-9]{40}$/.test(expectedSourceCommit)) {
       const info = JSON.parse(await readFile(join(PUBLIC_DIRECTORY, file), 'utf8'));
-      assert.equal(info.sourceCommit, process.env.GITHUB_SHA);
+      assert.equal(info.sourceCommit, expectedSourceCommit);
       assert.equal(info.contractVersion, 'du-prototype/1.0');
     } else assert.deepEqual(await readFile(join(PUBLIC_DIRECTORY, file)), await readFile(join(repository, file)),
         `${file} must publish the current source bytes`);
@@ -66,6 +67,19 @@ test('publication contains only the approved home and prototype dependencies and
       assert.ok(files.includes(targetFile), `${file} references an unpublished local path: ${target}`);
     }
   }
+  const beforeInvalidRevision = await readFile(join(PUBLIC_DIRECTORY, 'prototype/build-info.json'));
+  const previousExplicitRevision = process.env.DREAMUNITY_SOURCE_COMMIT;
+  try {
+    for (const invalidRevision of ['', 'invalid-revision']) {
+      process.env.DREAMUNITY_SOURCE_COMMIT = invalidRevision;
+      await assert.rejects(stagePublicSite(), /DREAMUNITY_SOURCE_COMMIT must identify an exact/);
+      assert.deepEqual(await readFile(join(PUBLIC_DIRECTORY, 'prototype/build-info.json')), beforeInvalidRevision,
+        'an invalid explicit source revision must fail before replacing the valid public artifact');
+    }
+  } finally {
+    if (previousExplicitRevision === undefined) delete process.env.DREAMUNITY_SOURCE_COMMIT;
+    else process.env.DREAMUNITY_SOURCE_COMMIT = previousExplicitRevision;
+  }
 });
 
 test('legacy branch publishing excludes every source file outside the home, manifesto and Dream World portals', async () => {
@@ -73,11 +87,15 @@ test('legacy branch publishing excludes every source file outside the home, mani
     'root .nojekyll would bypass branch publication exclusions');
   const config = JSON.parse(await readFile(join(repository, '_config.yml'), 'utf8'));
   assert.ok(config.include.includes('vendor'), 'the home renderer must remain available');
+  for (const file of permitted) {
+    assert.ok(!config.exclude.some(excluded => file.startsWith(excluded)),
+      `legacy exclusion prefix must not hide a permitted public file: ${file}`);
+  }
   const tracked = execFileSync('git', ['ls-files', '-z'], { cwd: repository, encoding: 'utf8' })
     .split('\0').filter(Boolean);
   for (const file of tracked) {
     if (permitted.includes(file) || /^[._]/.test(file)) continue;
-    assert.ok(config.exclude.some(excluded => file === excluded || file.startsWith(`${excluded}/`)),
+    assert.ok(config.exclude.some(excluded => file.startsWith(excluded)),
       `legacy branch build would expose ${file}`);
   }
 });

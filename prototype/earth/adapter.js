@@ -1,4 +1,4 @@
-import { schemas } from '../contracts.js';
+import { schemas } from '../wire-contracts.js';
 import { validate } from '../validate.js';
 
 export const EARTH_ORIGIN = 'https://november-1st-sable.vercel.app';

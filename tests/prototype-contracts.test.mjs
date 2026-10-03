@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { schemas, toolDefinitions } from '../prototype/contracts.js';
+import { schemas, toolDefinitions } from '../prototype/wire-contracts.js';
 import { validate, assertValid, validateTool, validateContract } from '../prototype/validate.js';
 
 const id = '6d61a490-3419-49ba-8f59-8a8299dd8117';
