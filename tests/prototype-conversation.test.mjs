@@ -706,6 +706,30 @@ test('Astra: stalled Media detachment closes the broken peer before media contro
   await h.conversation.exit();
 });
 
+test('Astra: delayed Media cleanup cannot acknowledge media after a newer Resume opens live capture', async () => {
+  let finishOldClose; let closes = 0; let creations = 0;
+  const h = await authorized({ replaceTrack: track => track ? undefined : new Promise(() => {}),
+    fetch: path => {
+      if (path.endsWith('/realtime')) return Response.json({ version: 1, sessionId: id(500 + creations++), transport: { type: 'webrtc', sdp: 'answer' }, closeToken: 'close-only', clientDeadlineAt: '2026-10-03T02:12:00Z' });
+      if (path.endsWith('/sessions/close') && ++closes === 1) return new Promise(resolve => { finishOldClose = resolve; });
+    } });
+  await h.conversation.startVoice();
+  let mediaAcknowledged = false;
+  const enteringMedia = h.conversation.enterMedia().then(value => { mediaAcknowledged = true; return value; });
+  const rejected = assert.rejects(enteringMedia, { code: 'MEDIA_REQUEST_SUPERSEDED' });
+  await tick();
+  const timeout = [...h.timers.values()].find(timer => timer.delay === 15000); assert.ok(timeout); timeout.fn(); await tick();
+  assert.equal(closes, 1); assert.equal(h.peers[0].connectionState, 'closed'); assert.equal(h.tracks[0].stopped, true);
+  await h.conversation.resumeVoice();
+  assert.equal(h.peers.length, 2); assert.equal(h.tracks[1].stopped, false);
+  assert.equal(h.conversation.getState().mode, 'conversation'); assert.equal(h.conversation.getState().voice, 'listening');
+  finishOldClose(Response.json({ version: 1, status: 'closed' })); await rejected;
+  assert.equal(mediaAcknowledged, false, 'The obsolete Media callback must not let the shell announce that capture is off.');
+  assert.equal(h.conversation.getState().mode, 'conversation'); assert.equal(h.conversation.getState().voice, 'listening');
+  assert.equal(h.tracks[1].stopped, false); assert.equal(h.peers[1].connectionState, 'connected');
+  await h.conversation.exit(); assert.ok(h.tracks.every(track => track.stopped));
+});
+
 test('Astra: rejected session access releases voice and permits a fresh invitation', async () => {
   let denied = true;
   const h = await authorized({ fetch: path => path.endsWith('/knowledge') && denied ? Response.json({ code: 'ACCESS_DENIED' }, { status: 401 }) : null });

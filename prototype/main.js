@@ -113,7 +113,9 @@ const earth = createEarthAdapter({ host: $('earth-frame-host'),
     $('earth-recovery').hidden = value.app !== 'failed';
   },
   async onMedia() {
-    await conversation.enterMedia(); dispatch({ type: 'mode', mode: 'media' }); return true;
+    const media = await conversation.enterMedia();
+    if (exiting || !state.visible || media.mode !== 'media' || conversation.getState().mode !== 'media') return false;
+    dispatch({ type: 'mode', mode: 'media' }); return true;
   },
   onHome() { navigateFromUser('unity').catch(showError); },
 });

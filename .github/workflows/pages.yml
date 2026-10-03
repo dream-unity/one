@@ -114,8 +114,8 @@ jobs:
         env:
           NODE_PATH: ${{ runner.temp }}/dreamunity-browser/node_modules
           DREAMUNITY_EXPECTED_COMMIT: ${{ needs.preflight.outputs.source_commit }}
-          DREAMUNITY_EXPECTED_EARTH_COMMIT: 734ca47a176e84d0bfcbafdf7c1f431c067fa9b9
-          DREAMUNITY_KEYLESS_EARTH_BUILD_AT: 2026-10-03T10:38:32.175Z
+          DREAMUNITY_EXPECTED_EARTH_COMMIT: a160bfd2fff59834c18e1556caa47935b0fff0e8
+          DREAMUNITY_KEYLESS_EARTH_BUILD_AT: 2026-10-03T11:06:03.509Z
         run: node scripts/verify-earth-embed-browser.cjs
 
       - name: Preserve published browser verification evidence

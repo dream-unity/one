@@ -702,7 +702,14 @@ export function createConversation(options = {}) {
     try { await releaseCapture(); }
     catch (failure) {
       if (expectedCaptureEpoch !== captureEpoch || disposed) throw new ConversationError('MEDIA_REQUEST_SUPERSEDED', 'This media activation was superseded.');
-      error(failure); await closeVoice('transport-failed');
+      error(failure);
+      // closeVoice invalidates both owners synchronously. Its remote receipt may
+      // arrive after a deliberate Resume, so retain this cleanup's own stamps.
+      const closingGeneration = generation + 1; const closingCaptureEpoch = captureEpoch + 1;
+      await closeVoice('transport-failed');
+      if (generation !== closingGeneration || captureEpoch !== closingCaptureEpoch || state.mode !== 'media' || disposed) {
+        throw new ConversationError('MEDIA_REQUEST_SUPERSEDED', 'This media activation was superseded.');
+      }
       // Physical capture was already stopped. Closing a stalled sender also
       // makes it safe to reveal media controls without preserving a broken peer.
       return snapshot();
