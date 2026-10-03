@@ -1,11 +1,11 @@
-import { copyFile, mkdir, rm, stat, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const repository = fileURLToPath(new URL('../', import.meta.url));
 export const PUBLIC_DIRECTORY = resolve(repository, '.public-site');
 
-// Explicitly publish the home, manifesto, Dream World hub and its two portals. Keeping
+// Explicitly publish the home, manifesto, Dream World portals and prototype. Keeping
 // an activity in source control must never expose its retired direct URL.
 export const PUBLIC_FILES = Object.freeze([
   '.nojekyll',
@@ -40,6 +40,22 @@ export const PUBLIC_FILES = Object.freeze([
   'vendor/three/three.module.min.js',
   'vendor/three/three.core.min.js',
   'vendor/three/LICENSE',
+  'prototype/index.html',
+  'prototype/styles.css',
+  'prototype/main.js',
+  'prototype/state.js',
+  'prototype/scene.js',
+  'prototype/manifesto-view.js',
+  'prototype/actions.js',
+  'prototype/contracts.mjs',
+  'prototype/validate.mjs',
+  'prototype/earth/adapter.js',
+  'prototype/conversation/controller.mjs',
+  'prototype/conversation/text.mjs',
+  'prototype/memory/store.js',
+  'prototype/memory/consent.js',
+  'prototype/memory/view.js',
+  'prototype/build-info.json',
 ]);
 
 export async function stagePublicSite() {
@@ -56,7 +72,10 @@ export async function stagePublicSite() {
     const destination = resolve(PUBLIC_DIRECTORY, file);
     await mkdir(dirname(destination), { recursive: true });
     if (file === '.nojekyll') await writeFile(destination, '');
-    else await copyFile(resolve(repository, file), destination);
+    else if (file === 'prototype/build-info.json' && /^[a-f0-9]{40}$/.test(process.env.GITHUB_SHA || '')) {
+      const info = JSON.parse(await readFile(resolve(repository, file), 'utf8'));
+      await writeFile(destination, JSON.stringify({ ...info, sourceCommit: process.env.GITHUB_SHA }) + '\n');
+    } else await copyFile(resolve(repository, file), destination);
   }
   return PUBLIC_DIRECTORY;
 }

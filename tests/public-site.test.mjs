@@ -19,9 +19,15 @@ const permitted = [
   'dream-world/gods-earth-view/index.html', 'dream-world/gods-minds-eye-view/index.html',
   'assets/parchment-texture.svg', 'vendor/three/three.module.min.js',
   'vendor/three/three.core.min.js', 'vendor/three/LICENSE',
+  'prototype/index.html', 'prototype/styles.css', 'prototype/main.js', 'prototype/state.js',
+  'prototype/scene.js', 'prototype/manifesto-view.js', 'prototype/actions.js',
+  'prototype/contracts.mjs', 'prototype/validate.mjs', 'prototype/earth/adapter.js',
+  'prototype/conversation/controller.mjs', 'prototype/conversation/text.mjs',
+  'prototype/memory/store.js', 'prototype/memory/consent.js', 'prototype/memory/view.js',
+  'prototype/build-info.json',
 ].sort();
 
-test('publication contains only the home, manifesto and Dream World portal dependencies and removes stale applications', async () => {
+test('publication contains only the approved home and prototype dependencies and removes stale applications', async () => {
   assert.deepEqual([...PUBLIC_FILES].sort(), permitted);
   const stale = join(PUBLIC_DIRECTORY, 'portals/dream-world/index.html');
   await mkdir(dirname(stale), { recursive: true });
@@ -37,13 +43,17 @@ test('publication contains only the home, manifesto and Dream World portal depen
       assert.equal(await readFile(join(PUBLIC_DIRECTORY, file), 'utf8'), '');
       continue;
     }
-    assert.deepEqual(await readFile(join(PUBLIC_DIRECTORY, file)), await readFile(join(repository, file)),
-      `${file} must publish the current source bytes`);
-    if (!/\.(?:html|css|js)$/.test(file)) continue;
+    if (file === 'prototype/build-info.json' && /^[a-f0-9]{40}$/.test(process.env.GITHUB_SHA || '')) {
+      const info = JSON.parse(await readFile(join(PUBLIC_DIRECTORY, file), 'utf8'));
+      assert.equal(info.sourceCommit, process.env.GITHUB_SHA);
+      assert.equal(info.contractVersion, 'du-prototype/1.0');
+    } else assert.deepEqual(await readFile(join(PUBLIC_DIRECTORY, file)), await readFile(join(repository, file)),
+        `${file} must publish the current source bytes`);
+    if (!/\.(?:html|css|m?js)$/.test(file)) continue;
     const text = await readFile(join(PUBLIC_DIRECTORY, file), 'utf8');
     const links = [
       ...text.matchAll(/(?:src|href)=["']([^"']+)["']/g),
-      ...text.matchAll(/(?:from\s*|import\s*\(|url\(\s*)["']([^"']+)["']/g),
+      ...text.matchAll(/(?:\bfrom\s+|\bimport\s*\(\s*|url\(\s*)["']([^"']+)["']/g),
     ];
     for (const [, target] of links) {
       if (/^(?:[a-z]+:|#)/i.test(target) || target.includes('${')) continue;

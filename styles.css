@@ -307,3 +307,21 @@ body {
 @media (max-width: 560px) {
   .world-steps { grid-template-columns: 1fr; }
 }
+.prototype-entry {
+  position: relative;
+  z-index: 4;
+  display: block;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  margin: -16px auto 24px;
+  padding: 12px 18px;
+  border: 1px solid #8e826b;
+  color: #302b23;
+  background: rgb(249 245 234 / 72%);
+  font: inherit;
+  font-size: 16px;
+  text-decoration: none;
+  text-underline-offset: .25em;
+}
+.prototype-entry:hover { background: #f9f5ea; }
+.prototype-entry:focus-visible { outline: 2px solid #302b23; outline-offset: 4px; }

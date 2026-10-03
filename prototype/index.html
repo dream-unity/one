@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#eee7d8" />
+  <meta name="description" content="Explore Dream Unity through an intention, a conversation, and three connected worlds." />
+  <title>Explore · Dream Unity</title>
+  <link rel="preload" as="image" href="../assets/dream-unity-portals-refined.webp" type="image/webp" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body data-view="unity">
+  <a class="skip-link" href="#main-content">Skip to the experience</a>
+  <header class="shell-header">
+    <a class="wordmark" href="?view=unity" data-navigate="unity" aria-label="Dream Unity, return to the centre">Dream Unity</a>
+    <span class="prototype-label">Prototype</span>
+    <div class="essential-controls" aria-label="Conversation controls">
+      <button id="stop-button" class="quiet-button stop-button" type="button">Stop</button>
+      <button id="text-toggle" class="quiet-button" type="button" aria-controls="intention-form" aria-expanded="true">Write</button>
+      <a id="exit-link" class="quiet-button" href="../">Exit</a>
+    </div>
+  </header>
+
+  <main id="main-content" class="shell-main" tabindex="-1">
+    <section class="scene-region" aria-label="Three worlds, one experience">
+      <div class="arrival-heading">
+        <p class="eyebrow">At the centre of experience</p>
+        <h1 id="arrival-title">What would you like to explore?</h1>
+      </div>
+      <div id="unity-scene" class="unity-scene">
+        <div class="scene-art" aria-hidden="true">
+          <img class="scene-drawing" src="../assets/dream-unity-portals-refined.webp" width="1254" height="1254" alt="" draggable="false" />
+          <div class="scene-ink-layer" data-ink-layer></div>
+          <svg class="meaning-paths" viewBox="0 0 1000 1000" focusable="false" aria-hidden="true">
+            <path class="meaning-path meaning-path--machine" d="M 500 500 Q 382 410 282 500" data-meaning-path="machine" />
+            <path class="meaning-path meaning-path--maker" d="M 500 500 Q 618 410 718 500" data-meaning-path="maker" />
+            <path class="meaning-path meaning-path--world" d="M 500 500 Q 432 650 500 730" data-meaning-path="world" />
+          </svg>
+        </div>
+        <button class="world-region world-region--machine" type="button" data-focus-world="machine" aria-describedby="machine-meaning">
+          <span class="world-region-title">Dream<br />Machine</span>
+          <span id="machine-meaning" class="world-region-meaning">Heart · Mind · Body</span>
+        </button>
+        <button id="voice-start" class="voice-activation" type="button" aria-describedby="voice-invitation session-status">
+          <span class="speech-orbit" aria-hidden="true"></span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" aria-hidden="true"><rect x="8" y="2" width="8" height="13" rx="4" /><path d="M5 10v1a7 7 0 0 0 14 0v-1M12 18v4M8 22h8" /></svg>
+          <span id="voice-label">Speak</span>
+          <span class="voice-activation-hint">or write below</span>
+        </button>
+        <button class="world-region world-region--maker" type="button" data-focus-world="maker" aria-describedby="maker-meaning">
+          <span class="world-region-title">Dream<br />Maker</span>
+          <span id="maker-meaning" class="world-region-meaning">Intend · Act · Become</span>
+        </button>
+        <button class="world-region world-region--world" type="button" data-focus-world="world" aria-describedby="world-meaning">
+          <span class="world-region-title">Dream World</span>
+          <span id="world-meaning" class="world-region-meaning">Matter · Structure · Emerge</span>
+        </button>
+        <p id="scene-focus-summary" class="scene-focus-summary" role="status">Three worlds, one life.</p>
+      </div>
+      <p id="voice-invitation" class="voice-invitation">Speak or write an intention. Follow a question, a possibility, or a place.</p>
+      <nav class="quiet-navigation" aria-label="Explore Dream Unity">
+        <a href="?view=dream-world" data-navigate="dream-world">Explore the world <span aria-hidden="true">↗</span></a>
+        <a href="?view=manifesto" data-navigate="manifesto">The manifesto</a>
+        <a href="?view=constellation" data-navigate="constellation">My constellation</a>
+        <button id="motion-toggle" type="button" aria-pressed="false">Pause motion</button>
+      </nav>
+    </section>
+
+    <nav class="compact-worlds" aria-label="Three worlds">
+      <button type="button" data-focus-world="machine">Dream Machine</button>
+      <span aria-hidden="true">·</span>
+      <button type="button" data-focus-world="maker">Dream Maker</button>
+      <span aria-hidden="true">·</span>
+      <button type="button" data-focus-world="world">Dream World</button>
+      <a href="?view=unity" data-navigate="unity">Back to the centre</a>
+    </nav>
+
+    <section id="views" class="views" aria-label="Current experience">
+      <header id="view-heading" class="view-heading" hidden>
+        <p class="eyebrow">Dream Unity</p>
+        <h1 id="view-title" tabindex="-1">Dream Unity</h1>
+        <p id="view-status" class="view-status" role="status"></p>
+      </header>
+
+      <section class="view-panel world-view" data-view-panel="dream-world" aria-labelledby="dream-world-title" hidden>
+        <h2 id="dream-world-title">Meet the world beyond your picture.</h2>
+        <p class="view-introduction">Explore places, lives and conditions. Let what you encounter refine what you imagine.</p>
+        <div class="world-choices">
+          <a class="world-choice" href="?view=earth" data-navigate="earth"><span class="choice-mark earth-mark" aria-hidden="true">⊕</span><span><strong>God’s Earth View</strong><span>Places, public cameras, radio and a living globe.</span></span><span class="choice-arrow" aria-hidden="true">↗</span></a>
+          <a class="world-choice" href="?view=minds-eye" data-navigate="minds-eye"><span class="choice-mark" aria-hidden="true">◌</span><span><strong>God’s Minds Eye View</strong><span>Consciousness streaming. Coming soon.</span></span><span class="choice-arrow" aria-hidden="true">↗</span></a>
+        </div>
+      </section>
+
+      <section class="view-panel reading-view" data-view-panel="manifesto" aria-label="The Dream Unity manifesto" hidden>
+        <div id="manifesto-content" class="manifesto-content" aria-busy="false"><p>Opening the manifesto…</p><a href="../manifesto/">Read the published manifesto</a></div>
+      </section>
+
+      <section id="earth-container" class="view-panel earth-view" data-view-panel="earth" aria-label="God’s Earth View" hidden>
+        <div class="earth-toolbar">
+          <button id="earth-return" type="button" data-navigate="dream-world">← Dream World</button>
+          <span id="earth-status" role="status">Opening God’s Earth View…</span>
+          <button id="earth-fullscreen" type="button">Expand Earth</button>
+        </div>
+        <div id="earth-frame-host" class="earth-frame-host" aria-label="Earth application"></div>
+        <div id="earth-recovery" class="earth-recovery" hidden><p id="earth-error"></p><button id="earth-retry" type="button">Try again</button><a id="earth-fallback" href="https://november-1st-sable.vercel.app/" target="_blank" rel="noopener noreferrer">Open Earth separately <span aria-hidden="true">↗</span></a></div>
+        <p class="earth-help">Earth’s own controls stay inside the globe. Your conversation stays here.</p>
+      </section>
+
+      <section class="view-panel quiet-view" data-view-panel="minds-eye" aria-labelledby="minds-eye-title" hidden>
+        <span class="quiet-view-symbol" aria-hidden="true">◌</span>
+        <p class="eyebrow">Dream World</p>
+        <h2 id="minds-eye-title">God’s Minds Eye View</h2>
+        <p>Consciousness streaming.</p><p class="availability">Coming soon.</p>
+        <a href="?view=dream-world" data-navigate="dream-world">← Return to Dream World</a>
+      </section>
+
+      <section class="view-panel constellation-view" data-view-panel="constellation" aria-labelledby="constellation-title" hidden>
+        <h2 id="constellation-title">A constellation of your own meaning.</h2>
+        <p class="view-introduction">Keep a thought, an intention or a connection you choose to carry forward.</p>
+        <fieldset class="memory-permissions"><legend>What you choose to remember</legend>
+          <label><input id="memory-consent" type="checkbox" /><span><strong>Remember on this device</strong><small>Only notes you explicitly save. This browser can clear them.</small></span></label>
+          <label><input id="memory-share-consent" type="checkbox" /><span><strong>Use selected saved notes in conversation</strong><small>Sharing with the AI is a separate choice.</small></span></label>
+        </fieldset>
+        <p id="memory-status" class="memory-status" role="status">Remembering is off. You can explore without saving.</p>
+        <div id="constellation-geometry" class="constellation-geometry" aria-hidden="true"></div>
+        <div id="constellation-list" class="constellation-list"><p class="empty-state">Nothing saved yet. Your constellation begins with a note you choose.</p></div>
+        <section id="memory-proposals" class="memory-proposals" aria-label="Notes awaiting your confirmation"></section>
+        <div class="memory-actions"><button id="memory-revoke" type="button">Turn remembering off</button><button id="memory-clear" class="danger-button" type="button">Delete saved notes</button></div>
+      </section>
+
+      <section class="view-panel quiet-view" data-view-panel="dream-machine" aria-labelledby="machine-title" hidden>
+        <p class="eyebrow">Heart · Mind · Body</p><h2 id="machine-title">Dream Machine</h2><p>The capacities through which life becomes experience.</p><p class="availability">Activities are not available in this prototype.</p><button type="button" data-focus-world="machine">Explore its meaning</button>
+      </section>
+      <section class="view-panel quiet-view" data-view-panel="dream-maker" aria-labelledby="maker-title" hidden>
+        <p class="eyebrow">Intend · Act · Become</p><h2 id="maker-title">Dream Maker</h2><p>The will that gives possibility direction.</p><p class="availability">Activities are not available in this prototype.</p><button type="button" data-focus-world="maker">Explore its meaning</button>
+      </section>
+    </section>
+
+    <section id="conversation" class="conversation" aria-label="Your conversation">
+      <div class="conversation-status"><span class="status-dot" aria-hidden="true"></span><p id="session-status" role="status">Write an intention, or choose Speak.</p><button id="resume-button" type="button" hidden>Resume</button></div>
+      <p id="service-status" class="service-status" role="status">Checking conversation availability…</p>
+      <form id="intention-form" class="intention-form">
+        <label for="intention-input">Your intention or question</label>
+        <div class="intention-field"><textarea id="intention-input" name="intention" rows="2" maxlength="8000" placeholder="I’d like to explore…" aria-describedby="intention-help"></textarea><button id="send-button" type="submit" aria-label="Send your intention"><span>Send</span><span aria-hidden="true">↗</span></button></div>
+        <p id="intention-help">You can name a destination, ask a question, or change your mind.</p>
+      </form>
+      <section id="interpretation-panel" class="interpretation-panel" aria-labelledby="interpretation-heading" hidden><p id="interpretation-heading" class="eyebrow">A possible connection</p><p id="interpretation-text"></p><button id="correct-interpretation" type="button">That is not what I meant</button></section>
+      <details id="transcript-details" class="transcript-details" open><summary>Conversation <span class="transcript-scope">this visit</span></summary><div id="transcript" class="transcript" role="log" aria-live="polite" aria-relevant="additions text"><p class="empty-state">Your words and replies will appear here.</p></div><button id="clear-transcript" class="text-button" type="button">Clear this conversation</button></details>
+      <div id="access-panel" class="access-panel" hidden><form id="access-form"><label for="access-invite">Private preview invitation</label><div class="access-field"><input id="access-invite" type="password" autocomplete="off" spellcheck="false" /><button type="submit">Open conversation</button></div><p id="access-status" role="status"></p></form></div>
+    </section>
+  </main>
+  <footer class="shell-footer"><span>Dream Machine · Dream Maker · Dream World</span><a href="?view=manifesto" data-navigate="manifesto">A living manifesto</a></footer>
+  <p id="announcement" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
+  <noscript><div class="no-script">This prototype needs JavaScript. You can still <a href="../manifesto/">read the manifesto</a> or <a href="../dream-world/">visit Dream World</a>.</div></noscript>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

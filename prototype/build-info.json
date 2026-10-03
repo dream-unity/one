@@ -1,0 +1,11 @@
+{
+  "version": "dream-unity-stage3-20261003.1",
+  "contractVersion": "du-prototype/1.0",
+  "sourceCommit": null,
+  "sourceBaseline": "86d1c7f253fdc337615bb1d8bff46435d8285c1a",
+  "earthBaseline": "e89c9ac847448524810c00ac978e6ab4c91fa781",
+  "earthSourceCommit": "c84b997da2cfefc4cb28e52559f23f769011bfe5",
+  "knowledgeCoverage": "published-manifesto",
+  "privatePaidAccess": true,
+  "anonymousPaidAccess": false
+}

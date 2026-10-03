@@ -29,6 +29,14 @@ jobs:
         with:
           enablement: true
 
+      - name: Use the supported JavaScript runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Verify current and prototype behavior
+        run: npm test
+
       - name: Stage permitted public files
         run: node scripts/stage-public-site.mjs
 
