@@ -21,7 +21,7 @@ const deadline = started + BUDGET_MS - 10000;
 const directory = path.resolve('output/stage5-browser');
 fs.mkdirSync(directory, { recursive: true });
 const evidence = { liveUrl: LIVE, expectedCommit: process.env.DREAMUNITY_EXPECTED_COMMIT || '',
-  status: 'running', checks: [], unexercisedChecks: [], gateErrors: [], deployment: [], responses: [], failedRequests: [], pageErrors: [],
+  status: 'running', checks: [], unexercisedChecks: [], gateErrors: [], deployment: [], canonicalRelease: [], responses: [], failedRequests: [], pageErrors: [],
   consoleErrors: [], forbiddenRequests: [], screenshots: [], pageShows: [], historyRecovery: null, webStorageWriteEvents: [],
   publicationChecks: [], checkTimings: [], memoryEvidence: {}, visitEvidence: {}, voiceEvidence: {}, accessProbes: [],
   limitations: [
@@ -45,7 +45,7 @@ function summary() {
   const result = { status: evidence.status, liveUrl: LIVE, expectedCommit: evidence.expectedCommit,
     durationMs: Date.now() - started, checks: evidence.checks, unexercisedChecks: evidence.unexercisedChecks, gateErrors: evidence.gateErrors, screenshots: evidence.screenshots,
     pageShows: evidence.pageShows, historyRecovery: evidence.historyRecovery, limitations: evidence.limitations,
-    voiceEvidence: evidence.voiceEvidence,
+    voiceEvidence: evidence.voiceEvidence, canonicalRelease: evidence.canonicalRelease,
     artifact: 'output/stage5-browser/verification.json' };
   if (evidence.error) Object.assign(result, { error: evidence.error, prototypeHttp: evidence.responses,
     deployment: evidence.deployment, failedRequests: evidence.failedRequests,
@@ -351,6 +351,107 @@ async function deploymentIsCurrent(context) {
   }
   throw gateError('DEPLOYMENT_COMMIT_UNVERIFIED', 'The public deployment did not expose the expected commit within the bounded propagation checks.');
 }
+async function canonicalDeploymentIsCurrent(observeRequest) {
+  function gateError(code, message) { return Object.assign(new Error(message), { deploymentGate: true, code }); }
+  if (!/^[a-f0-9]{40}$/.test(evidence.expectedCommit)) {
+    throw gateError('EXPECTED_COMMIT_INVALID', 'CI must identify the exact deployed commit.');
+  }
+  const propagationDeadline = Math.min(deadline, Date.now() + 20000);
+  function budget(maximum = 6000) {
+    const available = propagationDeadline - Date.now();
+    if (available <= 0) throw gateError('CANONICAL_COMMIT_UNVERIFIED', 'The canonical page did not expose the expected release within its propagation budget.');
+    return Math.min(remaining(maximum), available);
+  }
+  function expectedAsset(value, pathname) {
+    if (!value) return false;
+    const url = new URL(value);
+    return url.origin === ORIGIN && url.pathname === pathname && url.searchParams.get('v') === evidence.expectedCommit;
+  }
+  // A fresh context has no browser cache or storage from the cache-busted run.
+  // Each attempt navigates the exact visitor URL; no routing, headers, or query
+  // parameters are used to bypass the CDN representation under examination.
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    budget();
+    const isolated = await browser.newContext({ viewport: { width: 1440, height: 1000 }, permissions: [] });
+    const observed = { attempt, requestedUrl: LIVE, responses: [], failedRequests: [], pageErrors: [] };
+    evidence.canonicalRelease.push(observed);
+    let coherent = false;
+    try {
+      await isolated.clearPermissions();
+      await isolated.exposeBinding('__dreamUnityObserveMicrophone', () => { evidence.voiceEvidence.microphoneRequests += 1; });
+      await isolated.addInitScript(observeBrowserCapabilities);
+      isolated.on('request', observeRequest);
+      const canonical = await isolated.newPage();
+      canonical.on('pageerror', error => observed.pageErrors.push(error.message));
+      canonical.on('response', response => {
+        const url = new URL(response.url());
+        if (url.origin === ORIGIN && (url.pathname.startsWith('/prototype/') || url.pathname === '/symbol-motion.js') &&
+            ['script', 'stylesheet'].includes(response.request().resourceType())) {
+          observed.responses.push({ url: response.url(), status: response.status(),
+            contentType: response.headers()['content-type'] || '', resourceType: response.request().resourceType() });
+        }
+      });
+      canonical.on('requestfailed', request => {
+        if (['script', 'stylesheet'].includes(request.resourceType())) {
+          observed.failedRequests.push({ url: request.url(), error: request.failure()?.errorText || 'unknown' });
+        }
+      });
+      const response = await canonical.goto(LIVE, { waitUntil: 'domcontentloaded', timeout: budget() });
+      observed.http = response?.status(); observed.finalUrl = canonical.url();
+      assert.equal(observed.finalUrl, LIVE, 'the canonical visitor URL must remain bare and must not redirect to a cache-busted page');
+      if (![200, 404].includes(observed.http)) throw new Error(`Canonical deployment verification returned HTTP ${observed.http}.`);
+      if (observed.http === 200) {
+        observed.document = await canonical.evaluate(() => ({
+          sourceCommit: document.querySelector('meta[name="dream-unity-release"]')?.content || null,
+          stylesheet: [...document.querySelectorAll('link[rel="stylesheet"]')].map(element => element.href),
+          scripts: [...document.querySelectorAll('script[src]')].map(element => element.src),
+        }));
+        const documentCurrent = observed.document.sourceCommit === evidence.expectedCommit &&
+          observed.document.stylesheet.length === 1 && expectedAsset(observed.document.stylesheet[0], '/prototype/styles.css') &&
+          observed.document.scripts.length === 1 && expectedAsset(observed.document.scripts[0], '/prototype/boot.js');
+        if (documentCurrent) {
+          // Correct document identity with broken application startup is an
+          // application failure, not a reason to retry until it happens to pass.
+          await canonical.waitForFunction(() => ['ready', 'failed'].includes(document.body.dataset.boot), null,
+            { timeout: budget(8000) });
+          observed.running = await canonical.evaluate(() => ({
+            boot: document.body.dataset.boot, sourceCommit: document.body.dataset.release || null,
+            displayedCommit: document.getElementById('release-running')?.textContent.trim() || null,
+            microphone: document.body.dataset.microphone,
+            voicePressed: document.getElementById('voice-start')?.getAttribute('aria-pressed'),
+          }));
+          assert.equal(observed.running.boot, 'ready', 'the canonical page must boot its actual application module');
+          assert.deepEqual(observed.pageErrors, [], 'the canonical release must not have runtime errors');
+          assert.deepEqual(observed.failedRequests, [], 'the canonical release must load all required resources');
+          const scripts = observed.responses.filter(value => value.resourceType === 'script');
+          const styles = observed.responses.filter(value => value.resourceType === 'stylesheet');
+          coherent = observed.running.sourceCommit === evidence.expectedCommit && observed.running.displayedCommit === evidence.expectedCommit &&
+            ['/prototype/boot.js', '/prototype/main.js', '/prototype/release.js', '/symbol-motion.js']
+              .every(pathname => scripts.some(value => expectedAsset(value.url, pathname))) &&
+            scripts.every(value => new URL(value.url).searchParams.get('v') === evidence.expectedCommit) &&
+            styles.length === 1 && expectedAsset(styles[0].url, '/prototype/styles.css');
+          if (coherent) {
+            assert.ok(scripts.every(value => value.status === 200 && /(?:java|ecma)script/i.test(value.contentType)),
+              'the canonical release must load executable modules successfully');
+            assert.ok(styles.every(value => value.status === 200 && /text\/css/i.test(value.contentType)),
+              'the canonical release must load its actual stylesheet successfully');
+            assert.equal(observed.running.voicePressed, 'false');
+            assert.ok(!['permission', 'connecting', 'listening', 'speaking', 'connected', 'ready'].includes(observed.running.microphone),
+              'canonical release verification must not engage the microphone');
+          }
+        }
+      }
+      assert.equal((await browserObservation(canonical)).microphoneRequests, 0, 'visiting the canonical page must not request microphone access');
+      observed.coherent = coherent;
+    } finally { await isolated.close(); }
+    if (coherent) return;
+    // Only an absent, stale, unversioned, or mixed release is allowed to propagate.
+    if (attempt < 3 && propagationDeadline - Date.now() > 1000) {
+      await new Promise(resolve => setTimeout(resolve, Math.min(attempt * 1000, budget(2000))));
+    } else break;
+  }
+  throw gateError('CANONICAL_COMMIT_UNVERIFIED', 'The bare canonical page did not serve a coherent document, stylesheet, boot script, and running module graph for the expected release.');
+}
 
 (async () => {
   try {
@@ -415,6 +516,12 @@ async function deploymentIsCurrent(context) {
       }
     }
     context.on('request', observeRequest);
+    try { await check('canonical-url-serves-the-exact-running-release', () => canonicalDeploymentIsCurrent(observeRequest)); }
+    catch (error) {
+      if (!error.deploymentGate) throw error;
+      evidence.gateErrors.push({ code: error.code, message: error.message });
+      // Keep the canonical release gate failed while collecting the existing diagnostics.
+    }
     await check('real-module-boot', async () => {
       const response = await page.goto(`${LIVE}?ci=${evidence.expectedCommit}`, { waitUntil: 'domcontentloaded', timeout: remaining(12000) });
       assert.equal(response.status(), 200); await boot();

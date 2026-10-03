@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#eee7d8" />
+  <meta name="dream-unity-release" content="unidentified" />
   <meta name="description" content="Explore Dream Unity through an intention, a conversation, and three connected worlds." />
   <title>Explore · Dream Unity</title>
   <link rel="preload" as="image" href="../assets/dream-unity-portals-refined.webp" type="image/webp" />
@@ -151,7 +152,24 @@
       <div id="access-panel" class="access-panel" hidden><form id="access-form"><label for="access-invite">Private preview invitation</label><div class="access-field"><input id="access-invite" type="password" autocomplete="off" spellcheck="false" /><button type="submit">Open conversation</button></div><p id="access-status" role="status"></p></form></div>
     </section>
   </main>
-  <footer class="shell-footer"><span>Dream Machine · Dream Maker · Dream World</span><a href="?view=manifesto" data-navigate="manifesto">A living manifesto</a></footer>
+  <footer class="shell-footer">
+    <span>Dream Machine · Dream Maker · Dream World</span><a href="?view=manifesto" data-navigate="manifesto">A living manifesto</a>
+    <section id="release-update-notice" class="release-update-notice" aria-label="Site update" hidden>
+      <p id="release-update-message" role="status"></p>
+      <p>Reloading clears temporary notes, the current conversation, unsent text and unfinished edits. Notes saved on this device are kept.</p>
+      <button id="release-reload" type="button">Reload this page</button>
+    </section>
+    <details class="release-details">
+      <summary>Release details</summary>
+      <p id="release-status" role="status">Release information is available after this page starts.</p>
+      <dl>
+        <dt>Running code</dt><dd id="release-running">Not established</dd>
+        <dt>Page document</dt><dd id="release-document">Not established</dd>
+        <dt>Module request</dt><dd id="release-requested">Not established</dd>
+        <dt>Published release</dt><dd id="release-published">Not established</dd>
+      </dl>
+    </details>
+  </footer>
   <p id="announcement" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
   <noscript><div class="no-script">This prototype needs JavaScript. You can still <a href="../manifesto/">read the manifesto</a> or <a href="../dream-world/">visit Dream World</a>.</div></noscript>
   <script src="./boot.js"></script>

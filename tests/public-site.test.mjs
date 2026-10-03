@@ -20,7 +20,7 @@ const permitted = [
   'assets/parchment-texture.svg', 'vendor/three/three.module.min.js',
   'vendor/three/three.core.min.js', 'vendor/three/LICENSE',
   'prototype/index.html', 'prototype/styles.css', 'prototype/main.js', 'prototype/state.js',
-  'prototype/boot.js',
+  'prototype/boot.js', 'prototype/release.js',
   'prototype/scene.js', 'prototype/manifesto-view.js', 'prototype/actions.js',
   'prototype/wire-contracts.js', 'prototype/validate.js', 'prototype/earth/adapter.js',
   'prototype/conversation/controller.js', 'prototype/conversation/text.js',
@@ -50,8 +50,10 @@ test('publication contains only the approved home and prototype dependencies and
       assert.equal(info.sourceCommit, expectedSourceCommit);
       assert.equal(info.contractVersion, 'du-prototype/1.0');
     } else if (/^[a-f0-9]{40}$/.test(expectedSourceCommit) && (file === 'prototype/index.html' || file.endsWith('.js') && file.startsWith('prototype/'))) {
-      assert.equal((await readFile(join(PUBLIC_DIRECTORY, file), 'utf8')).replaceAll(`?v=${expectedSourceCommit}`, ''),
-        await readFile(join(repository, file), 'utf8'), `${file} may change only dependency cache identity`);
+      assert.equal((await readFile(join(PUBLIC_DIRECTORY, file), 'utf8')).replaceAll(`?v=${expectedSourceCommit}`, '')
+        .replace(`export const EXECUTING_RELEASE = '${expectedSourceCommit}';`, 'export const EXECUTING_RELEASE = null;')
+        .replace(`<meta name="dream-unity-release" content="${expectedSourceCommit}" />`, '<meta name="dream-unity-release" content="unidentified" />'),
+        await readFile(join(repository, file), 'utf8'), `${file} may change only dependency and embedded release identity`);
     } else assert.deepEqual(await readFile(join(PUBLIC_DIRECTORY, file)), await readFile(join(repository, file)),
         `${file} must publish the current source bytes`);
     if (!/\.(?:html|css|m?js)$/.test(file)) continue;
@@ -95,6 +97,10 @@ test('one exact revision versions the staged entry and complete module graph wit
     const html = await readFile(join(PUBLIC_DIRECTORY, 'prototype/index.html'), 'utf8');
     assert.match(html, new RegExp(`src="\\./boot\\.js\\?v=${revision}"`));
     assert.match(html, new RegExp(`href="\\./styles\\.css\\?v=${revision}"`));
+    assert.match(html, new RegExp(`<meta name="dream-unity-release" content="${revision}" />`));
+    const releaseModule = await readFile(join(PUBLIC_DIRECTORY, 'prototype/release.js'), 'utf8');
+    assert.match(releaseModule, new RegExp(`export const EXECUTING_RELEASE = '${revision}';`));
+    assert.doesNotMatch(releaseModule, /export const EXECUTING_RELEASE = null;/);
     // Independently walk the actual served graph, including boot's dynamic import
     // and the shared module above /prototype/. Every edge must stay allowlisted.
     const pending = ['prototype/boot.js'], visited = new Set();
@@ -112,7 +118,7 @@ test('one exact revision versions the staged entry and complete module graph wit
       }
       execFileSync(process.execPath, ['--check', join(PUBLIC_DIRECTORY, file)]);
     }
-    assert.equal(visited.size, 14, 'the current boot/main graph and shared ink clock must all be traversed');
+    assert.equal(visited.size, 15, 'the current boot/main graph, release identity, and shared ink clock must all be traversed');
     assert.ok(visited.has('prototype/main.js')); assert.ok(visited.has('symbol-motion.js'));
     assert.match(await readFile(join(PUBLIC_DIRECTORY, 'prototype/memory/consent.js'), 'utf8'), new RegExp(`from '\\./store\\.js\\?v=${revision}'`), 'retained re-export entry is also versioned');
     for (const [file, original] of originals) {

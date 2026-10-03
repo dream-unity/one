@@ -6,6 +6,7 @@ import { createActionExecutor, observedView } from './actions.js';
 import { createMemoryStore, createMemoryController } from './memory/store.js';
 import { mountMemoryView } from './memory/view.js';
 import { createConversation } from './conversation/controller.js';
+import { createReleaseMonitor, ensureReleaseElements } from './release.js';
 
 const $ = id => document.getElementById(id);
 const requestedDestination = new URL(location.href).searchParams.get('view') || 'unity';
@@ -18,6 +19,7 @@ let sharedContext = [], selectedIds = [], serviceStatus = null, conversation = n
 let routeController = null, navigationGeneration = 0, manifestoLoaded = false;
 let providerContextRevision = 0, exiting = false, textPhase = 'idle', submissionGeneration = 0;
 let allowDraftRecovery = true;
+let releaseMonitor = null;
 const transcriptEntries = new Map();
 const directSaveControllers = new Set();
 const scene = createScene($('unity-scene'));
@@ -74,6 +76,25 @@ const guarded = handler => event => {
   try { Promise.resolve(handler(event)).catch(showError); }
   catch (error) { showError(error); }
 };
+function renderRelease(release) {
+  document.body.dataset.release = release.running || 'unidentified';
+  document.body.dataset.releaseStatus = release.status;
+  $('release-running').textContent = release.running || 'Unidentified source build';
+  $('release-document').textContent = release.declared || 'Unidentified source document';
+  $('release-requested').textContent = release.requested || 'No release was specified in the module URL';
+  $('release-published').textContent = release.published || (release.phase === 'complete' ? 'Published build has no exact revision' : 'Not established');
+  $('release-status').textContent = release.phase === 'checking' ? 'Checking the published release…'
+    : release.error || (release.issue === 'mixed' ? 'The document or module request does not match the running release.'
+      : release.issue === 'published' ? 'The published release differs from this running tab.'
+      : release.issue === 'unidentified' || !release.published ? 'This tab’s release cannot be verified against an exact published revision.'
+      : 'This tab matches the published release.');
+  const showUpdate = release.issue === 'mixed' || release.issue === 'published' || release.issue === 'unidentified' && Boolean(release.published);
+  $('release-update-notice').hidden = !showUpdate;
+  $('release-update-message').textContent = release.issue === 'mixed'
+    ? 'This tab loaded inconsistent release information. You can keep exploring, or reload when ready.'
+    : release.issue === 'unidentified' ? 'This tab’s version cannot be identified. A published release is available; you can reload when ready.'
+    : 'A different version is now published. You can keep exploring, or reload when ready.';
+}
 function render() {
   document.body.dataset.view = state.destination;
   document.body.dataset.mode = state.mode;
@@ -343,7 +364,10 @@ function renderMemory(dataset) {
   const scope = visit ? 'For this visit' : 'On this device';
   $('memory-status').textContent = initializing ? 'Opening note choices…' : memoryChanging ? 'Changing how notes are remembered…' : saving
     ? `${scope}: ${dataset.nodes.length} ${visit ? 'temporary' : 'saved'} notes and ${dataset.edges.length} connections. ${visit ? 'These notes disappear when you reload this page or choose Exit. Device notes are kept separately. ' : ''}${dataset.consent.conversationUseEnabled ? 'Choose which notes to share with the AI.' : 'Your notes are not included in conversation.'}`
-    : retention.mode === 'unavailable' ? 'Device storage is unavailable. Choose For this visit to keep temporary notes in this tab.' : 'Remembering is off. Choose For this visit or Remember on this device to begin.';
+    : retention.mode === 'unavailable' ? retention.deviceError === 'STORED_DATA_INVALID'
+      ? 'Saved device notes could not be read and have been preserved unchanged. Choose For this visit to keep temporary notes in this tab, or recover your device notes and reload.'
+      : 'Device storage is unavailable. Choose For this visit to keep temporary notes in this tab.'
+    : 'Remembering is off. Choose For this visit or Remember on this device to begin.';
   const geometry = $('constellation-geometry'); geometry.replaceChildren();
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 640 260'); svg.setAttribute('focusable', 'false');
   const positions = new Map();
@@ -556,9 +580,13 @@ document.addEventListener('visibilitychange', async () => {
   if (document.hidden) {
     interruptLocalWork();
     await Promise.allSettled([conversation.stop(), earth.cancelActions(), earth.quiet()]);
-  } else if (state.destination === 'earth' && !earth.getState().active) navigate('earth', { replace: true }).catch(showError);
+  } else {
+    releaseMonitor?.check();
+    if (state.destination === 'earth' && !earth.getState().active) navigate('earth', { replace: true }).catch(showError);
+  }
 });
 window.addEventListener('pagehide', () => {
+  releaseMonitor?.close();
   allowDraftRecovery &&= memory?.getStatus().mode !== 'session';
   if (!allowDraftRecovery) $('intention-input').value = '';
   interruptLocalWork(); conversation.exit().catch(() => {}); earth.close(); memoryView?.close(); memory?.close(); scene.dispose();
@@ -577,7 +605,19 @@ window.addEventListener('pageshow', event => {
   location.reload();
 });
 
+ensureReleaseElements(document);
+$('release-reload').addEventListener('click', () => {
+  if (!window.confirm('Reload this page? This ends the current conversation, clears temporary notes for this visit, and discards unsent text and unfinished edits. Notes saved on this device are kept.')) return;
+  allowDraftRecovery = false;
+  $('intention-input').value = '';
+  try { sessionStorage.removeItem(DRAFT_RECOVERY_KEY); } catch { /* Reload does not require browser storage. */ }
+  location.reload();
+});
+
 recoverUnsentDraft(); render(); setupMemory();
+releaseMonitor = createReleaseMonitor({ documentCommit: document.querySelector('meta[name="dream-unity-release"]')?.content,
+  onChange: renderRelease });
+releaseMonitor.check();
 if (requestedDestination !== state.destination) {
   setUrl(state.destination, true);
   notice('That destination is not available in this prototype. You are back at the centre.');

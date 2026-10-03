@@ -44,6 +44,7 @@ export const PUBLIC_FILES = Object.freeze([
   'prototype/styles.css',
   'prototype/main.js',
   'prototype/boot.js',
+  'prototype/release.js',
   'prototype/state.js',
   'prototype/scene.js',
   'prototype/manifesto-view.js',
@@ -127,10 +128,17 @@ async function versionedPrototype(sourceCommit) {
       pending.push(dependency(reference.value, file));
       stamped = stamped.slice(0, reference.start) + stampedReference(reference.value, sourceCommit) + stamped.slice(reference.end);
     }
+    if (file === 'prototype/release.js') {
+      const identity = 'export const EXECUTING_RELEASE = null;';
+      if (stamped.split(identity).length !== 2) throw new Error('The running release must have exactly one publication identity literal.');
+      stamped = stamped.replace(identity, `export const EXECUTING_RELEASE = '${sourceCommit}';`);
+    }
     output.set(file, stamped);
   }
   const entry = await readFile(resolve(repository, 'prototype/index.html'), 'utf8');
-  output.set('prototype/index.html', entry.replace(/(<(?:script|link)\b[^>]*?\b(?:src|href)=)(["'])(\.\.?\/[^"']+\.(?:js|css)(?:[?#][^"']*)?)\2/g,
+  const documentIdentity = '<meta name="dream-unity-release" content="unidentified" />';
+  if (entry.split(documentIdentity).length !== 2) throw new Error('The prototype document must have exactly one publication identity.');
+  output.set('prototype/index.html', entry.replace(documentIdentity, `<meta name="dream-unity-release" content="${sourceCommit}" />`).replace(/(<(?:script|link)\b[^>]*?\b(?:src|href)=)(["'])(\.\.?\/[^"']+\.(?:js|css)(?:[?#][^"']*)?)\2/g,
     (match, prefix, quote, value) => {
       const file = new URL(value, 'https://publication.invalid/prototype/index.html').pathname.slice(1);
       if (!permitted.has(file)) throw new Error(`Prototype entry references an unpublished asset: ${value}`);

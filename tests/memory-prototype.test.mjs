@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createMemoryStore, createMemoryController, createIndexedDBPersistence, validateDataset, MEMORY_LIMITS } from '../prototype/memory/store.js';
+import { createMemoryStore, createMemoryController, createIndexedDBPersistence, validateDataset, MemoryError, MEMORY_LIMITS } from '../prototype/memory/store.js';
 import { mountMemoryView } from '../prototype/memory/view.js';
 
 // Injection exists only in this test. It mirrors IDB's serialized readwrite transactions:
@@ -351,7 +351,8 @@ test('dataset validators reject forged consent, unknown fields and malformed Uni
   const corrupt = structuredClone(state); corrupt.consent.storageEnabled = false; corrupt.consent.conversationUseEnabled = true;
   assert.throws(() => validateDataset(corrupt), { code: 'INVALID_INPUT' });
   persistence.state = corrupt;
-  await assert.rejects(store.load(), { code: 'INVALID_INPUT' }); assert.deepEqual(persistence.state, corrupt);
+  await assert.rejects(store.load(), { name: 'StoredDataError', code: 'STORED_DATA_INVALID', validationCode: 'INVALID_INPUT' });
+  assert.equal(store.getStatus().deviceAvailable, false); assert.deepEqual(persistence.state, corrupt);
   store.close();
 });
 
@@ -536,6 +537,90 @@ test('device unavailable remains honestly empty until a visit is explicitly chos
   assert.equal((await reopened.load()).nodes.length, 0); assert.equal(reopened.getStatus().savingEnabled, false); reopened.close();
 });
 
+test('invalid saved data permits an explicitly chosen empty visit without rewriting or reusing device notes', async () => {
+  const seed = fixture(); await enable(seed.store); await save(seed.store, node('Preserve this device note'));
+  const valid = structuredClone(seed.persistence.state); seed.store.close();
+  const malformedConsent = structuredClone(valid); malformedConsent.consent.storageEnabled = false;
+  const unsupportedVersion = { ...structuredClone(valid), schemaVersion: 999 };
+  const oversized = { ...structuredClone(valid), nodes: Array.from({ length: MEMORY_LIMITS.nodes + 1 }, () => structuredClone(valid.nodes[0])) };
+  for (const corrupt of [malformedConsent, unsupportedVersion, oversized, null]) {
+    const persistence = new TransactionalMemory(); persistence.state = structuredClone(corrupt);
+    let reads = 0, writes = 0; const broadcasts = [];
+    const transact = persistence.transact.bind(persistence);
+    persistence.transact = transform => { reads++; return transact(raw => {
+      const output = transform(raw); if (output.write) writes++; return output;
+    }); };
+    class ObservedBroadcast { postMessage(value) { broadcasts.push(value); } close() {} }
+    const { store } = fixture({ persistence, BroadcastChannel: ObservedBroadcast });
+    const fresh = await store.load();
+    assert.deepEqual(fresh.nodes, []); assert.deepEqual(fresh.edges, []);
+    assert.deepEqual(store.getStatus(), { mode: 'unavailable', deviceAvailable: false, deviceError: 'STORED_DATA_INVALID', switching: false, savingEnabled: false });
+    assert.equal(fresh.consent.storageEnabled, false); assert.equal(fresh.consent.conversationUseEnabled, false);
+    await assert.rejects(store.commitProposal(node('No implicit visit'), expected(fresh)), { code: 'STORAGE_UNAVAILABLE' });
+    await assert.rejects(store.setMode('device', expected(fresh)), { code: 'STORED_DATA_INVALID' });
+    await assert.rejects(store.setConsent({ storageEnabled: true, conversationUseEnabled: false }, expected(fresh)), { code: 'STORED_DATA_INVALID' });
+    const selected = await store.setMode('session', expected(fresh));
+    assert.equal(selected.nodes.length, 0); assert.equal(store.getStatus().savingEnabled, true);
+    assert.equal(store.getStatus().deviceAvailable, false);
+    const first = await save(store, node('Private visit A')), second = await save(store, node('Private visit B'));
+    const linked = await save(store, { operation: 'create_edge', from: first.record.id, fromRevision: 1, to: second.record.id, toRevision: 1, relation: 'supports', label: 'Private visit relationship' });
+    const shared = await store.setConsent({ storageEnabled: false, conversationUseEnabled: true }, expected(linked.dataset));
+    assert.equal((await store.selectContext([first.record.id])).records[0].title, 'Private visit A');
+    await assert.rejects(store.setMode('device', expected(shared)), { code: 'STORED_DATA_INVALID' });
+    await assert.rejects(store.clearDevice(), { code: 'STORED_DATA_INVALID' });
+    assert.deepEqual((await store.load()).nodes, shared.nodes, 'rejected device operations preserve the visit graph');
+    const ended = await store.setMode('off', expected(shared));
+    await assert.rejects(store.setMode('device', expected(ended)), { code: 'STORED_DATA_INVALID' });
+    assert.equal((await store.setMode('session', expected(ended))).nodes.length, 0, 'a new visit never imports either old graph');
+    assert.equal(reads, 1, 'the rejected device payload is read once and quarantined for this store');
+    assert.equal(writes, 0); assert.deepEqual(broadcasts, []);
+    assert.deepEqual(persistence.state, corrupt, 'the original durable payload stays exactly intact');
+    store.close();
+    const reopened = fixture({ persistence }).store;
+    assert.equal((await reopened.load()).nodes.length, 0); assert.equal(reopened.getStatus().savingEnabled, false);
+    reopened.close();
+  }
+});
+
+test('storage fallback never disguises unexpected faults or invalid generated state as corrupt saved data', async () => {
+  for (const failure of [new TypeError('Unexpected adapter fault'), new MemoryError('INVALID_INPUT', 'Unexpected operation validation'), new MemoryError('UNSUPPORTED_SCHEMA', 'Not a record validation')]) {
+    const persistence = new TransactionalMemory(); persistence.failure = failure;
+    const { store } = fixture({ persistence });
+    await assert.rejects(store.load(), error => error === failure);
+    assert.equal(store.getStatus().mode, 'device'); assert.equal(store.getStatus().deviceError, null);
+    store.close();
+  }
+  const { store, persistence } = fixture({ now: () => Number.NaN });
+  await assert.rejects(store.load(), RangeError);
+  assert.equal(store.getStatus().deviceError, null); assert.equal(persistence.state, undefined);
+  store.close();
+});
+
+test('recovered device data requires a fresh store and is read without importing visit notes', async () => {
+  const seed = fixture(); await enable(seed.store); await save(seed.store, node('Recovered device original'));
+  const recovered = structuredClone(seed.persistence.state); seed.store.close();
+  const persistence = new TransactionalMemory(); persistence.state = { schemaVersion: 999 };
+  const first = fixture({ persistence }).store;
+  await visit(first); const temporary = await save(first, node('Never promote this visit'));
+  // Model a separate recovery of the durable record. This store must still
+  // require a reload, rather than silently replacing its current visit graph.
+  persistence.state = structuredClone(recovered);
+  await assert.rejects(first.setMode('device', expected(temporary.dataset)), { code: 'STORED_DATA_INVALID' });
+  assert.deepEqual((await first.load()).nodes, temporary.dataset.nodes); first.close();
+  const fresh = fixture({ persistence }).store;
+  assert.deepEqual(await fresh.load(), recovered); assert.equal(fresh.getStatus().deviceAvailable, true);
+  assert.equal(fresh.getStatus().deviceError, null); assert.deepEqual(persistence.state, recovered); fresh.close();
+});
+
+test('invalid new user input leaves valid saved memory usable', async () => {
+  const { store, persistence } = fixture(); const saved = await enable(store);
+  const original = structuredClone(persistence.state);
+  await assert.rejects(store.commitProposal(node('Invalid', '\ud800'), expected(saved)), { code: 'INVALID_INPUT' });
+  assert.equal(store.getStatus().deviceAvailable, true); assert.equal(store.getStatus().deviceError, null);
+  assert.deepEqual(persistence.state, original);
+  await save(store, node('Still usable')); assert.equal((await store.load()).nodes.length, 1); store.close();
+});
+
 test('scope changes preserve prior device records and never promote visit records or sharing', async () => {
   const { store, persistence } = fixture(); const initial = await store.load();
   const enabled = await store.setMode('device', expected(initial)); assert.equal(enabled.consent.storageEnabled, true);
@@ -562,7 +647,8 @@ test('failed device choice preserves exact visit notes and does not repair corru
   assert.equal(store.getStatus().mode, 'session'); assert.deepEqual((await store.load()).nodes, saved.dataset.nodes);
   persistence.failure = null;
   const corrupt = { schemaVersion: 999 }; persistence.state = structuredClone(corrupt);
-  await assert.rejects(store.setMode('device', expected(saved.dataset)), { code: 'INVALID_INPUT' });
+  await assert.rejects(store.setMode('device', expected(saved.dataset)), { name: 'StoredDataError', code: 'STORED_DATA_INVALID', validationCode: 'INVALID_INPUT' });
+  assert.equal(store.getStatus().deviceAvailable, false);
   assert.deepEqual(persistence.state, corrupt); assert.deepEqual((await store.load()).nodes, saved.dataset.nodes); store.close();
 });
 

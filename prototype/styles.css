@@ -166,6 +166,14 @@ body:not([data-view='unity']) .compact-worlds { display:flex; }
 .access-panel p { font-size:13px; margin:10px 0 0; }
 .shell-footer { display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; max-width:1280px; margin:0 auto; padding:18px 24px max(25px,env(safe-area-inset-bottom)); border-top:1px solid rgb(90 73 45 / 18%); font:11px/1.5 Arial,sans-serif; color:var(--muted); }
 .shell-footer a { min-height:24px; }
+.release-details,.release-update-notice { flex-basis:100%; }
+.release-details summary { display:list-item; width:fit-content; min-height:24px; cursor:pointer; }
+.release-details p { margin:8px 0; }
+.release-details dl { display:grid; grid-template-columns:max-content minmax(0,1fr); gap:4px 12px; margin:8px 0; }
+.release-details dd { margin:0; overflow-wrap:anywhere; }
+.release-update-notice { max-width:660px; padding:12px 0; border-top:1px solid var(--line); }
+.release-update-notice p { margin-bottom:8px; font-size:12px; }
+.release-update-notice button { font:12px/1.4 Arial,sans-serif; }
 .no-script { margin:20px; padding:20px; background:var(--wash); border:1px solid var(--line); }
 .manifesto-content { max-width:740px; margin:0 auto; font-size:20px; line-height:1.7; }
 .manifesto-content h2 { margin:10px 0 20px; font-size:clamp(35px,6vw,58px); }

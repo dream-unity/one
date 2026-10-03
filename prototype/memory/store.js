@@ -14,6 +14,12 @@ const clone = value => structuredClone(value);
 export class MemoryError extends Error {
   constructor(code, message) { super(message); this.name = 'MemoryError'; this.code = code; }
 }
+class StoredDataError extends MemoryError {
+  constructor(validationCode) {
+    super('STORED_DATA_INVALID', 'Saved device notes could not be read safely and have not been changed. Choose For this visit, or recover the device notes and reload.');
+    this.name = 'StoredDataError'; this.validationCode = validationCode;
+  }
+}
 function fail(code, message) { throw new MemoryError(code, message); }
 function integer(value, name) {
   if (!Number.isSafeInteger(value) || value < 0) fail('INVALID_INPUT', `${name} must be a nonnegative safe integer.`);
@@ -226,6 +232,7 @@ export function createMemoryStore({ onChange = () => {}, onRevoke = () => {}, in
   const subscribers = new Set(), invalidators = new Set();
   let cached, closed = false, generation = 0, channel, sessionDatabase;
   let mode = 'device', deviceAvailable = true, deviceError = null, switching = false, switchOwner;
+  let storedDataError = null;
   try { if (BroadcastChannel) channel = new BroadcastChannel(`${dbName}:revisions`); } catch { /* Transaction checks remain authoritative. */ }
   function getStatus() { return { mode, deviceAvailable, deviceError, switching, savingEnabled: !closed && !switching && (mode === 'session' || (mode === 'device' && deviceAvailable && Boolean(cached?.consent.storageEnabled))) }; }
   function announce(state) { try { channel?.postMessage({ schemaVersion: 1, revision: state.revision, consentEpoch: state.consentEpoch }); } catch { /* Device authority remains transactional. */ } }
@@ -250,6 +257,21 @@ export function createMemoryStore({ onChange = () => {}, onRevoke = () => {}, in
   }
   function ensureOpen() { if (closed) fail('STORE_CLOSED', 'Memory storage is closed.'); }
   function ensureAvailable() { ensureOpen(); if (switching) fail('MODE_SWITCH_PENDING', 'Wait for the memory choice to finish.'); }
+  function ensureDeviceReadable() { if (storedDataError) throw storedDataError; }
+  function readDeviceDataset(raw) {
+    ensureDeviceReadable();
+    if (raw === undefined) return initialState(now);
+    try { return validateDataset(raw); }
+    catch (error) {
+      // Only validation of an existing durable record can enable this fallback.
+      // Caller input, generated state, transport errors and programmer faults
+      // must retain their own failures instead of being called corrupt storage.
+      if (!(error instanceof MemoryError) || !['INVALID_INPUT', 'UNSUPPORTED_SCHEMA', 'MEMORY_LIMIT'].includes(error.code)) throw error;
+      storedDataError = new StoredDataError(error.code);
+      deviceAvailable = false; deviceError = storedDataError.code;
+      throw storedDataError;
+    }
+  }
   function invalidateWrites(reason) {
     generation++; database.abortPending?.(); sessionDatabase?.abortPending();
     for (const invalidate of invalidators) { try { invalidate(); } catch { /* Every controller still invalidates. */ } }
@@ -258,12 +280,13 @@ export function createMemoryStore({ onChange = () => {}, onRevoke = () => {}, in
   async function transaction(reason, transform, { announce: broadcast = false, capturedGeneration = generation, signal } = {}) {
     ensureAvailable(); const capturedMode = mode;
     if (capturedMode === 'unavailable') fail('STORAGE_UNAVAILABLE', 'Device storage is unavailable. Choose Only for this visit to save notes in memory.');
+    if (capturedMode === 'device') ensureDeviceReadable();
     const backend = ['session', 'off'].includes(capturedMode) ? sessionDatabase : database;
     const validate = ['session', 'off'].includes(capturedMode) ? validateSessionDataset : validateDataset;
     const output = await backend.transact(raw => {
       ensureOpen();
       if (capturedGeneration !== generation || capturedMode !== mode || switching) fail('STALE_STATE', 'Memory consent changed before this operation completed.');
-      const state = raw === undefined ? initialState(now) : validate(raw), result = transform(state);
+      const state = capturedMode === 'device' ? readDeviceDataset(raw) : raw === undefined ? initialState(now) : validate(raw), result = transform(state);
       validate(result.state);
       return { state: result.state, write: Boolean(result.changed), result: { dataset: result.state, ...(result.result || {}), changed: Boolean(result.changed) } };
     }, { signal });
@@ -283,7 +306,8 @@ export function createMemoryStore({ onChange = () => {}, onRevoke = () => {}, in
       // Read-only retries can recover a concurrent authoritative revocation, never a scope switch.
       if (attempt < 2 && error.code === 'STALE_STATE' && mode === capturedMode && !switching && !closed) return load(attempt + 1);
       // Empty availability fallback never enables saving or reports a failed save as successful.
-      if (!cached && mode === 'device' && !switching && ['STORAGE_UNAVAILABLE', 'STORAGE_BLOCKED', 'STORAGE_ERROR'].includes(error.code)) {
+      if (!cached && !closed && mode === 'device' && !switching &&
+          (error instanceof StoredDataError || ['STORAGE_UNAVAILABLE', 'STORAGE_BLOCKED', 'STORAGE_ERROR'].includes(error.code))) {
         deviceAvailable = false; deviceError = error.code; mode = 'unavailable'; notify(initialState(now), 'storage-unavailable'); return clone(cached);
       }
       throw error;
@@ -335,6 +359,7 @@ export function createMemoryStore({ onChange = () => {}, onRevoke = () => {}, in
     getStatus,
     async setMode(nextMode, expected) {
       enumValue(nextMode, ['session', 'device', 'off'], 'Memory mode'); ensureAvailable();
+      if (nextMode === 'device') ensureDeviceReadable();
       if (!cached) fail('STALE_STATE', 'Load the constellation before choosing how to save.');
       preconditions(cached, expected); if (nextMode === mode && (nextMode !== 'device' || cached.consent.storageEnabled)) return load();
       const owner = {}; switchOwner = owner; switching = true; invalidateWrites('mode-switch');
@@ -346,7 +371,7 @@ export function createMemoryStore({ onChange = () => {}, onRevoke = () => {}, in
         } else {
           next = await database.transact(raw => {
             ensureOpen(); if (capturedGeneration !== generation) fail('STALE_STATE', 'The memory choice was cancelled.');
-            const state = raw === undefined ? initialState(now) : validateDataset(raw);
+            const state = readDeviceDataset(raw);
             state.revision = nextInteger(Math.max(current.revision, state.revision)); state.consentEpoch = nextInteger(Math.max(current.consentEpoch, state.consentEpoch));
             const updatedAt = timestamp(state, now);
             if (nextMode === 'off') { state.nodes = []; state.edges = []; }
@@ -431,11 +456,11 @@ export function createMemoryStore({ onChange = () => {}, onRevoke = () => {}, in
       }, { announce: true })).dataset;
     },
     async clearDevice() {
-      ensureAvailable(); invalidateWrites('clear-device');
+      ensureAvailable(); ensureDeviceReadable(); invalidateWrites('clear-device');
       const capturedGeneration = generation, capturedMode = mode;
       const output = await database.transact(raw => {
         ensureOpen(); if (capturedGeneration !== generation || capturedMode !== mode || switching) fail('STALE_STATE', 'Memory changed before deleting device notes.');
-        const state = raw === undefined ? initialState(now) : validateDataset(raw), updatedAt = timestamp(state, now);
+        const state = readDeviceDataset(raw), updatedAt = timestamp(state, now);
         state.nodes = []; state.edges = []; state.consent = { policyVersion: 'constellation-1', storageEnabled: false, conversationUseEnabled: false, updatedAt };
         state.consentEpoch = nextInteger(Math.max(state.consentEpoch, cached?.consentEpoch ?? 0)); state.revision = nextInteger(Math.max(state.revision, cached?.revision ?? 0)); validateDataset(state);
         return { state, write: true, result: state };
