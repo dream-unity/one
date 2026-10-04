@@ -23,7 +23,7 @@ const permitted = [
   'prototype/boot.js', 'prototype/release.js',
   'prototype/scene.js', 'prototype/manifesto-view.js', 'prototype/actions.js',
   'prototype/wire-contracts.js', 'prototype/validate.js', 'prototype/earth/adapter.js',
-  'prototype/conversation/controller.js', 'prototype/conversation/text.js',
+  'prototype/conversation/controller.js', 'prototype/conversation/dictation.js', 'prototype/conversation/text.js',
   'prototype/memory/store.js', 'prototype/memory/consent.js', 'prototype/memory/view.js',
   'prototype/build-info.json',
 ].sort();
@@ -118,7 +118,8 @@ test('one exact revision versions the staged entry and complete module graph wit
       }
       execFileSync(process.execPath, ['--check', join(PUBLIC_DIRECTORY, file)]);
     }
-    assert.equal(visited.size, 15, 'the current boot/main graph, release identity, and shared ink clock must all be traversed');
+    assert.equal(visited.size, 16, 'the current boot/main graph, browser dictation, release identity, and shared ink clock must all be traversed');
+    assert.ok(visited.has('prototype/conversation/dictation.js'));
     assert.ok(visited.has('prototype/main.js')); assert.ok(visited.has('symbol-motion.js'));
     assert.match(await readFile(join(PUBLIC_DIRECTORY, 'prototype/memory/consent.js'), 'utf8'), new RegExp(`from '\\./store\\.js\\?v=${revision}'`), 'retained re-export entry is also versioned');
     for (const [file, original] of originals) {

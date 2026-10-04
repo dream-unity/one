@@ -25,11 +25,11 @@ const evidence = { liveUrl: LIVE, expectedCommit: process.env.DREAMUNITY_EXPECTE
   consoleErrors: [], forbiddenRequests: [], screenshots: [], pageShows: [], historyRecovery: null, webStorageWriteEvents: [],
   publicationChecks: [], checkTimings: [], memoryEvidence: {}, visitEvidence: {}, voiceEvidence: {}, accessProbes: [],
   limitations: [
-    'No authorized or paid conversation is created. Provider responses, actual microphone/audio, delayed remote hangup, and access expiry/revocation during an active session are not exercised.',
+    'No authorized or paid conversation is created. Browser speech recognition, actual microphone/audio, provider responses, delayed remote hangup, and access expiry/revocation during an active session are not exercised.',
     'Correction requires an AI interpretation; its asynchronous ownership is not claimed by this unauthenticated live run.',
     'Configured-but-unavailable service is checked only when the deployed status or the single invalid-invitation probe returns that condition. A ready response is not evidence of provider usability.'
   ],
-  capabilityProbes: [], scope: 'Real deployed UI and IndexedDB with passive native storage/microphone observation. One isolated context deliberately denies IndexedDB.open to verify the unavailable-storage path. A ready private service receives at most one obviously invalid invitation submission; every provider/session/text write remains forbidden. No mocked HTTP responses, microphone permission grants, or injected application state.' };
+  capabilityProbes: [], scope: 'Real deployed UI and IndexedDB with passive native storage/getUserMedia/SpeechRecognition.start observation. Default site mode is verified without starting recognition or contacting the AI service. AI checks explicitly select optional AI mode. One isolated context deliberately denies IndexedDB.open to verify the unavailable-storage path. A ready private service receives at most one obviously invalid invitation submission; every provider/session/text write remains forbidden. No mocked HTTP responses, microphone permission grants, or injected application state.' };
 let browser, page, secondPage, accessProbeOpen = false;
 
 function remaining(maximum = 8000) {
@@ -136,8 +136,19 @@ async function waitForAccessOrUnreadyService(target = page) {
   await target.waitForFunction(() => !document.getElementById('access-panel').hidden ||
     document.getElementById('service-status').dataset.phase === 'unavailable', null, { timeout: remaining() });
 }
+async function chooseAiInput(target = page) {
+  const choice = target.locator('#input-mode');
+  if (await choice.inputValue() !== 'ai') await choice.selectOption('ai', { timeout: remaining() });
+  const options = target.locator('#ai-options');
+  if (await options.evaluate(element => element.tagName === 'DETAILS' && !element.open)) {
+    await options.locator('summary').click({ timeout: remaining() });
+  }
+  await target.waitForFunction(() => ['available', 'unavailable'].includes(document.getElementById('service-status').dataset.phase),
+    null, { timeout: remaining(12000) });
+}
 async function assertUnauthenticatedServiceShell(target = page) {
   const shell = await target.evaluate(() => ({
+    inputMode: document.getElementById('input-mode').value,
     phase: document.getElementById('service-status').dataset.phase,
     banner: document.getElementById('service-status').textContent,
     voiceLabel: document.getElementById('voice-label').textContent,
@@ -150,6 +161,7 @@ async function assertUnauthenticatedServiceShell(target = page) {
     inputEnabled: !document.getElementById('intention-input').disabled,
     accessHidden: document.getElementById('access-panel').hidden,
   }));
+  assert.equal(shell.inputMode, 'ai', 'service readiness checks must explicitly select optional AI mode');
   assert.ok(['available', 'unavailable'].includes(shell.phase), 'assert the settled service state');
   assert.equal(shell.voiceEnabled, true, 'the primary voice control must allow a deliberate availability recheck');
   assert.equal(shell.voicePressed, 'false', 'readiness must never claim active capture');
@@ -274,7 +286,7 @@ async function visitIs(enabled, target = page) {
 // Native methods keep their original receiver, arguments, return values and errors.
 // The counters observe attempted browser writes, without changing application state.
 function observeBrowserCapabilities() {
-  const observation = { indexedDBWrites: [], webStorageWrites: [], microphoneRequests: 0 };
+  const observation = { indexedDBWrites: [], webStorageWrites: [], microphoneRequests: 0, speechRecognitionStarts: 0 };
   Object.defineProperty(globalThis, '__dreamUnityBrowserObservation', { value: observation });
   for (const method of ['add', 'put', 'delete', 'clear']) {
     const native = IDBObjectStore.prototype[method];
@@ -300,6 +312,20 @@ function observeBrowserCapabilities() {
       observation.microphoneRequests += 1;
       globalThis.__dreamUnityObserveMicrophone?.().catch(() => {});
       return Reflect.apply(nativeGetUserMedia, this, args);
+    };
+  }
+  // Web Speech captures independently of getUserMedia. Observe both constructor
+  // aliases once, preserving native behavior instead of replacing recognition.
+  const observedPrototypes = new Set();
+  for (const Constructor of [globalThis.SpeechRecognition, globalThis.webkitSpeechRecognition]) {
+    const prototype = Constructor?.prototype;
+    if (!prototype || observedPrototypes.has(prototype) || typeof prototype.start !== 'function') continue;
+    observedPrototypes.add(prototype);
+    const nativeStart = prototype.start;
+    prototype.start = function (...args) {
+      observation.speechRecognitionStarts += 1;
+      globalThis.__dreamUnityObserveRecognitionStart?.().catch(() => {});
+      return Reflect.apply(nativeStart, this, args);
     };
   }
 }
@@ -373,14 +399,18 @@ async function canonicalDeploymentIsCurrent(observeRequest) {
   for (let attempt = 1; attempt <= 3; attempt++) {
     budget();
     const isolated = await browser.newContext({ viewport: { width: 1440, height: 1000 }, permissions: [] });
-    const observed = { attempt, requestedUrl: LIVE, responses: [], failedRequests: [], pageErrors: [] };
+    const observed = { attempt, requestedUrl: LIVE, responses: [], failedRequests: [], pageErrors: [], apiRequests: [] };
     evidence.canonicalRelease.push(observed);
     let coherent = false;
     try {
       await isolated.clearPermissions();
       await isolated.exposeBinding('__dreamUnityObserveMicrophone', () => { evidence.voiceEvidence.microphoneRequests += 1; });
+      await isolated.exposeBinding('__dreamUnityObserveRecognitionStart', () => { evidence.voiceEvidence.speechRecognitionStarts += 1; });
       await isolated.addInitScript(observeBrowserCapabilities);
       isolated.on('request', observeRequest);
+      isolated.on('request', request => {
+        if (new URL(request.url()).pathname.startsWith('/api/unity/')) observed.apiRequests.push({ method: request.method(), url: request.url() });
+      });
       const canonical = await isolated.newPage();
       canonical.on('pageerror', error => observed.pageErrors.push(error.message));
       canonical.on('response', response => {
@@ -416,6 +446,7 @@ async function canonicalDeploymentIsCurrent(observeRequest) {
             { timeout: budget(8000) });
           observed.running = await canonical.evaluate(() => ({
             boot: document.body.dataset.boot, sourceCommit: document.body.dataset.release || null,
+            inputMode: document.getElementById('input-mode')?.value,
             displayedCommit: document.getElementById('release-running')?.textContent.trim() || null,
             microphone: document.body.dataset.microphone,
             voicePressed: document.getElementById('voice-start')?.getAttribute('aria-pressed'),
@@ -436,12 +467,15 @@ async function canonicalDeploymentIsCurrent(observeRequest) {
             assert.ok(styles.every(value => value.status === 200 && /text\/css/i.test(value.contentType)),
               'the canonical release must load its actual stylesheet successfully');
             assert.equal(observed.running.voicePressed, 'false');
+            assert.equal(observed.running.inputMode, 'site', 'the canonical page must start in browser dictation mode');
+            assert.deepEqual(observed.apiRequests, [], 'default site mode must not contact the AI service');
             assert.ok(!['permission', 'connecting', 'listening', 'speaking', 'connected', 'ready'].includes(observed.running.microphone),
               'canonical release verification must not engage the microphone');
           }
         }
       }
       assert.equal((await browserObservation(canonical)).microphoneRequests, 0, 'visiting the canonical page must not request microphone access');
+      assert.equal((await browserObservation(canonical)).speechRecognitionStarts, 0, 'visiting the canonical page must not start browser speech recognition');
       observed.coherent = coherent;
     } finally { await isolated.close(); }
     if (coherent) return;
@@ -460,7 +494,10 @@ async function canonicalDeploymentIsCurrent(observeRequest) {
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, permissions: [] });
     await context.clearPermissions();
     evidence.voiceEvidence.microphoneRequests = 0;
+    evidence.voiceEvidence.speechRecognitionStarts = 0;
+    evidence.voiceEvidence.apiRequests = [];
     await context.exposeBinding('__dreamUnityObserveMicrophone', () => { evidence.voiceEvidence.microphoneRequests += 1; });
+    await context.exposeBinding('__dreamUnityObserveRecognitionStart', () => { evidence.voiceEvidence.speechRecognitionStarts += 1; });
     await context.exposeBinding('__dreamUnityObserveWebStorageWrite', (_, value) => {
       if (value?.barrier === true) return;
       evidence.webStorageWriteEvents.push(value);
@@ -500,6 +537,11 @@ async function canonicalDeploymentIsCurrent(observeRequest) {
     page.on('console', message => { if (prototypeUrl(page.url()) && message.type() === 'error') evidence.consoleErrors.push(message.text()); });
     function observeRequest(request) {
       const url = new URL(request.url());
+      if (url.pathname.startsWith('/api/unity/')) {
+        let mainPage = false;
+        try { mainPage = request.frame().page() === page; } catch { /* A request can have no document frame. */ }
+        evidence.voiceEvidence.apiRequests.push({ method: request.method(), url: request.url(), mainPage });
+      }
       if (url.origin === ORIGIN && url.pathname === '/symbol-motion.js') {
         // Bind provenance when requested: a late old-home response can arrive after Back.
         try { if (prototypeUrl(request.frame().url())) sharedPrototypeRequests.add(request); } catch { /* No document frame owns this request. */ }
@@ -529,6 +571,23 @@ async function canonicalDeploymentIsCurrent(observeRequest) {
       assert.equal(await page.locator('#stop-button').isVisible(), true);
       assert.equal(await page.locator('#voice-start').getAttribute('aria-pressed'), 'false');
       await screenshot('unity-desktop.png');
+    });
+    await check('default-site-mode-is-ready-without-ai-or-microphone-activation', async () => {
+      assert.equal(await page.locator('#input-mode').inputValue(), 'site');
+      assert.equal(await page.locator('#ai-options').isVisible(), false);
+      assert.equal(await page.locator('#service-status').getAttribute('data-phase'), 'idle');
+      assert.equal(await page.locator('#voice-label').textContent(), 'Speak');
+      assert.equal(await page.locator('#voice-hint').textContent(), 'or use keyboard mic');
+      assert.equal(await page.locator('#voice-start').isEnabled(), true);
+      assert.equal(await page.locator('#voice-start').getAttribute('aria-pressed'), 'false');
+      assert.equal(await page.locator('#intention-input').isEnabled(), true);
+      assert.equal(await page.locator('#send-button').isEnabled(), true);
+      assert.equal(await page.locator('#access-panel').isVisible(), false);
+      assert.deepEqual(evidence.voiceEvidence.apiRequests.filter(value => value.mainPage), [], 'initial site mode must not contact the AI service');
+      const observation = await browserObservation();
+      assert.equal(observation.microphoneRequests, 0); assert.equal(observation.speechRecognitionStarts, 0);
+      evidence.voiceEvidence.defaultSite = { readyWithoutAiRequests: true, speechRecognitionStarts: 0, microphoneRequests: 0,
+        draftEditable: true, keyboardFallbackVisible: true, actualDictation: 'unexercised' };
     });
     const identity = await page.evaluate(() => performance.timeOrigin);
     await check('keyboard-skip-write-stop-and-accessible-status', async () => {
@@ -560,8 +619,7 @@ async function canonicalDeploymentIsCurrent(observeRequest) {
       evidence.voiceEvidence.stopAcknowledgement = { nextNavigationOwnsAnnouncement: true, activeRemoteHangup: 'unexercised' };
     });
     await check('service-readiness-and-safe-retry-never-request-microphone', async () => {
-      await page.waitForFunction(() => ['available', 'unavailable'].includes(document.getElementById('service-status').dataset.phase),
-        null, { timeout: remaining(12000) });
+      await chooseAiInput();
       const initialPhase = await page.locator('#service-status').getAttribute('data-phase');
       const initialCode = await page.locator('#service-status').getAttribute('data-code');
       const initialShell = await assertUnauthenticatedServiceShell();
@@ -594,7 +652,9 @@ async function canonicalDeploymentIsCurrent(observeRequest) {
       const statusResponsesBeforeRecheck = evidence.voiceEvidence.statusResponses?.length || 0;
       const primaryRecheck = await captureServiceRecheck('#voice-start');
       assert.equal((await browserObservation()).microphoneRequests, 0);
+      assert.equal((await browserObservation()).speechRecognitionStarts, 0);
       assert.equal(evidence.voiceEvidence.microphoneRequests, 0);
+      assert.equal(evidence.voiceEvidence.speechRecognitionStarts, 0, 'optional AI availability checks must never start browser dictation');
       assert.equal(evidence.forbiddenRequests.length, forbiddenBeforeRecheck,
         'a primary availability recheck must not create access, paid sessions, or text requests');
       assert.ok((evidence.voiceEvidence.statusResponses?.length || 0) > statusResponsesBeforeRecheck,
@@ -711,6 +771,7 @@ async function canonicalDeploymentIsCurrent(observeRequest) {
     });
     let saved;
     await check('no-consent-no-personal-persistence-and-retained-offline-input', async () => {
+      await chooseAiInput();
       await rememberingIs(false);
       const message = 'Remember that this unconsented browser note must remain unsaved.';
       await send(message);
@@ -724,6 +785,7 @@ async function canonicalDeploymentIsCurrent(observeRequest) {
       assert.doesNotMatch(await page.locator('#transcript').textContent(), /unconsented browser note/);
       const reloaded = await readMemory();
       assert.deepEqual(reloaded?.nodes || [], []); assert.deepEqual(reloaded?.edges || [], []);
+      await chooseAiInput();
       for (const message of ['"Open the manifesto"', 'What would happen if I said open the manifesto?', 'Open the manifesto and open Dream World', 'Open Empire Dawn']) {
         await send(message);
         await waitForAccessOrUnreadyService();
@@ -859,6 +921,7 @@ async function canonicalDeploymentIsCurrent(observeRequest) {
       assert.equal(await secondPage.locator('.memory-editor').count(), 0);
       await secondPage.bringToFront();
       const attempt = 'Remember that an old tab cannot silently restore revoked remembering.';
+      await chooseAiInput(secondPage);
       await send(attempt, secondPage);
       await waitForAccessOrUnreadyService(secondPage);
       assert.equal(await secondPage.locator('#intention-input').inputValue(), attempt);
@@ -1093,6 +1156,7 @@ async function canonicalDeploymentIsCurrent(observeRequest) {
       const restricted = await browser.newContext({ viewport: { width: 1280, height: 900 }, permissions: [] });
       restricted.on('request', observeRequest);
       await restricted.exposeBinding('__dreamUnityObserveMicrophone', () => { evidence.voiceEvidence.microphoneRequests += 1; });
+      await restricted.exposeBinding('__dreamUnityObserveRecognitionStart', () => { evidence.voiceEvidence.speechRecognitionStarts += 1; });
       await restricted.clearPermissions(); await restricted.addInitScript(observeBrowserCapabilities);
       await restricted.addInitScript(() => {
         IDBFactory.prototype.open = function () { throw new DOMException('Device storage is disabled for this acceptance probe.', 'SecurityError'); };
@@ -1114,6 +1178,7 @@ async function canonicalDeploymentIsCurrent(observeRequest) {
       await restrictedPage.waitForFunction(() => document.getElementById('memory-consent').disabled, null, { timeout: remaining() });
       assert.equal(await noteCard(VISIT_NOTE, restrictedPage).count(), 0); await visitIs(false, restrictedPage);
       assert.equal((await browserObservation(restrictedPage)).microphoneRequests, 0);
+      assert.equal((await browserObservation(restrictedPage)).speechRecognitionStarts, 0);
       evidence.visitEvidence.unavailableIndexedDB = { explicitChoiceRequired: true, noteUsable: true, indexedDBWrites: 0, webStorageWrites: 0, reloadClears: true };
       await restricted.close();
     });
@@ -1212,6 +1277,7 @@ async function canonicalDeploymentIsCurrent(observeRequest) {
       assert.deepEqual(evidence.forbiddenRequests, []); assert.deepEqual(evidence.pageErrors, []);
       assert.equal(evidence.accessProbes.length, evidence.voiceEvidence.invalidInvitation?.status === 'unexercised' ? 0 : 1);
       assert.equal(evidence.voiceEvidence.microphoneRequests, 0, 'unauthorized verification must never request microphone access');
+      assert.equal(evidence.voiceEvidence.speechRecognitionStarts, 0, 'this live run must never initiate browser speech recognition');
       assert.deepEqual(evidence.failedRequests, []);
       assert.ok(evidence.responses.every(item => item.status < 400), 'a prototype resource returned an HTTP failure');
       const modules = evidence.responses.filter(item => item.resourceType === 'script');

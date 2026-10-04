@@ -6,6 +6,7 @@ import { createActionExecutor, observedView } from './actions.js';
 import { createMemoryStore, createMemoryController } from './memory/store.js';
 import { mountMemoryView } from './memory/view.js';
 import { createConversation } from './conversation/controller.js';
+import { createDictation } from './conversation/dictation.js';
 import { createReleaseMonitor, ensureReleaseElements } from './release.js';
 
 const $ = id => document.getElementById(id);
@@ -20,9 +21,31 @@ let routeController = null, navigationGeneration = 0, manifestoLoaded = false;
 let providerContextRevision = 0, exiting = false, textPhase = 'idle', submissionGeneration = 0;
 let allowDraftRecovery = true;
 let releaseMonitor = null;
+let inputMode = 'site', dictation = null;
 const transcriptEntries = new Map();
 const directSaveControllers = new Set();
 const scene = createScene($('unity-scene'));
+// Older cached documents can still load a fresh boot module. Add the controls
+// before using them so an update never takes away the existing draft.
+if (!$('input-mode')) {
+  const controls = document.createElement('div'); controls.className = 'input-options';
+  const label = document.createElement('label'); label.htmlFor = 'input-mode'; label.textContent = 'Use your words';
+  const select = document.createElement('select'); select.id = 'input-mode';
+  for (const [value, title] of [['site', 'Explore and keep notes'], ['ai', 'Private AI conversation']]) {
+    const option = document.createElement('option'); option.value = value; option.textContent = title; select.append(option);
+  }
+  controls.append(label, select); $('conversation').prepend(controls);
+}
+if (!$('ai-options')) {
+  const options = document.createElement('section'); options.id = 'ai-options'; options.hidden = true;
+  $('service-status').before(options); options.append($('service-status'), $('service-retry'), $('access-panel'));
+}
+if (!$('dictation-help')) {
+  const help = document.createElement('p'); help.id = 'dictation-help'; help.className = 'dictation-help';
+  help.textContent = 'Speak adds words for you to review. Your browser may use its speech service. You can also use the microphone on your keyboard.';
+  const keyboard = document.createElement('button'); keyboard.id = 'keyboard-dictation'; keyboard.type = 'button'; keyboard.className = 'text-button'; keyboard.textContent = 'Use keyboard microphone';
+  $('intention-form').before(help, keyboard);
+}
 const textStatus = document.createElement('p');
 textStatus.id = 'text-turn-status'; textStatus.className = 'service-status';
 textStatus.setAttribute('role', 'status'); textStatus.setAttribute('aria-live', 'polite');
@@ -99,7 +122,7 @@ function render() {
   document.body.dataset.view = state.destination;
   document.body.dataset.mode = state.mode;
   document.body.dataset.microphone = state.microphone;
-  textStatus.hidden = textPhase !== 'thinking';
+  textStatus.hidden = inputMode !== 'ai' || textPhase !== 'thinking';
   textStatus.textContent = textPhase === 'thinking' ? 'Considering your question… Press Stop to cancel, or write a new message.' : '';
   for (const panel of document.querySelectorAll('[data-view-panel]')) panel.hidden = panel.dataset.viewPanel !== state.destination;
   $('view-heading').hidden = state.destination === 'unity';
@@ -109,6 +132,28 @@ function render() {
   $('interpretation-panel').hidden = !state.reflection;
   $('interpretation-text').textContent = state.reflection?.summary || '';
   const conversationState = conversation?.getState();
+  $('input-mode').value = inputMode;
+  $('ai-options').hidden = inputMode !== 'ai';
+  $('dictation-help').hidden = inputMode !== 'site';
+  $('keyboard-dictation').hidden = inputMode !== 'site';
+  $('send-button').querySelector('span').textContent = inputMode === 'site' ? 'Use intention' : 'Send';
+  $('send-button').setAttribute('aria-label', inputMode === 'site' ? 'Use your intention' : 'Send your intention');
+  $('voice-start').setAttribute('aria-describedby', inputMode === 'site' ? 'voice-invitation session-status dictation-help' : 'voice-invitation session-status service-status');
+  if (inputMode === 'site') {
+    const speech = dictation?.getState();
+    const active = Boolean(speech?.active);
+    document.body.dataset.inputMode = 'site';
+    $('resume-button').hidden = true;
+    $('voice-label').textContent = speech?.status === 'starting' ? 'Starting' : speech?.status === 'listening' ? 'Listening' : 'Speak';
+    $('voice-hint').textContent = active ? 'Tap to stop' : 'or use keyboard mic';
+    $('voice-start').disabled = false;
+    $('voice-start').setAttribute('aria-busy', String(speech?.status === 'starting'));
+    $('voice-start').setAttribute('aria-pressed', String(active));
+    $('session-status').textContent = speech?.message || 'Speak or write an intention. Review your words, then choose Use intention.';
+    $('voice-invitation').textContent = 'Speak or write an intention. Explore the worlds and keep your own notes in My constellation.';
+    $('intention-help').textContent = 'Try “open my constellation” or “open the manifesto”. Choose a note mode in My constellation, then use “remember” followed by your note.';
+  } else {
+  document.body.dataset.inputMode = 'ai';
   const authorized = Boolean(conversationState?.authorized);
   const service = conversationState?.service;
   const checking = !service || ['unknown', 'checking'].includes(service.phase);
@@ -143,6 +188,7 @@ function render() {
   $('intention-help').textContent = available ? 'You can name a destination, ask a question, or change your mind.'
     : initialCheck ? 'You can name a destination or keep a note in My constellation while we check AI availability.'
     : 'AI replies are unavailable. You can still name a destination or keep a note in My constellation.';
+  }
   $('earth-status').textContent = state.earth?.app === 'failed' ? 'Earth could not connect.' : state.earth?.globe === 'ready' ? 'Earth is ready.' : state.earth?.app === 'ready' ? 'Earth is open. Globe and feed availability may vary.' : 'Opening God’s Earth View…';
 }
 function setUrl(destination, replace = false) {
@@ -155,6 +201,7 @@ const earth = createEarthAdapter({ host: $('earth-frame-host'),
     $('earth-recovery').hidden = value.app !== 'failed';
   },
   async onMedia() {
+    dictation?.stop();
     const media = await conversation.enterMedia();
     if (exiting || !state.visible || media.mode !== 'media' || conversation.getState().mode !== 'media') return false;
     dispatch({ type: 'mode', mode: 'media' }); return true;
@@ -256,7 +303,7 @@ conversation = createConversation({ baseUrl: EARTH_ORIGIN,
   getContext: () => ({ routeEpoch: state.routeEpoch, consentEpoch: state.consentEpoch, memoryRevision: state.memoryRevision,
     canonVersion: serviceStatus?.canonVersion || 'published-manifesto/1', uiContext: observedView(state), consentedMemories: sharedContext }),
   onEvent(event) {
-    if (event.type === 'interruption' || event.type === 'spoken-stop' || event.type === 'stopped') {
+    if (inputMode === 'ai' && (event.type === 'interruption' || event.type === 'spoken-stop' || event.type === 'stopped')) {
       interruptLocalWork(); earth.cancelActions().catch(() => {});
     }
     if (event.type === 'transcript') {
@@ -269,13 +316,34 @@ conversation = createConversation({ baseUrl: EARTH_ORIGIN,
   onState(value) {
     textPhase = value.text;
     if (value.service) renderService(value.service);
-    dispatch({ type: 'voice', status: value.voice }); dispatch({ type: 'mode', mode: value.mode });
-    scene.setSpeaking(value.voice === 'speaking' ? 0.7 : 0);
+    if (inputMode === 'ai') {
+      dispatch({ type: 'voice', status: value.voice }); dispatch({ type: 'mode', mode: value.mode });
+      scene.setSpeaking(value.voice === 'speaking' ? 0.7 : 0);
+    } else render();
   },
   onAction: (request, options) => executor.execute(request, options),
   ensureMediaQuiet: () => earth.quiet(),
 });
+dictation = createDictation({
+  onState(value) {
+    if (inputMode !== 'site') return;
+    dispatch({ type: 'voice', status: value.status });
+    scene.setSpeaking(0);
+  },
+  onResult(text) {
+    if (inputMode !== 'site' || exiting || !state.visible) return;
+    const input = $('intention-input');
+    const value = input.value + (input.value && !/\s$/.test(input.value) ? ' ' : '') + text;
+    if (value.length > input.maxLength || new TextEncoder().encode(value).length > 8192) {
+      dictation.stop(); notice('The text box is full. Your existing words were kept; shorten them before speaking again.'); return;
+    }
+    input.value = value;
+    $('conversation').scrollIntoView({ behavior: 'auto', block: 'nearest' });
+    announce('Your spoken words are ready to review. Choose Use intention when ready.');
+  },
+});
 function interruptLocalWork() {
+  dictation?.stop();
   for (const controller of directSaveControllers) controller.abort();
   executor.cancel(); routeController?.abort(); navigationGeneration++; memoryController?.invalidate();
   dispatch({ type: 'interrupt' });
@@ -316,6 +384,17 @@ async function refreshService() {
   catch { renderService(conversation.getState().service); return null; }
 }
 async function startVoice() {
+  if (exiting || !state.visible) return;
+  if (inputMode === 'site') {
+    if (dictation.getState().active) { dictation.stop(); return; }
+    if (!dictation.getState().supported) { dictation.start(); focusKeyboardDictation(); return; }
+    if (state.destination === 'earth') {
+      const owner = navigationGeneration;
+      await earth.quiet();
+      if (owner !== navigationGeneration || exiting || !state.visible || inputMode !== 'site') return;
+    }
+    dictation.start(); return;
+  }
   if (!conversation.getState().authorized) {
     const owner = navigationGeneration;
     await refreshService();
@@ -323,6 +402,11 @@ async function startVoice() {
     return;
   }
   if (state.mode === 'media') await conversation.resumeVoice(); else await conversation.startVoice();
+}
+function focusKeyboardDictation() {
+  dictation?.stop();
+  $('intention-input').focus(); $('conversation').scrollIntoView({ behavior: 'auto', block: 'nearest' });
+  notice('Use the microphone on your phone or tablet keyboard to dictate here. If it has no microphone, type your intention. Review the words before choosing Use intention.');
 }
 async function refreshSelection(ids = selectedIds) {
   const previousContext = sharedContext;
@@ -461,6 +545,15 @@ for (const element of document.querySelectorAll('[data-focus-world]')) element.a
   if (exiting) return; pauseForUserControl(); focus(element.dataset.focusWorld);
 });
 $('voice-start').addEventListener('click', () => startVoice().catch(showError));
+$('keyboard-dictation').addEventListener('click', focusKeyboardDictation);
+$('intention-input').addEventListener('input', () => { if (dictation?.getState().active) dictation.stop(); });
+$('input-mode').addEventListener('change', guarded(() => {
+  inputMode = $('input-mode').value === 'ai' ? 'ai' : 'site';
+  pauseForUserControl(); scene.setSpeaking(0);
+  dispatch({ type: 'mode', mode: 'conversation' });
+  dispatch({ type: 'voice', status: inputMode === 'site' ? dictation.getState().status : conversation.getState().voice });
+  if (inputMode === 'ai') refreshService();
+}));
 $('resume-button').addEventListener('click', () => startVoice().catch(showError));
 $('stop-button').addEventListener('click', guarded(() => {
   interruptLocalWork();
@@ -469,7 +562,7 @@ $('stop-button').addEventListener('click', guarded(() => {
   conversation.stop().catch(() => {}); earth.cancelActions().catch(() => {});
   announce('Microphone and speaking stopped.');
 }));
-$('text-toggle').addEventListener('click', () => { $('intention-input').focus(); $('conversation').scrollIntoView({ behavior: 'auto', block: 'nearest' }); });
+$('text-toggle').addEventListener('click', () => { dictation?.stop(); $('intention-input').focus(); $('conversation').scrollIntoView({ behavior: 'auto', block: 'nearest' }); });
 $('correct-interpretation').addEventListener('click', guarded(() => {
   interruptLocalWork(); dispatch({ type: 'correct-reflection' }); conversation.stop().catch(() => {});
   notice('That interpretation has been withdrawn. Tell me how you would describe it.'); $('intention-input').focus();
@@ -512,6 +605,17 @@ $('intention-form').addEventListener('submit', guarded(async event => {
     } catch (error) { if (!saving.signal.aborted) showError(error); return; }
     finally { directSaveControllers.delete(saving); }
   }
+  if (inputMode === 'site') {
+    if (directMemory) {
+      notice('Choose For this visit or Remember on this device in My constellation, then use this intention again to save your note.');
+      await navigate('constellation');
+      return;
+    }
+    transcript({ id: crypto.randomUUID(), role: 'user', text: message });
+    clearSubmittedDraft();
+    notice('Your intention is kept in this visit’s conversation. To save a note in My constellation, choose a note mode and use “remember” followed by your note.');
+    return;
+  }
   if (!conversation.getState().authorized) {
     const owner = navigationGeneration;
     await refreshService();
@@ -553,6 +657,7 @@ $('memory-clear').addEventListener('click', guarded(async () => {
   selectedIds = []; sharedContext = []; await memoryView.refresh();
 }));
 $('clear-transcript').addEventListener('click', guarded(() => {
+  dictation?.stop();
   executor.cancel(); memoryController?.invalidate(); conversation.clearConversation().catch(() => {});
   transcriptEntries.clear(); $('transcript').replaceChildren();
   notice('Conversation cleared for this visit. Saved notes are unchanged.');
@@ -586,6 +691,7 @@ document.addEventListener('visibilitychange', async () => {
   }
 });
 window.addEventListener('pagehide', () => {
+  dictation?.dispose();
   releaseMonitor?.close();
   allowDraftRecovery &&= memory?.getStatus().mode !== 'session';
   if (!allowDraftRecovery) $('intention-input').value = '';
@@ -623,5 +729,5 @@ if (requestedDestination !== state.destination) {
   notice('That destination is not available in this prototype. You are back at the centre.');
 }
 $('service-retry').addEventListener('click', guarded(refreshService));
-refreshService();
+$('service-status').dataset.phase = 'idle';
 if (['earth', 'manifesto'].includes(state.destination)) navigate(state.destination, { replace: true }).catch(showError);

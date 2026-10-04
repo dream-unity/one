@@ -42,11 +42,11 @@
           <span class="world-region-title">Dream<br />Machine</span>
           <span id="machine-meaning" class="world-region-meaning">Heart · Mind · Body</span>
         </button>
-        <button id="voice-start" class="voice-activation" type="button" aria-describedby="voice-invitation session-status service-status" disabled aria-busy="true">
+        <button id="voice-start" class="voice-activation" type="button" aria-describedby="voice-invitation session-status dictation-help" disabled aria-busy="true">
           <span class="speech-orbit" aria-hidden="true"></span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" aria-hidden="true"><rect x="8" y="2" width="8" height="13" rx="4" /><path d="M5 10v1a7 7 0 0 0 14 0v-1M12 18v4M8 22h8" /></svg>
-          <span id="voice-label">Checking</span>
-          <span id="voice-hint" class="voice-activation-hint">conversation availability</span>
+          <span id="voice-label">Speak</span>
+          <span id="voice-hint" class="voice-activation-hint">or use keyboard mic</span>
         </button>
         <button class="world-region world-region--maker" type="button" data-focus-world="maker" aria-describedby="maker-meaning">
           <span class="world-region-title">Dream<br />Maker</span>
@@ -139,17 +139,22 @@
     </section>
 
     <section id="conversation" class="conversation" aria-label="Your conversation">
-      <div class="conversation-status"><span class="status-dot" aria-hidden="true"></span><p id="session-status" role="status">Checking conversation availability. You can explore while we check.</p><button id="resume-button" type="button" hidden>Resume</button></div>
-      <p id="service-status" class="service-status" role="status">Checking conversation availability…</p>
-      <button id="service-retry" class="text-button" type="button">Check conversation again</button>
+      <div class="input-options"><label for="input-mode">Use your words</label><select id="input-mode"><option value="site">Explore and keep notes</option><option value="ai">Private AI conversation</option></select></div>
+      <div class="conversation-status"><span class="status-dot" aria-hidden="true"></span><p id="session-status" role="status">Speak or write an intention. Review your words, then choose Use intention.</p><button id="resume-button" type="button" hidden>Resume</button></div>
+      <p id="dictation-help" class="dictation-help">Speak adds words for you to review. Your browser may use its speech service. You can also use the microphone on your keyboard.</p>
+      <button id="keyboard-dictation" class="text-button" type="button">Use keyboard microphone</button>
+      <section id="ai-options" aria-label="Private AI conversation connection" hidden>
+        <p id="service-status" class="service-status" role="status" data-phase="idle">Private AI conversation is optional. Check availability to connect.</p>
+        <button id="service-retry" class="text-button" type="button">Check conversation again</button>
+        <div id="access-panel" class="access-panel" hidden><form id="access-form"><label for="access-invite">Private preview invitation</label><div class="access-field"><input id="access-invite" type="password" autocomplete="off" spellcheck="false" /><button type="submit">Open conversation</button></div><p id="access-status" role="status"></p></form></div>
+      </section>
       <form id="intention-form" class="intention-form">
         <label for="intention-input">Your intention or question</label>
-        <div class="intention-field"><textarea id="intention-input" name="intention" rows="2" maxlength="8000" placeholder="I’d like to explore…" aria-describedby="intention-help"></textarea><button id="send-button" type="submit" aria-label="Send your intention"><span>Send</span><span aria-hidden="true">↗</span></button></div>
-        <p id="intention-help">You can name a destination, ask a question, or change your mind.</p>
+        <div class="intention-field"><textarea id="intention-input" name="intention" rows="2" maxlength="8000" placeholder="I’d like to explore…" aria-describedby="intention-help" spellcheck="true"></textarea><button id="send-button" type="submit" aria-label="Use your intention"><span>Use intention</span></button></div>
+        <p id="intention-help">Try “open my constellation” or “open the manifesto”. Choose a note mode in My constellation, then use “remember” followed by your note.</p>
       </form>
       <section id="interpretation-panel" class="interpretation-panel" aria-labelledby="interpretation-heading" hidden><p id="interpretation-heading" class="eyebrow">A possible connection</p><p id="interpretation-text"></p><button id="correct-interpretation" type="button">That is not what I meant</button></section>
       <details id="transcript-details" class="transcript-details" open><summary>Conversation <span class="transcript-scope">this visit</span></summary><div id="transcript" class="transcript" role="log" aria-live="polite" aria-relevant="additions text"><p class="empty-state">Your words and replies will appear here.</p></div><button id="clear-transcript" class="text-button" type="button">Clear this conversation</button></details>
-      <div id="access-panel" class="access-panel" hidden><form id="access-form"><label for="access-invite">Private preview invitation</label><div class="access-field"><input id="access-invite" type="password" autocomplete="off" spellcheck="false" /><button type="submit">Open conversation</button></div><p id="access-status" role="status"></p></form></div>
     </section>
   </main>
   <footer class="shell-footer">

@@ -53,6 +53,7 @@ export const PUBLIC_FILES = Object.freeze([
   'prototype/validate.js',
   'prototype/earth/adapter.js',
   'prototype/conversation/controller.js',
+  'prototype/conversation/dictation.js',
   'prototype/conversation/text.js',
   'prototype/memory/store.js',
   'prototype/memory/consent.js',

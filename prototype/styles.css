@@ -132,6 +132,12 @@ body:not([data-view='unity']) .compact-worlds { display:flex; }
 .memory-proposals:empty,.constellation-geometry:empty { display:none; }
 .constellation-geometry { min-height:180px; margin:25px 0; }
 .conversation { width:min(100%,740px); margin:0 auto 52px; padding:22px 0 0; border-top:1px solid var(--line); }
+.input-options { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:18px; font:14px/1.5 Arial,sans-serif; }
+.input-options select { max-width:100%; min-height:44px; padding:8px 10px; border:1px solid var(--line); border-radius:4px; background:var(--paper); }
+.input-options select:focus-visible { outline:3px solid var(--accent); outline-offset:3px; }
+.dictation-help { margin:10px 0 0; color:var(--muted); font:14px/1.5 Arial,sans-serif; }
+#keyboard-dictation { font-size:14px; margin:4px 0 14px; }
+#send-button span:first-child { font-size:14px; }
 .conversation-status { display:flex; align-items:center; gap:10px; }
 .conversation-status p { margin:0; font:14px/1.4 Arial,sans-serif; }
 .status-dot { width:7px; height:7px; border-radius:50%; background:var(--accent); flex:0 0 7px; }
