@@ -93,8 +93,9 @@ async function verifyNormalMotion(base) {
       }),
     };
   });
-  // Verify the original three anchors keep their positions in the source drawing.
-  for (const [name, x, y] of [['machine', 354 / 1254, .5], ['world', 626 / 1254, 604 / 1254], ['maker', 899 / 1254, .5]]) {
+  // Unity occupies the original central anchor; World sits on the same axis below.
+  for (const [name, x, y] of [['machine', 354 / 1254, .5], ['unity', 626 / 1254, 604 / 1254],
+    ['maker', 899 / 1254, .5], ['world', 626 / 1254, .74]]) {
     const portal = before.portals.find(item => item.name === name);
     assert.ok(portal && Math.abs(portal.x - x) < .002 && Math.abs(portal.y - y) < .002,
       `${name} must retain its original artwork alignment`);
@@ -140,8 +141,8 @@ async function verifyNormalMotion(base) {
   assert.deepEqual(missing, [], 'normal motion must not request missing artwork or renderer modules');
   await page.screenshot({ path: join(output, 'desktop-normal-motion.png'), fullPage: true });
   report.normalMotion = { simulation: after.state.simulation, frameCount: after.state.frameCount,
-    unityRingRunning: true, originalPortalAlignment: true, fallbackConsoleErrors: consoleErrors };
-  report.checks.push('normal motion: original renderer or valid animated fallback, original three alignments, moving Unity ring');
+    worldRingRunning: true, portalAlignment: true, fallbackConsoleErrors: consoleErrors };
+  report.checks.push('normal motion: original renderer or valid animated fallback, centred Unity, aligned World, moving World ring');
   await context.close();
 }
 

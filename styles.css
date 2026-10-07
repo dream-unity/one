@@ -13,12 +13,14 @@ a { color: inherit; }
 .portal { position: absolute; left: var(--x); top: var(--y); width: var(--diameter); height: var(--diameter); min-width: 44px; min-height: 44px; transform: translate(-50%, -50%); border-radius: 50%; clip-path: circle(50%); touch-action: manipulation; -webkit-tap-highlight-color: transparent; background: transparent; transition: background-color 180ms ease, box-shadow 180ms ease; }
 .portal-card { margin: 0; padding: 0; border: 0; color: inherit; font: inherit; text-decoration: none; pointer-events: auto; }
 .portal--machine { --x: 28.229665%; --y: 50%; --diameter: 20.414673%; z-index: 2; }
-.portal--world { --x: 49.920255%; --y: 48.165869%; --diameter: 29.665072%; z-index: 2; }
+.portal--unity { --x: 49.920255%; --y: 48.165869%; --diameter: 29.665072%; z-index: 2; }
 .portal--maker { --x: 71.69059%; --y: 50%; --diameter: 20.414673%; z-index: 2; }
-.portal--unity { --x: 50%; --y: 74.5%; --diameter: 18.4%; z-index: 2; }
+/* The lower portal shares the centre ring's axis and clears its lower rim.
+   Its smaller footprint leaves more paper between it and the outer ink band. */
+.portal--world { --x: 49.920255%; --y: 74%; --diameter: 17%; z-index: 2; }
 .portal-caption { position: absolute; left: 50%; top: 50%; display: grid; place-content: center; width: 50.78125%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; background: #ebe4d5 url("./assets/parchment-texture.svg") repeat; background-size: 21.37161cqw 21.37161cqw; color: #302b23; font-size: clamp(11px, 2.05cqw, 26px); line-height: 1.15; text-align: center; pointer-events: none; }
-.portal--world .portal-caption { top: 56.182796%; width: 56.989247%; font-size: clamp(12px, 2.5cqw, 32px); }
-.portal--unity .portal-caption { width: 61%; font-size: clamp(11px, 2.05cqw, 26px); }
+.portal--unity .portal-caption { top: 56.182796%; width: 56.989247%; font-size: clamp(12px, 2.5cqw, 32px); }
+.portal--world .portal-caption { width: 61%; font-size: clamp(11px, 2.05cqw, 26px); }
 .unity-ink-ring { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; user-select: none; }
 .ink-cross { rotate: 90deg; }
 .unity-guide-ring { position: absolute; inset: 3%; border: 1px solid #71634e; border-radius: 50%; opacity: .7; }
@@ -46,6 +48,6 @@ a { color: inherit; }
 .entry-purpose { max-width: 36ch; margin: 0; font-size: 18px; line-height: 1.55; }
 .back-link { display: inline-flex; align-items: center; min-height: 44px; padding: 10px 8px; text-underline-offset: .3em; }
 .back-link:focus-visible { outline: 2px solid #4c3c28; outline-offset: 4px; }
-@media (max-width: 420px) { .portal--machine .portal-caption, .portal--maker .portal-caption { width: 64%; } .portal--unity .portal-caption { width: 67%; } .portal-title { letter-spacing: .2em; padding-left: .2em; } }
+@media (max-width: 420px) { .portal--machine .portal-caption, .portal--maker .portal-caption { width: 64%; } .portal--world .portal-caption { width: 67%; } .portal-title { letter-spacing: .2em; padding-left: .2em; } }
 @media (prefers-reduced-motion: reduce) { .portal { transition: none; } }
 @media (forced-colors: active) { .portal { border: 2px solid LinkText; } .portal:focus-visible { border: 5px solid Highlight; } .portal-caption { background: Canvas; color: LinkText; } }
