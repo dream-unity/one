@@ -24,9 +24,16 @@ a { color: inherit; }
 .unity-ink-ring { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; user-select: none; }
 .ink-cross { rotate: 90deg; }
 .unity-guide-ring { position: absolute; inset: 3%; border: 1px solid #71634e; border-radius: 50%; opacity: .7; }
-.unity-connections { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; color: #665943; pointer-events: none; }
-.unity-thread { stroke-width: 1.6; opacity: .7; }
-.unity-guide { stroke-width: .75; opacity: .5; }
+/* Static ink bridges share the artwork's coordinate system. Their mirrored
+   pen strokes and two arrowheads stay crisp without adding animation work. */
+.portal-connections { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; color: #4b4234; pointer-events: none; }
+.bridge-wash { stroke-width: 11; opacity: .12; }
+.bridge-rail { stroke-width: 1.35; opacity: .65; }
+.bridge-sketch { stroke-width: .85; opacity: .44; }
+.bridge-hatching { stroke-width: .9; opacity: .55; }
+.bridge-spine { stroke-width: 2.4; opacity: .94; }
+.bridge-arrow { fill: currentColor; stroke: none; }
+.bridge-arrow-etch { fill: none; stroke: #e4dccb; stroke-width: .85; opacity: .8; }
 @media (hover: hover) { .portal:hover { background: rgb(62 45 24 / 5%); box-shadow: inset 0 0 0 1px rgb(62 45 24 / 25%); } }
 .portal:active { background: rgb(62 45 24 / 10%); }
 .portal:focus-visible { outline: none; background: rgb(62 45 24 / 6%); box-shadow: inset 0 0 0 3px #4c3c28, inset 0 0 0 6px rgb(249 244 229 / 85%); }

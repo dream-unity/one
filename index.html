@@ -7,19 +7,31 @@
   <meta name="description" content="Dream University. Enter Dream Machine, Dream Maker, Dream World and Dream Unity." />
   <title>Dream University</title>
   <link rel="preload" as="image" href="./assets/dream-unity-portals-refined.webp" type="image/webp" />
-  <link rel="stylesheet" href="./styles.css?v=unity-centre-20261008" />
+  <link rel="stylesheet" href="./styles.css?v=ink-bridges-20261008" />
 </head>
 <body>
   <main class="portal-page">
-    <nav class="portal-artwork" aria-label="Dream University portals">
+    <nav class="portal-artwork" aria-label="Dream University portals" aria-describedby="portal-connections-description">
       <h1 class="portal-title">Dream University</h1>
       <img class="portal-image" src="./assets/dream-unity-portals-refined.webp" width="1254" height="1254" alt="" fetchpriority="high" draggable="false" />
-      <svg class="unity-connections" viewBox="0 0 1254 1254" aria-hidden="true" focusable="false">
-        <g fill="none" stroke="currentColor">
-          <path class="unity-thread" d="M354 774 C365 834 466 851 538 888 M626 811 L626 824 M899 774 C888 834 786 851 714 888" />
-          <path class="unity-guide" d="M350 777 C363 838 465 856 535 891 M622 812 L622 824 M903 777 C890 838 787 856 717 891" />
-          <circle cx="354" cy="774" r="3" /><circle cx="899" cy="774" r="3" />
-        </g>
+      <svg class="portal-connections" viewBox="0 0 1254 1254" aria-hidden="true" focusable="false">
+        <defs>
+          <path id="portal-bridge-curve" d="M354 755 C359 813 448 831 540 866" />
+          <marker id="portal-bridge-arrow" viewBox="-1 -11 27 22" refX="24" refY="0" markerWidth="27" markerHeight="22" markerUnits="userSpaceOnUse" orient="auto-start-reverse" overflow="visible">
+            <path class="bridge-arrow" d="M0 -8 L24 0 L0 8 L7 0 Z" />
+            <path class="bridge-arrow-etch" d="M7 -4 L19 0 L7 4" />
+          </marker>
+          <!-- One engraved bridge, reflected about the shared portal axis. -->
+          <g id="portal-bridge" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <use class="bridge-wash" href="#portal-bridge-curve" />
+            <path class="bridge-rail" d="M349 755 C354 816 443 835 538 871 M359 755 C364 809 453 827 542 861" />
+            <path class="bridge-sketch" d="M350 768 C357 815 431 832 481 851 M378 789 C412 818 489 837 529 854 M405 815 L445 834 M491 853 L530 869" />
+            <path class="bridge-hatching" d="M373 789 L366 797 M377 793 L371 801 M381 796 L377 803 M421 817 L417 825 M427 820 L423 828 M433 822 L430 829 M482 839 L478 848 M488 842 L485 849 M494 844 L491 852" />
+            <use class="bridge-spine" href="#portal-bridge-curve" marker-start="url(#portal-bridge-arrow)" marker-end="url(#portal-bridge-arrow)" />
+          </g>
+        </defs>
+        <use href="#portal-bridge" />
+        <use href="#portal-bridge" transform="translate(1252 0) scale(-1 1)" />
       </svg>
       <a class="portal portal-card portal--machine" href="./dream-machine/" data-world="machine" aria-label="Enter Dream Machine"><span class="portal-caption"><span>Dream<br />Machine</span></span></a>
       <a class="portal portal-card portal--unity" href="./dream-unity/" data-world="unity" aria-label="Enter Dream Unity"><span class="portal-caption"><span>Dream<br />Unity</span></span></a>
@@ -31,6 +43,7 @@
         <span class="portal-caption"><span>Dream<br />World</span></span>
       </a>
     </nav>
+    <p id="portal-connections-description" class="visually-hidden">Dream World connects in both directions with Dream Machine and Dream Maker.</p>
     <p id="symbol-status" class="visually-hidden" role="status" aria-live="polite"></p>
   </main>
   <script type="module" src="./symbol-motion.js?v=university-foundation-2"></script>
