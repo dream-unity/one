@@ -87,7 +87,7 @@ export function createInkClock(now = () => performance.now()) {
 }
 
 const clock = createInkClock();
-let animations = [], reduced = false, manuallyPaused = false, pageHidden = false;
+let animations = [], portalAnimations = [], reduced = false, manuallyPaused = false, pageHidden = false;
 let compositorHidden = false;
 export function getInkMotion() {
   return { ...clock.read(), reduced, active: animations.length > 0 };
@@ -105,22 +105,20 @@ export function setInkCompositorHidden(value) {
 }
 function syncMotion() {
   if (typeof document === 'undefined') return;
-  const suspended = pageHidden || document.hidden
-    || document.querySelector('#world-panel')?.getAttribute('aria-hidden') === 'false'
-    || manuallyPaused;
-  clock.setRate(reduced ? .5 : 1);
+  const suspended = pageHidden || document.hidden || manuallyPaused || reduced;
+  clock.setRate(1);
   clock.setPaused(suspended);
   const motion = clock.read();
   // One seek per lifecycle change, never once per animation frame. The browser
   // composites the decoded images without JS, SVG filters, or a shadow pass.
-  for (const animation of animations) {
+  for (const animation of [...animations, ...portalAnimations]) {
     animation.pause();
     animation.playbackRate = motion.rate;
     animation.currentTime = motion.seconds * 1000;
   }
-  if (!suspended && !compositorHidden) {
+  if (!suspended) {
     const timeline = document.timeline.currentTime;
-    for (const animation of animations) {
+    for (const animation of [...(compositorHidden ? [] : animations), ...portalAnimations]) {
       animation.play();
       if (timeline !== null) animation.startTime = timeline - motion.seconds * 1000 / motion.rate;
     }
@@ -134,8 +132,6 @@ async function startInkMotion() {
   reduced = preference.matches;
   preference.addEventListener('change', event => { reduced = event.matches; syncMotion(); });
   document.addEventListener('visibilitychange', syncMotion);
-  const panel = document.querySelector('#world-panel');
-  if (panel) new MutationObserver(syncMotion).observe(panel, { attributes: true, attributeFilter: ['aria-hidden'] });
   window.addEventListener('pagehide', () => { pageHidden = true; syncMotion(); });
   window.addEventListener('pageshow', () => { pageHidden = false; syncMotion(); });
   syncMotion();
@@ -170,6 +166,11 @@ async function startInkMotion() {
   await Promise.all(ready);
   host.append(layer);
   animations = [...layer.querySelectorAll('.symbol-ink-turn')].map(turning =>
+    turning.animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }],
+      { duration: INK_CYCLE * 1000, iterations: Infinity, easing: 'linear' }));
+  // The new convergence ring remains visible in both renderer modes and uses
+  // the same phase as the original ink. It is never hidden with the fallback.
+  portalAnimations = [...host.querySelectorAll('.unity-ink-ring')].map(turning =>
     turning.animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }],
       { duration: INK_CYCLE * 1000, iterations: Infinity, easing: 'linear' }));
   syncMotion();

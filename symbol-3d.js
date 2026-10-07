@@ -1,12 +1,11 @@
 import { SURFACE_GLSL, SURFACE_SCALE, SURFACE_RINGS, sampleSurface, sampleSurfaceBasis,
-  sampleSurfaceLife, advanceSurfaceTime } from './symbol-surface.js?v=clockwise-20260920';
-import { INK_GLSL, INK_RINGS, getInkMotion, pauseInkMotion, setInkCompositorHidden } from './symbol-motion.js?v=steady-rotation-20261002';
+  sampleSurfaceLife, advanceSurfaceTime } from './symbol-surface.js?v=university-foundation-1';
+import { INK_GLSL, INK_RINGS, getInkMotion, pauseInkMotion, setInkCompositorHidden } from './symbol-motion.js?v=university-foundation-1';
 
 const host = document.querySelector('.portal-artwork');
 const original = host.querySelector('.portal-image');
 const buttons = [...host.querySelectorAll('.portal-card')];
 const status = document.querySelector('#symbol-status');
-const panel = document.querySelector('#world-panel');
 const motionPreference = matchMedia('(prefers-reduced-motion: reduce)');
 const events = new AbortController();
 const disposables = new Set();
@@ -16,7 +15,7 @@ const relief = { value: 0 };
 const surfaceLife = { value: null };
 const inkTurn = { value: null };
 const segments = 64;
-let THREE, renderer, scene, camera, mechanism, surface, resizeObserver, panelObserver;
+let THREE, renderer, scene, camera, mechanism, surface, resizeObserver;
 let ready = false, contextLost = false, destroyed = false;
 let paused = false, raf = 0, frameCount = 0, lastTime = null;
 let elapsed = 0, width = 1, height = 1, life = sampleSurfaceLife(0);
@@ -125,7 +124,7 @@ function build() {
 }
 
 function canRender() {
-  return ready && !destroyed && !contextLost && !document.hidden && panel.getAttribute('aria-hidden') !== 'false';
+  return ready && !destroyed && !contextLost && !document.hidden && !motionPreference.matches;
 }
 
 function wake() {
@@ -206,7 +205,6 @@ function destroy() {
   fallback();
   events.abort();
   resizeObserver?.disconnect();
-  panelObserver?.disconnect();
   for (const resource of disposables) resource.dispose();
   renderer?.dispose();
   renderer?.domElement.remove();
@@ -287,10 +285,6 @@ async function start() {
     tick(performance.now());
     resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(host);
-    panelObserver = new MutationObserver(() => {
-      if (!canRender()) { cancelAnimationFrame(raf); raf = 0; } else wake();
-    });
-    panelObserver.observe(panel, { attributes: true, attributeFilter: ['aria-hidden'] });
     listen(document, 'visibilitychange', () => {
       if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else wake();
     });

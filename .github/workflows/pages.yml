@@ -1,4 +1,4 @@
-name: Deploy Dream Unity
+name: Deploy Dream University
 
 on:
   # Push publishes only after the owner selects Pages Source: GitHub Actions.
@@ -94,8 +94,8 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Verify current and prototype behavior
-        run: npm test
+      - name: Verify shell source and publication boundaries
+        run: npm run check
 
       - name: Stage permitted public files
         run: node scripts/stage-public-site.mjs
@@ -105,11 +105,11 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/dreamunity-browser" --no-save --ignore-scripts playwright@1.62.1
           node "$RUNNER_TEMP/dreamunity-browser/node_modules/playwright/cli.js" install --with-deps chromium
 
-      - name: Verify site dictation before publishing
+      - name: Verify the staged four-portal shell
         timeout-minutes: 4
         env:
           NODE_PATH: ${{ runner.temp }}/dreamunity-browser/node_modules
-        run: node scripts/verify-site-dictation-browser.cjs
+        run: node scripts/verify-shell-browser.cjs
 
       - name: Upload static experience
         uses: actions/upload-pages-artifact@v4
@@ -140,45 +140,19 @@ jobs:
         with:
           artifact_name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
 
-      - name: Verify the published prototype in Chromium
-        timeout-minutes: 4
+      - name: Verify the published four-portal shell
+        timeout-minutes: 5
         env:
           NODE_PATH: ${{ runner.temp }}/dreamunity-browser/node_modules
+          DREAMUNITY_BASE_URL: ${{ steps.deployment.outputs.page_url }}
           DREAMUNITY_EXPECTED_COMMIT: ${{ needs.preflight.outputs.source_commit }}
-        run: node scripts/verify-prototype-browser.cjs
+        run: node scripts/verify-shell-browser.cjs
 
-      - name: Verify the coordinated Earth runtime in Chromium
-        timeout-minutes: 3
-        env:
-          NODE_PATH: ${{ runner.temp }}/dreamunity-browser/node_modules
-          DREAMUNITY_EXPECTED_COMMIT: ${{ needs.preflight.outputs.source_commit }}
-          DREAMUNITY_EXPECTED_EARTH_COMMIT: 14856f8eb68858620b0c4147766e14f538fb0f2f
-          DREAMUNITY_KEYLESS_EARTH_BUILD_AT: 2026-10-03T11:38:43.353Z
-        run: node scripts/verify-earth-embed-browser.cjs
-
-      - name: Preserve published browser verification evidence
+      - name: Preserve staged and published browser evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: stage5-browser-${{ github.run_id }}-${{ github.run_attempt }}
-          path: output/stage5-browser
-          if-no-files-found: ignore
-          retention-days: 7
-
-      - name: Preserve site dictation verification evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: site-dictation-browser-${{ github.run_id }}-${{ github.run_attempt }}
-          path: output/site-dictation-browser
-          if-no-files-found: ignore
-          retention-days: 7
-
-      - name: Preserve coordinated Earth verification evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: astra-earth-browser-${{ github.run_id }}-${{ github.run_attempt }}
-          path: output/astra-earth-browser
+          name: university-shell-browser-${{ github.run_id }}-${{ github.run_attempt }}
+          path: output/shell-browser
           if-no-files-found: ignore
           retention-days: 7

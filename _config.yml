@@ -1,11 +1,7 @@
 {
   "include": ["vendor"],
   "exclude": [
-    "portals", "exercises", "games", "src", "runtime",
-    "tests", "scripts", "docs", "node_modules", ".public-site",
-    "assets/audio", "vendor/three/addons",
-    "prototype/contracts", "prototype/memory/README.md",
-    "audio-controller.js", "portal-depth.js", "symbol-life.js",
+    "scripts", "tests", "docs", "node_modules", ".public-site", "output",
     "README.md", "package.json", "package-lock.json"
   ]
 }

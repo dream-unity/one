@@ -1,327 +1,50 @@
-:root {
-  color-scheme: light;
-  background: #ebe4d5;
-  color: #302b23;
-  font-family: Georgia, "Times New Roman", serif;
-}
+:root { color-scheme: light; background: #ebe4d5; color: #302b23; font-family: Georgia, "Times New Roman", serif; }
 * { box-sizing: border-box; }
-/* Protect cached versions of the old home markup during deployment updates. */
-.symbol-controls, .symbol-hint, #symbol-motion, #symbol-reset { display: none !important; }
 html, body { margin: 0; min-width: 280px; min-height: 100%; }
-/* Repeat the actual supplied paper texture across the entire viewport. */
-body {
-  background: #ebe4d5 url("./assets/parchment-texture.svg") repeat;
-  background-size: 268px 268px;
-}
-.portal-page {
-  display: grid;
-  place-items: center;
-  min-height: 100vh;
-  min-height: 100svh;
-  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
-}
-.portal-artwork {
-  position: relative;
-  isolation: isolate;
-  pointer-events: none;
-  /* Always show the complete original symbol, including its outermost lines. */
-  width: min(100%, 100vh, 1254px);
-  width: min(100%, calc(100svh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)), 1254px);
-  aspect-ratio: 1;
-}
-.portal-image {
-  display: block;
-  width: 100%;
-  height: auto;
-  aspect-ratio: 1;
-  user-select: none;
-  pointer-events: none;
-  /* Blend only the outer paper margin into the surrounding texture.
-     The outer guide circle starts beyond this 2% margin; links are separate. */
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 2%, #000 98%, transparent);
-  mask-image: linear-gradient(to right, transparent, #000 2%, #000 98%, transparent);
-}
-.portal-title {
-  position: absolute;
-  /* Centre the heading in the quiet paper between the two outer guide arcs. */
-  left: 50%;
-  top: 6.060606%; /* 76 / 1254 */
-  transform: translate(-50%, -50%);
-  z-index: 3;
-  width: max-content;
-  margin: 0;
-  padding-left: .32em;
-  color: #2b271f;
-  font-family: "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
-  font-size: clamp(8px, calc(min(100vw, 100vh, 1254px) * .0165), 22px);
-  font-size: clamp(8px, calc(min(100vw, 100svh, 1254px) * .0165), 22px);
-  font-weight: 600;
-  line-height: 1.1;
-  letter-spacing: .32em;
-  text-shadow: 0 1px 0 rgb(255 253 243 / 65%);
-  text-transform: uppercase;
-  white-space: nowrap;
-  pointer-events: none;
-}
-.portal-title::before, .portal-title::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  width: 2em;
-  height: 1px;
-  background: linear-gradient(to right, transparent, #8b795c);
-}
+body { background: #ebe4d5 url("./assets/parchment-texture.svg") repeat; background-size: 268px 268px; }
+a { color: inherit; }
+.portal-page { display: grid; place-items: center; min-height: 100vh; min-height: 100svh; padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
+.portal-artwork { position: relative; isolation: isolate; pointer-events: none; container-type: inline-size; width: min(100%, 100vh, 1254px); width: min(100%, calc(100svh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)), 1254px); aspect-ratio: 1; }
+.portal-image { display: block; width: 100%; height: auto; aspect-ratio: 1; user-select: none; pointer-events: none; -webkit-mask-image: linear-gradient(to right, transparent, #000 2%, #000 98%, transparent); mask-image: linear-gradient(to right, transparent, #000 2%, #000 98%, transparent); }
+.portal-title { position: absolute; left: 50%; top: 6.060606%; transform: translate(-50%, -50%); z-index: 3; width: max-content; margin: 0; padding-left: .3em; color: #2b271f; font-family: "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif; font-size: clamp(10px, 1.65cqw, 22px); font-weight: 600; line-height: 1.2; letter-spacing: .3em; text-shadow: 0 1px 0 rgb(255 253 243 / 65%); text-transform: uppercase; white-space: nowrap; }
+.portal-title::before, .portal-title::after { content: ""; position: absolute; top: 50%; width: 2em; height: 1px; background: linear-gradient(to right, transparent, #8b795c); }
 .portal-title::before { right: calc(100% + .85em); }
-.portal-title::after {
-  left: calc(100% + .85em);
-  transform: rotate(180deg);
-}
-.portal-manifesto {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 44px;
-  min-height: 44px;
-  border-radius: 2px;
-  color: inherit;
-  text-decoration: none;
-  pointer-events: auto;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  transition: color 180ms ease;
-}
-.portal-manifesto:focus-visible {
-  outline: 2px solid #4c3c28;
-  outline-offset: 4px;
-}
-.portal-manifesto:active { color: #755d36; }
-@media (hover: hover) {
-  .portal-manifesto:hover { color: #755d36; }
-}
-.portal {
-  position: absolute;
-  left: var(--x);
-  top: var(--y);
-  width: var(--diameter);
-  height: var(--diameter);
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  /* Clip pointer hit testing too: transparent square corners are not buttons. */
-  clip-path: circle(50%);
-  cursor: pointer;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  background: transparent;
-  transition: background-color 180ms ease, box-shadow 180ms ease;
-}
-.portal--machine {
-  --x: 28.229665%; /* 354 / 1254 */
-  --y: 50%; /* 627 / 1254 */
-  --diameter: 20.414673%; /* 256 / 1254 */
-  z-index: 2;
-}
-.portal--reality {
-  --x: 49.920255%; /* 626 / 1254 */
-  --y: 48.165869%; /* 604 / 1254 */
-  --diameter: 29.665072%; /* 372 / 1254 */
-  z-index: 1;
-}
-.portal--maker {
-  --x: 71.69059%; /* 899 / 1254 */
-  --y: 50%;
-  --diameter: 20.414673%;
-  z-index: 2;
-}
-@media (hover: hover) {
-  .portal:not(:disabled):hover {
-    background: rgb(62 45 24 / 5%);
-    box-shadow: inset 0 0 0 1px rgb(62 45 24 / 25%);
-  }
-}
-.portal:not(:disabled):active { background: rgb(62 45 24 / 10%); }
-.portal:disabled { cursor: default; }
-.portal:disabled .portal-caption { color: #716651; }
-.portal-lock {
-  position: absolute;
-  left: 50%;
-  bottom: 9%;
-  width: 12%;
-  height: 14%;
-  transform: translateX(-50%);
-}
-.portal:focus-visible {
-  outline: none;
-  background: rgb(62 45 24 / 6%);
-  box-shadow: inset 0 0 0 3px #4c3c28, inset 0 0 0 6px rgb(249 244 229 / 85%);
-}
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-@media (prefers-reduced-motion: reduce) {
-  .portal, .portal-manifesto { transition: none; }
-}
-@media (forced-colors: active) {
-  .portal { border: 2px solid LinkText; }
-  .portal:focus-visible { border: 5px solid Highlight; }
-}
-
-/* Use the original circular artwork with this site's existing portal names. */
-.portal-artwork { container-type: inline-size; }
+.portal-title::after { left: calc(100% + .85em); transform: rotate(180deg); }
+.portal { position: absolute; left: var(--x); top: var(--y); width: var(--diameter); height: var(--diameter); min-width: 44px; min-height: 44px; transform: translate(-50%, -50%); border-radius: 50%; clip-path: circle(50%); touch-action: manipulation; -webkit-tap-highlight-color: transparent; background: transparent; transition: background-color 180ms ease, box-shadow 180ms ease; }
 .portal-card { margin: 0; padding: 0; border: 0; color: inherit; font: inherit; text-decoration: none; pointer-events: auto; }
-.portal-caption {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  display: grid;
-  place-content: center;
-  width: 50.78125%; /* 130 / 256: inside the original inner ring. */
-  aspect-ratio: 1;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  background: #ebe4d5 url("./assets/parchment-texture.svg") repeat;
-  background-size: 21.37161cqw 21.37161cqw;
-  color: #302b23;
-  font-size: 2.05cqw;
-  line-height: 1.15;
-  text-align: center;
-  pointer-events: none;
-}
-.portal--reality .portal-caption {
-  top: 56.182796%; /* Labels share y=627; this portal's centre is y=604. */
-  width: 56.989247%; /* 212 / 372: retain the original inner rim. */
-  font-size: 2.5cqw;
-}
-
-/* One original drawing in both states: rendering never changes its layout,
-   labels, colour or outer paper mask. Keep the img ready as the fallback. */
-.symbol-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 0;
-  opacity: 0;
-  pointer-events: none;
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 2%, #000 98%, transparent);
-  mask-image: linear-gradient(to right, transparent, #000 2%, #000 98%, transparent);
-}
-.is-3d { cursor: default; user-select: none; -webkit-user-select: none; }
+.portal--machine { --x: 28.229665%; --y: 50%; --diameter: 20.414673%; z-index: 2; }
+.portal--world { --x: 49.920255%; --y: 48.165869%; --diameter: 29.665072%; z-index: 2; }
+.portal--maker { --x: 71.69059%; --y: 50%; --diameter: 20.414673%; z-index: 2; }
+.portal--unity { --x: 50%; --y: 74.5%; --diameter: 18.4%; z-index: 2; }
+.portal-caption { position: absolute; left: 50%; top: 50%; display: grid; place-content: center; width: 50.78125%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; background: #ebe4d5 url("./assets/parchment-texture.svg") repeat; background-size: 21.37161cqw 21.37161cqw; color: #302b23; font-size: clamp(11px, 2.05cqw, 26px); line-height: 1.15; text-align: center; pointer-events: none; }
+.portal--world .portal-caption { top: 56.182796%; width: 56.989247%; font-size: clamp(12px, 2.5cqw, 32px); }
+.portal--unity .portal-caption { width: 61%; font-size: clamp(11px, 2.05cqw, 26px); }
+.unity-ink-ring { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; user-select: none; }
+.unity-guide-ring { position: absolute; inset: 3%; border: 1px solid #71634e; border-radius: 50%; opacity: .7; }
+.unity-connections { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; color: #665943; pointer-events: none; }
+.unity-thread { stroke-width: 1.6; opacity: .7; }
+.unity-guide { stroke-width: .75; opacity: .5; }
+@media (hover: hover) { .portal:hover { background: rgb(62 45 24 / 5%); box-shadow: inset 0 0 0 1px rgb(62 45 24 / 25%); } }
+.portal:active { background: rgb(62 45 24 / 10%); }
+.portal:focus-visible { outline: none; background: rgb(62 45 24 / 6%); box-shadow: inset 0 0 0 3px #4c3c28, inset 0 0 0 6px rgb(249 244 229 / 85%); }
+.symbol-canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; opacity: 0; pointer-events: none; -webkit-mask-image: linear-gradient(to right, transparent, #000 2%, #000 98%, transparent); mask-image: linear-gradient(to right, transparent, #000 2%, #000 98%, transparent); }
+.is-3d { user-select: none; -webkit-user-select: none; }
 .is-3d .symbol-canvas { opacity: 1; }
 .is-3d .portal-image { visibility: hidden; }
-.symbol-ink {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 0;
-  pointer-events: none;
-}
+.symbol-ink { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
 .is-3d .symbol-ink { visibility: hidden; }
-.symbol-ink-band {
-  position: absolute;
-  /* Rotated transparent corners must not enlarge the document or trigger
-     scrollbar/viewport changes while the circular ink stays in its track. */
-  overflow: hidden;
-  /* A static bitmap mask protects the spine and neighbouring hubs. No live
-     SVG filter, canvas redraw, or layout work is needed during rotation. */
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  mask-mode: alpha;
-}
-.symbol-ink-turn {
-  display: block;
-  width: 100%;
-  height: 100%;
-  transform-origin: 50% 50%;
-  will-change: transform;
-  backface-visibility: hidden;
-  user-select: none;
-  pointer-events: none;
-}
-.world-panel {
-  width: min(720px, calc(100% - 32px));
-  max-height: calc(100svh - 40px);
-  padding: clamp(22px, 4vw, 42px);
-  overflow-y: auto;
-  border: 1px solid #736853;
-  border-radius: 2px;
-  background: #ebe4d5 url("./assets/parchment-texture.svg") repeat;
-  background-size: 268px 268px;
-  color: #302b23;
-  box-shadow: 0 18px 80px rgb(48 43 35 / 22%);
-}
-.world-panel::backdrop { background: rgb(48 43 35 / 38%); }
-#world-kicker { margin: 0 0 12px; font-size: 14px; }
-#world-title { margin: 0; font-size: clamp(28px, 6vw, 42px); font-weight: 400; }
-#world-title:focus { outline: none; }
-.world-panel [hidden] { display: none !important; }
-#world-steps[hidden] + #return-unity { margin-top: 24px; }
-.unavailable-page {
-  min-height: 100svh;
-  display: grid;
-  align-content: center;
-  justify-items: center;
-  gap: 24px;
-  padding: 32px;
-  text-align: center;
-}
-.unavailable-brand { margin: 0; letter-spacing: .25em; text-transform: uppercase; }
-.unavailable-page h1 { margin: 0; font-size: clamp(24px, 5vw, 36px); font-weight: 400; }
-.unavailable-page a { color: inherit; text-underline-offset: .25em; }
-#world-description { margin: 18px 0 24px; font-size: 18px; line-height: 1.5; }
-.world-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.world-panel button, .world-observatory-link {
-  padding: 14px;
-  border: 1px solid #9a907d;
-  border-radius: 2px;
-  background: rgb(249 245 234 / 55%);
-  color: inherit;
-  font: inherit;
-  font-size: 16px;
-  line-height: 1.4;
-  cursor: pointer;
-}
-.world-step-button { display: flex; flex-direction: column; gap: 9px; align-items: flex-start; text-align: left; }
-.world-step-action { font-size: 20px; }
-.world-step-name { font-size: 14px; font-weight: 700; }
-.world-step-description { font-size: 16px; }
-.world-panel button:hover, .world-observatory-link:hover { background: rgb(249 245 234 / 95%); }
-.world-panel button:focus-visible, .world-observatory-link:focus-visible { outline: 2px solid #302b23; outline-offset: 3px; }
-.world-observatory-link { display: block; margin: 0 0 20px; text-decoration: none; }
-.world-observatory-link[hidden], .domain-availability[hidden] { display: none; }
-.domain-back { display: none; margin: 0 0 20px; }
-.domain-back.is-visible { display: inline-block; }
-#return-unity { margin-top: 24px; }
-.no-script { position: fixed; bottom: 16px; width: 100%; margin: 0; text-align: center; }
-.no-script a { color: inherit; }
-@media (max-width: 560px) {
-  .world-steps { grid-template-columns: 1fr; }
-}
-.prototype-entry {
-  position: relative;
-  z-index: 4;
-  display: block;
-  width: max-content;
-  max-width: calc(100% - 32px);
-  margin: -16px auto 24px;
-  padding: 12px 18px;
-  border: 1px solid #8e826b;
-  color: #302b23;
-  background: rgb(249 245 234 / 72%);
-  font: inherit;
-  font-size: 16px;
-  text-decoration: none;
-  text-underline-offset: .25em;
-}
-.prototype-entry:hover { background: #f9f5ea; }
-.prototype-entry:focus-visible { outline: 2px solid #302b23; outline-offset: 4px; }
+.symbol-ink-band { position: absolute; overflow: hidden; -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; mask-mode: alpha; }
+.symbol-ink-turn { display: block; width: 100%; height: 100%; transform-origin: 50% 50%; will-change: transform; backface-visibility: hidden; user-select: none; pointer-events: none; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.portal-entry { display: grid; align-content: center; justify-items: center; gap: 24px; min-height: 100svh; padding: 40px 24px; text-align: center; }
+.entry-brand { font-size: 12px; letter-spacing: .25em; text-transform: uppercase; }
+.entry-seal { position: relative; display: grid; place-items: center; width: min(76vw, 340px); aspect-ratio: 1; }
+.entry-seal img { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.entry-seal h1 { position: relative; max-width: 62%; margin: 0; font-size: clamp(24px, 5vw, 34px); font-weight: 400; line-height: 1.15; }
+.entry-status { margin: 0; color: #665943; font-size: 16px; }
+.entry-purpose { max-width: 36ch; margin: 0; font-size: 18px; line-height: 1.55; }
+.back-link { display: inline-flex; align-items: center; min-height: 44px; padding: 10px 8px; text-underline-offset: .3em; }
+.back-link:focus-visible { outline: 2px solid #4c3c28; outline-offset: 4px; }
+@media (max-width: 420px) { .portal--machine .portal-caption, .portal--maker .portal-caption { width: 64%; } .portal--unity .portal-caption { width: 67%; } .portal-title { letter-spacing: .2em; padding-left: .2em; } }
+@media (prefers-reduced-motion: reduce) { .portal { transition: none; } }
+@media (forced-colors: active) { .portal { border: 2px solid LinkText; } .portal:focus-visible { border: 5px solid Highlight; } .portal-caption { background: Canvas; color: LinkText; } }
