@@ -20,6 +20,7 @@ a { color: inherit; }
 .portal--world .portal-caption { top: 56.182796%; width: 56.989247%; font-size: clamp(12px, 2.5cqw, 32px); }
 .portal--unity .portal-caption { width: 61%; font-size: clamp(11px, 2.05cqw, 26px); }
 .unity-ink-ring { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; user-select: none; }
+.ink-cross { rotate: 90deg; }
 .unity-guide-ring { position: absolute; inset: 3%; border: 1px solid #71634e; border-radius: 50%; opacity: .7; }
 .unity-connections { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; color: #665943; pointer-events: none; }
 .unity-thread { stroke-width: 1.6; opacity: .7; }

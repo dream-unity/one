@@ -1,6 +1,6 @@
 import { SURFACE_GLSL, SURFACE_SCALE, SURFACE_RINGS, sampleSurface, sampleSurfaceBasis,
-  sampleSurfaceLife, advanceSurfaceTime } from './symbol-surface.js?v=university-foundation-1';
-import { INK_GLSL, INK_RINGS, getInkMotion, pauseInkMotion, setInkCompositorHidden } from './symbol-motion.js?v=university-foundation-1';
+  sampleSurfaceLife, advanceSurfaceTime } from './symbol-surface.js?v=university-foundation-2';
+import { INK_GLSL, INK_RINGS, getInkMotion, pauseInkMotion, setInkCompositorHidden } from './symbol-motion.js?v=university-foundation-2';
 
 const host = document.querySelector('.portal-artwork');
 const original = host.querySelector('.portal-image');
