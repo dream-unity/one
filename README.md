@@ -9,7 +9,9 @@ The original parchment, ink drawing, three portal positions and animated rings a
 - Dream Maker — `/dream-maker/`
 - Dream Unity — `/dream-unity/`
 
-All four destinations are deliberately in preparation. The programme and games have not yet been divided between them. Dream Unity will concern the relationships between the worlds: meaning, equilibrium, stability and expansion.
+Dream Machine now has a top-right artwork portal for **The Architect of Sacred Ground** at `/dream-machine/architect-of-sacred-ground/`. The image is a native link, available with keyboard, touch and JavaScript disabled. Its exercise sequence is reserved in order: Heart exercise, Body emotion exercise, Mind exercise, and Heart–Mind Unity. All four stages are marked **Coming soon**; their content will be added later. Consciousness state shifting belongs to a separate future module.
+
+The other three destinations remain in preparation. Dream Unity will concern the relationships between the worlds: meaning, equilibrium, stability and expansion.
 
 The previous prototype, manifesto, activities, games, Earth integration, old portal system, compiled runtime and unused assets have been removed from the current source and publication. Earlier revisions remain in Git history.
 
@@ -17,7 +19,7 @@ The previous prototype, manifesto, activities, games, Earth integration, old por
 
 The site is static HTML, CSS and JavaScript. The original Three.js runtime is vendored locally, with a lightweight animated-ink fallback for small screens and devices without WebGL. Reduced-motion preferences keep the illustration still. No account, API key, external application or backend is required.
 
-`npm test` checks the foundation. `npm run build` stages the explicit public allowlist into `.public-site/`. GitHub Pages publishes that directory using the existing Pages source selection and current-revision safeguards. The published `build-info.json` identifies its source commit.
+`npm test` checks the foundation and publication boundary. `npm run build` stages the explicit public allowlist into `.public-site/`. GitHub Pages publishes that directory using the existing Pages source selection and current-revision safeguards. CI checks all portal journeys, the Architect artwork and pending exercise sequence, desktop placement, mobile overflow, and navigation without JavaScript. The published `build-info.json` identifies its source commit.
 
 `CNAME` retains the existing domain `dreamunity.one`. No domain or Pages source settings are changed by this preparation.
 

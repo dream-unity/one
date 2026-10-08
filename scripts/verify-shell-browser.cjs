@@ -60,6 +60,44 @@ async function assertNoOverflow(page, label) {
     document.documentElement.clientWidth + 1), `${label} has horizontal overflow`);
 }
 
+async function verifyArchitectModule(page, base, label, width) {
+  const portal = page.getByRole('link', { name: 'Enter The Architect of Sacred Ground', exact: true });
+  assert.equal(await portal.count(), 1, 'Dream Machine exposes one accessible artwork portal');
+  assert.ok(await portal.evaluate(element => element.matches('a.architect-portal')),
+    'the Architect artwork must use a native link');
+  assert.equal(await portal.getAttribute('href'), './architect-of-sacred-ground/');
+  await portal.focus();
+  assert.ok(await portal.evaluate(element => element === document.activeElement),
+    'the Architect artwork is keyboard-focusable');
+  const image = portal.locator('img');
+  await image.waitFor({ state: 'visible' });
+  assert.ok(await image.evaluate(element => element.complete && element.naturalWidth > 0),
+    'the Architect artwork must load');
+  if (width >= 1200) {
+    const box = await portal.boundingBox();
+    assert.ok(box && box.x >= width / 2 && box.y >= 0 && box.y < 180 && box.x + box.width <= width,
+      'the Architect module belongs at the top right of Dream Machine on desktop');
+  }
+  await image.click();
+  await page.waitForURL(new URL('dream-machine/architect-of-sacred-ground/', base).href);
+  await page.getByRole('heading', { name: 'The Architect of Sacred Ground', exact: true }).waitFor();
+  const stages = page.locator('ol.exercise-sequence > li');
+  const names = ['Heart exercise', 'Body emotion exercise', 'Mind exercise', 'Heart–Mind Unity'];
+  assert.equal(await stages.count(), names.length, 'the module reserves the four intended stages');
+  for (let index = 0; index < names.length; index++) {
+    const content = await stages.nth(index).innerText();
+    assert.ok(content.includes(names[index]), `exercise ${index + 1} must be ${names[index]}`);
+    assert.match(content, /Coming soon/i, `${names[index]} is clearly pending`);
+  }
+  assert.equal(await page.getByRole('link', { name: 'Back to Dream University', exact: true }).getAttribute('href'), '../../');
+  await assertNoOverflow(page, `${label} Architect module`);
+  await page.screenshot({ path: join(output, `${label}-architect.png`), fullPage: true });
+  await page.getByRole('link', { name: 'Back to Dream Machine', exact: true }).click();
+  await page.waitForURL(new URL('dream-machine/', base).href);
+  await page.getByRole('heading', { name: 'Dream Machine', exact: true }).waitFor();
+  report.checks.push(`${label}: Architect artwork entry, four pending stages, return and overflow`);
+}
+
 async function verifyNormalMotion(base) {
   const context = await browser.newContext({ reducedMotion: 'no-preference', viewport: { width: 1440, height: 1000 } });
   const page = await context.newPage();
@@ -178,9 +216,10 @@ async function verifyNormalMotion(base) {
       await anchor.press('Enter');
       await page.waitForURL(new URL(`dream-${portal}/`, base).href);
       await page.getByRole('heading', { name: title, exact: true }).waitFor();
-      await page.getByText('In preparation', { exact: true }).waitFor();
+      if (portal !== 'machine') await page.getByText('In preparation', { exact: true }).waitFor();
       await assertNoOverflow(page, `${label} ${title}`);
       await page.screenshot({ path: join(output, `${label}-${portal}.png`), fullPage: true });
+      if (portal === 'machine') await verifyArchitectModule(page, base, label, width);
       await page.getByRole('link', { name: /back/i }).click();
       await page.waitForURL(base);
     }
@@ -202,10 +241,20 @@ async function verifyNormalMotion(base) {
   await plainPage.goto(base);
   for (const portal of portals) {
     await plainPage.locator(`a.portal-card[data-world="${portal}"]`).click();
-    await plainPage.getByText('In preparation', { exact: true }).waitFor();
-    await plainPage.getByRole('link', { name: /back/i }).click();
+    if (portal === 'machine') {
+      const artwork = plainPage.getByRole('link', { name: 'Enter The Architect of Sacred Ground', exact: true });
+      await artwork.focus();
+      await artwork.press('Enter');
+      await plainPage.waitForURL(new URL('dream-machine/architect-of-sacred-ground/', base).href);
+      await plainPage.getByRole('heading', { name: 'The Architect of Sacred Ground', exact: true }).waitFor();
+      await plainPage.getByRole('link', { name: 'Back to Dream University', exact: true }).click();
+    } else {
+      await plainPage.getByText('In preparation', { exact: true }).waitFor();
+      await plainPage.getByRole('link', { name: /back/i }).click();
+    }
+    await plainPage.waitForURL(base);
   }
-  report.checks.push('all four routes work without JavaScript');
+  report.checks.push('all four routes and the Architect module work without JavaScript');
   report.ok = true;
   console.log(JSON.stringify(report, null, 2));
 })().catch(error => {

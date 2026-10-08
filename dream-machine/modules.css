@@ -1,0 +1,110 @@
+/* Dream Machine's module layer is scoped away from the university portals. */
+.machine-page,
+.sacred-page {
+  --module-ink: #453929;
+  --module-muted: #6c5a42;
+  --module-line: #a58e6d;
+  --page-gutter: clamp(20px, 3.5vw, 56px);
+  padding: max(var(--page-gutter), env(safe-area-inset-top)) max(var(--page-gutter), env(safe-area-inset-right)) max(var(--page-gutter), env(safe-area-inset-bottom)) max(var(--page-gutter), env(safe-area-inset-left));
+}
+.machine-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(240px, 26vw, 340px);
+  gap: clamp(24px, 4vw, 64px);
+  min-height: 100svh;
+}
+.machine-home {
+  grid-column: 1;
+  grid-row: 1;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 24px;
+  min-width: 0;
+  text-align: center;
+}
+.machine-home .entry-seal { width: min(100%, 340px); }
+.machine-home .entry-brand { margin: 0; }
+.machine-modules {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+  justify-self: end;
+  width: 100%;
+}
+.module-eyebrow {
+  margin: 0 0 16px;
+  color: var(--module-muted);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+.architect-portal {
+  display: block;
+  padding: 7px;
+  border: 1px solid var(--module-line);
+  background: rgb(249 241 222 / 58%);
+  box-shadow: 0 7px 22px rgb(64 43 17 / 12%), inset 0 0 0 3px rgb(165 142 109 / 14%);
+  color: var(--module-ink);
+  text-decoration: none;
+  touch-action: manipulation;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+.architect-portal img { display: block; width: 100%; height: auto; aspect-ratio: 1; }
+.architect-portal-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 15px 6px 9px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.architect-portal-action { font-size: 12px; white-space: nowrap; }
+.architect-portal-action span { margin-left: 5px; }
+.architect-portal:focus-visible {
+  outline: 3px solid #4c3c28;
+  outline-offset: 5px;
+}
+@media (hover: hover) {
+  .architect-portal:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgb(64 43 17 / 19%), inset 0 0 0 3px rgb(165 142 109 / 20%); }
+}
+.sacred-page { max-width: 1320px; min-height: 100svh; margin-inline: auto; }
+.module-breadcrumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 24px; margin-bottom: clamp(24px, 4vw, 56px); font-size: 14px; }
+.sacred-layout { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: clamp(28px, 5vw, 72px); align-items: start; }
+.sacred-artwork { margin: 0; padding: 7px; border: 1px solid var(--module-line); background: rgb(249 241 222 / 58%); box-shadow: 0 7px 22px rgb(64 43 17 / 12%); }
+.sacred-artwork img { display: block; width: 100%; height: auto; aspect-ratio: 1; }
+.sacred-copy { min-width: 0; }
+.sacred-copy h1 { margin: 0 0 20px; max-width: 16ch; font-size: clamp(30px, 3.7vw, 50px); font-weight: 400; line-height: 1.1; text-wrap: balance; }
+.sacred-intro { max-width: 45ch; margin: 0 0 30px; color: var(--module-muted); font-size: 17px; line-height: 1.65; }
+.exercise-sequence { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--module-line); }
+.exercise-stage { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 20px 0; border-bottom: 1px solid rgb(165 142 109 / 55%); }
+.exercise-number { color: var(--module-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.exercise-stage h2 { margin: 0; font-size: clamp(17px, 1.65vw, 21px); line-height: 1.4; font-weight: 400; }
+.exercise-status { margin: 0; color: var(--module-muted); font-size: 12px; white-space: nowrap; }
+.exercise-stage--unity h2 { font-style: italic; }
+.module-note { margin: 22px 0 0; color: var(--module-muted); font-size: 14px; line-height: 1.65; }
+@media (max-width: 720px) {
+  .machine-page { grid-template-columns: minmax(0, 1fr); gap: 44px; }
+  .machine-modules { grid-column: 1; grid-row: 1; max-width: 280px; }
+  .machine-home { grid-column: 1; grid-row: 2; padding: 8px 0 24px; }
+  .machine-home .entry-seal { width: min(70vw, 260px); }
+  .sacred-layout { grid-template-columns: minmax(0, 1fr); }
+  .sacred-artwork { width: min(100%, 380px); }
+  .sacred-copy h1 { max-width: 18ch; }
+}
+@media (max-width: 360px) {
+  .exercise-stage { grid-template-columns: 24px minmax(0, 1fr); gap: 5px 10px; }
+  .exercise-status { grid-column: 2; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .architect-portal { transition: none; }
+  .architect-portal:hover { transform: none; }
+}
+@media (forced-colors: active) {
+  .architect-portal { border: 2px solid LinkText; }
+  .architect-portal:focus-visible { outline-color: Highlight; }
+}

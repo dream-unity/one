@@ -7,12 +7,14 @@ const repository = fileURLToPath(new URL('../', import.meta.url));
 export const PUBLIC_DIRECTORY = resolve(repository, '.public-site');
 export const PORTALS = Object.freeze(['machine', 'world', 'maker', 'unity']);
 
-// Only the empty university shell and its artwork may reach the public site.
+// Only the university shell, approved modules and their artwork may reach the public site.
 // Retired applications cannot return through an incidental source-directory copy.
 export const PUBLIC_FILES = Object.freeze([
   '.nojekyll', 'build-info.json', 'CNAME', '404.html', 'index.html', 'styles.css',
   'symbol-motion.js', 'symbol-3d.js', 'symbol-surface.js',
   ...PORTALS.map(portal => `dream-${portal}/index.html`),
+  'dream-machine/architect-of-sacred-ground/index.html', 'dream-machine/modules.css',
+  'assets/architect-of-sacred-ground.webp',
   'assets/dream-unity-portals-refined.webp', 'assets/parchment-texture.svg',
   ...Array.from({ length: 4 }, (_, i) => `assets/symbol-ring-${i}.webp`),
   ...Array.from({ length: 4 }, (_, i) => `assets/symbol-mask-${i}.png`),

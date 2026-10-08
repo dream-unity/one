@@ -10,13 +10,15 @@ const permitted = [
   '.nojekyll', 'build-info.json', 'CNAME', '404.html', 'index.html', 'styles.css',
   'symbol-motion.js', 'symbol-3d.js', 'symbol-surface.js',
   'dream-machine/index.html', 'dream-world/index.html', 'dream-maker/index.html', 'dream-unity/index.html',
+  'dream-machine/architect-of-sacred-ground/index.html', 'dream-machine/modules.css',
+  'assets/architect-of-sacred-ground.webp',
   'assets/dream-unity-portals-refined.webp', 'assets/parchment-texture.svg',
   ...Array.from({ length: 4 }, (_, i) => `assets/symbol-ring-${i}.webp`),
   ...Array.from({ length: 4 }, (_, i) => `assets/symbol-mask-${i}.png`),
   'vendor/three/three.module.min.js', 'vendor/three/three.core.min.js', 'vendor/three/LICENSE',
 ].sort();
 
-test('publication removes stale applications and contains only the four-portal shell', async () => {
+test('publication removes stale applications and contains only the shell and approved Architect module', async () => {
   assert.deepEqual([...PUBLIC_FILES].sort(), permitted);
   const stale = join(PUBLIC_DIRECTORY, 'prototype/index.html');
   await mkdir(dirname(stale), { recursive: true });
