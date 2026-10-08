@@ -9,28 +9,26 @@
 }
 .machine-page {
   --page-gutter: 8px;
-  display: grid;
-  grid-template-columns: clamp(480px, 48vw, 720px) minmax(0, 1fr);
-  gap: clamp(24px, 4vw, 64px);
   min-height: 100svh;
 }
 .machine-home {
-  grid-column: 2;
-  grid-row: 1;
   display: grid;
-  align-content: center;
   justify-items: center;
-  gap: 24px;
+  gap: 8px;
   min-width: 0;
+  padding: 4px 0 24px;
   text-align: center;
 }
-.machine-home .entry-seal { width: min(100%, 340px); }
-.machine-home .entry-brand { margin: 0; }
+.machine-home .entry-seal { width: 180px; }
+.machine-home .entry-seal h1 { font-size: 24px; }
+.machine-home .entry-brand { margin: 0; font-size: 10px; }
+.machine-home .entry-purpose { font-size: 16px; }
+.machine-home .back-link { font-size: 14px; }
 .machine-modules {
-  grid-column: 1;
-  grid-row: 1;
-  align-self: start;
-  justify-self: start;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: 28px 16px;
   width: 100%;
 }
 .module-eyebrow {
@@ -44,6 +42,7 @@
 }
 .architect-portal {
   display: block;
+  min-width: 0;
   padding: 7px;
   border: 1px solid var(--module-line);
   background: rgb(249 241 222 / 58%);
@@ -88,11 +87,11 @@
 .exercise-status { margin: 0; color: var(--module-muted); font-size: 12px; white-space: nowrap; }
 .exercise-stage--unity h2 { font-style: italic; }
 .module-note { margin: 22px 0 0; color: var(--module-muted); font-size: 14px; line-height: 1.65; }
+@media (max-width: 999px) {
+  .machine-modules { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 @media (max-width: 720px) {
-  .machine-page { grid-template-columns: minmax(0, 1fr); gap: 44px; }
-  .machine-modules { grid-column: 1; grid-row: 1; }
-  .machine-home { grid-column: 1; grid-row: 2; padding: 8px 0 24px; }
-  .machine-home .entry-seal { width: min(70vw, 260px); }
+  .machine-modules { grid-template-columns: minmax(0, 1fr); }
   .sacred-layout { grid-template-columns: minmax(0, 1fr); }
   .sacred-artwork { width: min(100%, 380px); }
   .sacred-copy h1 { max-width: 18ch; }

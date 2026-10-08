@@ -73,15 +73,69 @@ async function verifyArchitectModule(page, base, label, width) {
   await image.waitFor({ state: 'visible' });
   assert.ok(await image.evaluate(element => element.complete && element.naturalWidth > 0),
     'the Architect artwork must load');
-  const box = await portal.boundingBox();
-  if (width >= 1200) {
-    assert.ok(box && box.x >= 0 && box.x <= 16 && box.y >= 0 && box.y <= 16 &&
-      box.width >= 600 && box.x + box.width <= width,
-    'the enlarged Architect module belongs near the top-left edges of Dream Machine on desktop');
-  } else if (width <= 720) {
-    assert.ok(box && box.x >= 0 && box.x <= 16 && box.y >= 0 && box.y <= 16 &&
-      box.width >= width - 32 && box.x + box.width <= width,
-    'the Architect module fills the available mobile width near the top-left edges');
+  const layout = await portal.evaluate(element => {
+    const header = document.querySelector('.machine-home').getBoundingClientRect();
+    const gallery = document.querySelector('.machine-modules');
+    const galleryBox = gallery.getBoundingClientRect();
+    const card = element.getBoundingClientRect();
+    const artwork = element.querySelector('img').getBoundingClientRect();
+    const style = getComputedStyle(gallery);
+    return { headerBottom: header.bottom, galleryTop: galleryBox.top, galleryWidth: galleryBox.width,
+      galleryLeft: galleryBox.left, cardLeft: card.left, cardWidth: card.width,
+      artworkWidth: artwork.width, artworkHeight: artwork.height,
+      columns: style.gridTemplateColumns.split(/\s+/).length, gap: parseFloat(style.columnGap) || 0 };
+  });
+  const columns = width >= 1000 ? 3 : width > 720 ? 2 : 1;
+  assert.ok(layout.headerBottom <= layout.galleryTop + 1,
+    'the Dream Machine header belongs above its full-width module gallery');
+  assert.equal(layout.columns, columns, `${label} module gallery must have ${columns} columns`);
+  assert.ok(layout.galleryLeft >= 0 && layout.galleryLeft <= 16 && layout.galleryWidth >= width - 32,
+    'the gallery uses the available page width with narrow gutters');
+  assert.ok(Math.abs(layout.cardLeft - layout.galleryLeft) < 1 &&
+    Math.abs(layout.cardWidth - (layout.galleryWidth - (columns - 1) * layout.gap) / columns) < 1,
+  'the first module occupies one equal grid column at the left of the gallery');
+  assert.ok(Math.abs(layout.artworkWidth - layout.artworkHeight) < 1,
+    'module artwork remains square');
+  if (columns === 3) {
+    // Prove future six-module flow using temporary browser-only copies; the
+    // published page must still contain only the real Architect module.
+    const future = await page.evaluate(() => {
+      const gallery = document.querySelector('.machine-modules');
+      const original = gallery.querySelector('.architect-portal');
+      const beforeHeight = document.documentElement.scrollHeight;
+      const copies = [];
+      try {
+        for (let index = 0; index < 5; index++) {
+          const copy = original.cloneNode(true);
+          copies.push(copy);
+          gallery.append(copy);
+        }
+        const cards = [original, ...copies].map(element => {
+          const { x, y, width, height } = element.getBoundingClientRect();
+          return { x, y, width, height };
+        });
+        return { cards, beforeHeight, afterHeight: document.documentElement.scrollHeight,
+          viewportHeight: document.documentElement.clientHeight };
+      } finally {
+        for (const copy of copies) copy.remove();
+      }
+    });
+    const [first, , , fourth] = future.cards;
+    for (let index = 0; index < future.cards.length; index++) {
+      const card = future.cards[index];
+      const rowStart = index < 3 ? first : fourth;
+      assert.ok(Math.abs(card.y - rowStart.y) < 1 && Math.abs(card.width - first.width) < 1,
+        'six modules form two rows of three equal-width cards');
+      if (index % 3 > 0) assert.ok(card.x > future.cards[index - 1].x,
+        'each module occupies the next horizontal grid column');
+    }
+    assert.ok(fourth.y >= first.y + first.height && Math.abs(fourth.x - first.x) < 1,
+      'module four starts a new row beneath module one');
+    assert.ok(future.afterHeight > future.beforeHeight && future.afterHeight > future.viewportHeight,
+      'a second row grows the page naturally for vertical scrolling');
+    assert.equal(await page.locator('.machine-modules .architect-portal').count(), 1,
+      'temporary test modules are removed');
+    report.checks.push('desktop: six-module gallery fits three cards per row and scrolls to the second row');
   }
   await image.click();
   await page.waitForURL(new URL('dream-machine/architect-of-sacred-ground/', base).href);
