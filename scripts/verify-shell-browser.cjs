@@ -73,10 +73,15 @@ async function verifyArchitectModule(page, base, label, width) {
   await image.waitFor({ state: 'visible' });
   assert.ok(await image.evaluate(element => element.complete && element.naturalWidth > 0),
     'the Architect artwork must load');
+  const box = await portal.boundingBox();
   if (width >= 1200) {
-    const box = await portal.boundingBox();
-    assert.ok(box && box.x >= width / 2 && box.y >= 0 && box.y < 180 && box.x + box.width <= width,
-      'the Architect module belongs at the top right of Dream Machine on desktop');
+    assert.ok(box && box.x >= 0 && box.x <= 16 && box.y >= 0 && box.y <= 16 &&
+      box.width >= 600 && box.x + box.width <= width,
+    'the enlarged Architect module belongs near the top-left edges of Dream Machine on desktop');
+  } else if (width <= 720) {
+    assert.ok(box && box.x >= 0 && box.x <= 16 && box.y >= 0 && box.y <= 16 &&
+      box.width >= width - 32 && box.x + box.width <= width,
+    'the Architect module fills the available mobile width near the top-left edges');
   }
   await image.click();
   await page.waitForURL(new URL('dream-machine/architect-of-sacred-ground/', base).href);

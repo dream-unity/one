@@ -9,7 +9,7 @@ The original parchment, ink drawing, three portal positions and animated rings a
 - Dream Maker — `/dream-maker/`
 - Dream Unity — `/dream-unity/`
 
-Dream Machine now has a top-right artwork portal for **The Architect of Sacred Ground** at `/dream-machine/architect-of-sacred-ground/`. The image is a native link, available with keyboard, touch and JavaScript disabled. Its exercise sequence is reserved in order: Heart exercise, Body emotion exercise, Mind exercise, and Heart–Mind Unity. All four stages are marked **Coming soon**; their content will be added later. Consciousness state shifting belongs to a separate future module.
+Dream Machine now has a large artwork portal close to its top-left edges for **The Architect of Sacred Ground** at `/dream-machine/architect-of-sacred-ground/`. It occupies roughly half the desktop width and fills the available mobile width. The image is a native link, available with keyboard, touch and JavaScript disabled. Its exercise sequence is reserved in order: Heart exercise, Body emotion exercise, Mind exercise, and Heart–Mind Unity. All four stages are marked **Coming soon**; their content will be added later. Consciousness state shifting belongs to a separate future module.
 
 The other three destinations remain in preparation. Dream Unity will concern the relationships between the worlds: meaning, equilibrium, stability and expansion.
 
