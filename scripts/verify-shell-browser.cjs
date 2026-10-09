@@ -52,12 +52,39 @@ async function waitForRelease(request, base) {
     }
     if (published) await new Promise(resolveWait => setTimeout(resolveWait, 5000));
   }
-  throw new Error('The requested university release is not being served.');
+  throw new Error('The requested Dream Unity release is not being served.');
 }
 
 async function assertNoOverflow(page, label) {
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <=
     document.documentElement.clientWidth + 1), `${label} has horizontal overflow`);
+}
+
+async function verifyProgression(page, label) {
+  const links = page.locator('.dream-progression a.progression-link');
+  const destinations = [
+    ['Dream Unity', 'https://dreamunity.one/'],
+    ['Dream University', 'https://dreamuniversity.one/'],
+    ['Dream Universe', 'https://dreamuniverse.one/'],
+  ];
+  assert.equal(await links.count(), destinations.length, `${label} has all three progression portals`);
+  for (const [index, [title, href]] of destinations.entries()) {
+    const link = links.nth(index);
+    assert.ok((await link.innerText()).replace(/\s+/g, ' ').includes(title), `${title} appears in progression order`);
+    assert.equal(await link.getAttribute('href'), href, `${title} links to its own domain`);
+    assert.equal(await link.getAttribute('aria-current'), index === 0 ? 'page' : null,
+      'only Dream Unity is marked as the current destination');
+    await link.scrollIntoViewIfNeeded();
+    assert.ok(await link.isVisible(), `${title} progression portal is visible`);
+    assert.ok(await link.evaluate(element => element.getBoundingClientRect().height >= 44),
+      `${title} progression portal provides a touch target at least 44px high`);
+    assert.ok(await link.evaluate(element => element.tabIndex >= 0), `${title} is in the keyboard tab order`);
+    await link.focus();
+    assert.ok(await link.evaluate(element => element === document.activeElement),
+      `${title} progression portal is keyboard-focusable`);
+  }
+  // Check the outbound links without requiring other sites to be deployed.
+  report.checks.push(`${label}: three ordered progression destinations, current Unity, visible touch targets and keyboard focus`);
 }
 
 async function verifyArchitectModule(page, base, label, width) {
@@ -148,7 +175,7 @@ async function verifyArchitectModule(page, base, label, width) {
     assert.ok(content.includes(names[index]), `exercise ${index + 1} must be ${names[index]}`);
     assert.match(content, /Coming soon/i, `${names[index]} is clearly pending`);
   }
-  assert.equal(await page.getByRole('link', { name: 'Back to Dream University', exact: true }).getAttribute('href'), '../../');
+  assert.equal(await page.getByRole('link', { name: 'Back to Dream Unity', exact: true }).getAttribute('href'), '../../');
   await assertNoOverflow(page, `${label} Architect module`);
   await page.screenshot({ path: join(output, `${label}-architect.png`), fullPage: true });
   await page.getByRole('link', { name: 'Back to Dream Machine', exact: true }).click();
@@ -262,10 +289,11 @@ async function verifyNormalMotion(base) {
     ['small-mobile', 320, 740], ['landscape', 844, 390]]) {
     await page.setViewportSize({ width, height });
     assert.equal((await page.goto(base)).status(), 200);
-    await page.getByRole('heading', { name: 'Dream University', exact: true }).waitFor();
+    await page.getByRole('heading', { name: 'Dream Unity', exact: true }).waitFor();
     assert.equal(await page.locator('a.portal-card').count(), 4);
     assert.equal(await page.getByRole('link', { name: /explore the prototype/i }).count(), 0);
     await assertNoOverflow(page, `${label} home`);
+    await verifyProgression(page, label);
     await page.screenshot({ path: join(output, `${label}-home.png`), fullPage: true });
     for (const portal of portals) {
       const title = `Dream ${portal[0].toUpperCase()}${portal.slice(1)}`;
@@ -279,7 +307,7 @@ async function verifyNormalMotion(base) {
       await assertNoOverflow(page, `${label} ${title}`);
       await page.screenshot({ path: join(output, `${label}-${portal}.png`), fullPage: true });
       if (portal === 'machine') await verifyArchitectModule(page, base, label, width);
-      await page.getByRole('link', { name: /back/i }).click();
+      await page.getByRole('link', { name: 'Back to Dream Unity', exact: true }).click();
       await page.waitForURL(base);
     }
     report.checks.push(`${label}: four portal journeys, keyboard entry, return and overflow`);
@@ -298,6 +326,7 @@ async function verifyNormalMotion(base) {
   const plain = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 390, height: 844 } });
   const plainPage = await plain.newPage();
   await plainPage.goto(base);
+  await verifyProgression(plainPage, 'mobile without JavaScript');
   for (const portal of portals) {
     await plainPage.locator(`a.portal-card[data-world="${portal}"]`).click();
     if (portal === 'machine') {
@@ -306,10 +335,10 @@ async function verifyNormalMotion(base) {
       await artwork.press('Enter');
       await plainPage.waitForURL(new URL('dream-machine/architect-of-sacred-ground/', base).href);
       await plainPage.getByRole('heading', { name: 'The Architect of Sacred Ground', exact: true }).waitFor();
-      await plainPage.getByRole('link', { name: 'Back to Dream University', exact: true }).click();
+      await plainPage.getByRole('link', { name: 'Back to Dream Unity', exact: true }).click();
     } else {
       await plainPage.getByText('In preparation', { exact: true }).waitFor();
-      await plainPage.getByRole('link', { name: /back/i }).click();
+      await plainPage.getByRole('link', { name: 'Back to Dream Unity', exact: true }).click();
     }
     await plainPage.waitForURL(base);
   }
