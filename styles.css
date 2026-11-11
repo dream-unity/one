@@ -78,3 +78,10 @@ a { color: inherit; }
 @media (max-width: 320px) { .progression-name { font-size: 13px; } }
 @media (prefers-reduced-motion: reduce) { .portal, .progression-link { transition: none; } }
 @media (forced-colors: active) { .portal, .progression-link { border: 2px solid LinkText; } .portal:focus-visible { border: 5px solid Highlight; } .portal-caption, .progression-link { background: Canvas; color: LinkText; } .progression-index, .progression-caption, .progression-note { color: CanvasText; } }
+
+/* Portals are visible but unavailable until they are opened. */
+.portal-card { pointer-events: none; }
+.portal-caption { gap: 2px; }
+.lock-label, .progression-lock { display: block; color: #695941; font-size: 9px; letter-spacing: .04em; line-height: 1; text-transform: uppercase; }
+.progression-lock { margin-top: 1px; }
+@media (hover: hover) { .portal:hover { background: transparent; box-shadow: none; } .progression-link:hover { border-color: rgb(87 72 50 / 58%); background: rgb(249 244 231 / 17%); } }

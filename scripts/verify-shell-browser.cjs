@@ -60,129 +60,21 @@ async function assertNoOverflow(page, label) {
     document.documentElement.clientWidth + 1), `${label} has horizontal overflow`);
 }
 
-async function verifyProgression(page, label) {
-  const links = page.locator('.dream-progression a.progression-link');
-  const destinations = [
-    ['Dream Unity', 'https://dreamunity.one/'],
-    ['Dream University', 'https://dreamuniversity.one/'],
-    ['Dream Universe', 'https://dreamuniverse.one/'],
-  ];
-  assert.equal(await links.count(), destinations.length, `${label} has all three progression portals`);
-  for (const [index, [title, href]] of destinations.entries()) {
-    const link = links.nth(index);
-    assert.ok((await link.innerText()).replace(/\s+/g, ' ').includes(title), `${title} appears in progression order`);
-    assert.equal(await link.getAttribute('href'), href, `${title} links to its own domain`);
-    assert.equal(await link.getAttribute('aria-current'), index === 0 ? 'page' : null,
-      'only Dream Unity is marked as the current destination');
-    await link.scrollIntoViewIfNeeded();
-    assert.ok(await link.isVisible(), `${title} progression portal is visible`);
-    assert.ok(await link.evaluate(element => element.getBoundingClientRect().height >= 44),
-      `${title} progression portal provides a touch target at least 44px high`);
-    assert.ok(await link.evaluate(element => element.tabIndex >= 0), `${title} is in the keyboard tab order`);
-    await link.focus();
-    assert.ok(await link.evaluate(element => element === document.activeElement),
-      `${title} progression portal is keyboard-focusable`);
+async function verifyLockedControls(page, label) {
+  const controls = page.locator('.portal-card, .progression-link');
+  assert.equal(await controls.count(), 7, `${label}: seven controls are visible`);
+  for (let i = 0; i < 7; i++) {
+    const control = controls.nth(i);
+    assert.ok(await control.isVisible());
+    assert.match(await control.getAttribute('aria-label'), /, locked$/);
+    assert.equal(await control.getAttribute('href'), null);
+    assert.equal(await control.evaluate(element => element.tabIndex), -1);
+    await control.click({ force: true });
+    assert.equal(page.url(), baseUrlForLockedCheck, 'locked control must not navigate');
   }
-  // Check the outbound links without requiring other sites to be deployed.
-  report.checks.push(`${label}: three ordered progression destinations, current Unity, visible touch targets and keyboard focus`);
+  report.checks.push(`${label}: all seven controls are locked`);
 }
-
-async function verifyArchitectModule(page, base, label, width) {
-  const portal = page.getByRole('link', { name: 'Enter The Architect of Sacred Ground', exact: true });
-  assert.equal(await portal.count(), 1, 'Dream Machine exposes one accessible artwork portal');
-  assert.ok(await portal.evaluate(element => element.matches('a.architect-portal')),
-    'the Architect artwork must use a native link');
-  assert.equal(await portal.getAttribute('href'), './architect-of-sacred-ground/');
-  await portal.focus();
-  assert.ok(await portal.evaluate(element => element === document.activeElement),
-    'the Architect artwork is keyboard-focusable');
-  const image = portal.locator('img');
-  await image.waitFor({ state: 'visible' });
-  assert.ok(await image.evaluate(element => element.complete && element.naturalWidth > 0),
-    'the Architect artwork must load');
-  const layout = await portal.evaluate(element => {
-    const header = document.querySelector('.machine-home').getBoundingClientRect();
-    const gallery = document.querySelector('.machine-modules');
-    const galleryBox = gallery.getBoundingClientRect();
-    const card = element.getBoundingClientRect();
-    const artwork = element.querySelector('img').getBoundingClientRect();
-    const style = getComputedStyle(gallery);
-    return { headerBottom: header.bottom, galleryTop: galleryBox.top, galleryWidth: galleryBox.width,
-      galleryLeft: galleryBox.left, cardLeft: card.left, cardWidth: card.width,
-      artworkWidth: artwork.width, artworkHeight: artwork.height,
-      columns: style.gridTemplateColumns.split(/\s+/).length, gap: parseFloat(style.columnGap) || 0 };
-  });
-  const columns = width >= 1000 ? 3 : width > 720 ? 2 : 1;
-  assert.ok(layout.headerBottom <= layout.galleryTop + 1,
-    'the Dream Machine header belongs above its full-width module gallery');
-  assert.equal(layout.columns, columns, `${label} module gallery must have ${columns} columns`);
-  assert.ok(layout.galleryLeft >= 0 && layout.galleryLeft <= 16 && layout.galleryWidth >= width - 32,
-    'the gallery uses the available page width with narrow gutters');
-  assert.ok(Math.abs(layout.cardLeft - layout.galleryLeft) < 1 &&
-    Math.abs(layout.cardWidth - (layout.galleryWidth - (columns - 1) * layout.gap) / columns) < 1,
-  'the first module occupies one equal grid column at the left of the gallery');
-  assert.ok(Math.abs(layout.artworkWidth - layout.artworkHeight) < 1,
-    'module artwork remains square');
-  if (columns === 3) {
-    // Prove future six-module flow using temporary browser-only copies; the
-    // published page must still contain only the real Architect module.
-    const future = await page.evaluate(() => {
-      const gallery = document.querySelector('.machine-modules');
-      const original = gallery.querySelector('.architect-portal');
-      const beforeHeight = document.documentElement.scrollHeight;
-      const copies = [];
-      try {
-        for (let index = 0; index < 5; index++) {
-          const copy = original.cloneNode(true);
-          copies.push(copy);
-          gallery.append(copy);
-        }
-        const cards = [original, ...copies].map(element => {
-          const { x, y, width, height } = element.getBoundingClientRect();
-          return { x, y, width, height };
-        });
-        return { cards, beforeHeight, afterHeight: document.documentElement.scrollHeight,
-          viewportHeight: document.documentElement.clientHeight };
-      } finally {
-        for (const copy of copies) copy.remove();
-      }
-    });
-    const [first, , , fourth] = future.cards;
-    for (let index = 0; index < future.cards.length; index++) {
-      const card = future.cards[index];
-      const rowStart = index < 3 ? first : fourth;
-      assert.ok(Math.abs(card.y - rowStart.y) < 1 && Math.abs(card.width - first.width) < 1,
-        'six modules form two rows of three equal-width cards');
-      if (index % 3 > 0) assert.ok(card.x > future.cards[index - 1].x,
-        'each module occupies the next horizontal grid column');
-    }
-    assert.ok(fourth.y >= first.y + first.height && Math.abs(fourth.x - first.x) < 1,
-      'module four starts a new row beneath module one');
-    assert.ok(future.afterHeight > future.beforeHeight && future.afterHeight > future.viewportHeight,
-      'a second row grows the page naturally for vertical scrolling');
-    assert.equal(await page.locator('.machine-modules .architect-portal').count(), 1,
-      'temporary test modules are removed');
-    report.checks.push('desktop: six-module gallery fits three cards per row and scrolls to the second row');
-  }
-  await image.click();
-  await page.waitForURL(new URL('dream-machine/architect-of-sacred-ground/', base).href);
-  await page.getByRole('heading', { name: 'The Architect of Sacred Ground', exact: true }).waitFor();
-  const stages = page.locator('ol.exercise-sequence > li');
-  const names = ['Heart exercise', 'Body emotion exercise', 'Mind exercise', 'Heart–Mind Unity'];
-  assert.equal(await stages.count(), names.length, 'the module reserves the four intended stages');
-  for (let index = 0; index < names.length; index++) {
-    const content = await stages.nth(index).innerText();
-    assert.ok(content.includes(names[index]), `exercise ${index + 1} must be ${names[index]}`);
-    assert.match(content, /Coming soon/i, `${names[index]} is clearly pending`);
-  }
-  assert.equal(await page.getByRole('link', { name: 'Back to Dream Unity', exact: true }).getAttribute('href'), '../../');
-  await assertNoOverflow(page, `${label} Architect module`);
-  await page.screenshot({ path: join(output, `${label}-architect.png`), fullPage: true });
-  await page.getByRole('link', { name: 'Back to Dream Machine', exact: true }).click();
-  await page.waitForURL(new URL('dream-machine/', base).href);
-  await page.getByRole('heading', { name: 'Dream Machine', exact: true }).waitFor();
-  report.checks.push(`${label}: Architect artwork entry, four pending stages, return and overflow`);
-}
+let baseUrlForLockedCheck;
 
 async function verifyNormalMotion(base) {
   const context = await browser.newContext({ reducedMotion: 'no-preference', viewport: { width: 1440, height: 1000 } });
@@ -274,6 +166,7 @@ async function verifyNormalMotion(base) {
   await mkdir(output, { recursive: true });
   const base = published ? `${process.env.DREAMUNITY_BASE_URL.replace(/\/+$/, '')}/` : await localServer();
   browser = await chromium.launch({ headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+  baseUrlForLockedCheck = base;
   const context = await browser.newContext({ reducedMotion: 'reduce' });
   await waitForRelease(context.request, base);
   const page = await context.newPage();
@@ -290,28 +183,18 @@ async function verifyNormalMotion(base) {
     await page.setViewportSize({ width, height });
     assert.equal((await page.goto(base)).status(), 200);
     await page.getByRole('heading', { name: 'Dream Unity', exact: true }).waitFor();
-    assert.equal(await page.locator('a.portal-card').count(), 4);
+    assert.equal(await page.locator('.portal-card').count(), 4);
     assert.equal(await page.getByRole('link', { name: /explore the prototype/i }).count(), 0);
     await assertNoOverflow(page, `${label} home`);
-    await verifyProgression(page, label);
+    await verifyLockedControls(page, label);
     await page.screenshot({ path: join(output, `${label}-home.png`), fullPage: true });
-    for (const portal of portals) {
-      const title = `Dream ${portal[0].toUpperCase()}${portal.slice(1)}`;
-      const anchor = page.locator(`a.portal-card[data-world="${portal}"]`);
-      await anchor.focus();
-      assert.ok(await anchor.evaluate(element => element === document.activeElement), `${title} is keyboard-focusable`);
-      await anchor.press('Enter');
-      await page.waitForURL(new URL(`dream-${portal}/`, base).href);
-      await page.getByRole('heading', { name: title, exact: true }).waitFor();
-      if (portal !== 'machine') await page.getByText('In preparation', { exact: true }).waitFor();
-      await assertNoOverflow(page, `${label} ${title}`);
-      await page.screenshot({ path: join(output, `${label}-${portal}.png`), fullPage: true });
-      if (portal === 'machine') await verifyArchitectModule(page, base, label, width);
-      await page.getByRole('link', { name: 'Back to Dream Unity', exact: true }).click();
-      await page.waitForURL(base);
-    }
-    report.checks.push(`${label}: four portal journeys, keyboard entry, return and overflow`);
   }
+  for (const path of [...portals.map(portal => `dream-${portal}/`), 'dream-machine/architect-of-sacred-ground/']) {
+    const response = await context.request.get(new URL(path, base).href);
+    assert.equal(response.status(), 404, `${path} must not be published`);
+  }
+  report.checks.push('locked local destinations return HTTP 404');
+
   // Old direct links must genuinely be retired, not merely hidden on the home.
   for (const path of retired) {
     const response = await context.request.get(new URL(path, base).href);
@@ -322,27 +205,11 @@ async function verifyNormalMotion(base) {
   assert.deepEqual(failedResources, [], 'the shell requested missing resources');
   await verifyNormalMotion(base);
 
-  // Progressive enhancement: every journey must remain available without JS.
+  // Controls stay locked even when JavaScript is disabled.
   const plain = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 390, height: 844 } });
   const plainPage = await plain.newPage();
   await plainPage.goto(base);
-  await verifyProgression(plainPage, 'mobile without JavaScript');
-  for (const portal of portals) {
-    await plainPage.locator(`a.portal-card[data-world="${portal}"]`).click();
-    if (portal === 'machine') {
-      const artwork = plainPage.getByRole('link', { name: 'Enter The Architect of Sacred Ground', exact: true });
-      await artwork.focus();
-      await artwork.press('Enter');
-      await plainPage.waitForURL(new URL('dream-machine/architect-of-sacred-ground/', base).href);
-      await plainPage.getByRole('heading', { name: 'The Architect of Sacred Ground', exact: true }).waitFor();
-      await plainPage.getByRole('link', { name: 'Back to Dream Unity', exact: true }).click();
-    } else {
-      await plainPage.getByText('In preparation', { exact: true }).waitFor();
-      await plainPage.getByRole('link', { name: 'Back to Dream Unity', exact: true }).click();
-    }
-    await plainPage.waitForURL(base);
-  }
-  report.checks.push('all four routes and the Architect module work without JavaScript');
+  await verifyLockedControls(plainPage, 'mobile without JavaScript');
   report.ok = true;
   console.log(JSON.stringify(report, null, 2));
 })().catch(error => {

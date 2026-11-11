@@ -1,7 +1,21 @@
 {
-  "include": ["vendor"],
+  "include": [
+    "vendor"
+  ],
   "exclude": [
-    "scripts", "tests", "docs", "node_modules", ".public-site", "output",
-    "README.md", "package.json", "package-lock.json"
+    "scripts",
+    "tests",
+    "docs",
+    "node_modules",
+    ".public-site",
+    "output",
+    "README.md",
+    "package.json",
+    "package-lock.json",
+    "dream-machine",
+    "dream-maker",
+    "dream-unity",
+    "dream-world",
+    "assets/architect-of-sacred-ground.webp"
   ]
 }

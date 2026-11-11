@@ -9,16 +9,13 @@ const repository = fileURLToPath(new URL('../', import.meta.url));
 const permitted = [
   '.nojekyll', 'build-info.json', 'CNAME', '404.html', 'index.html', 'styles.css',
   'symbol-motion.js', 'symbol-3d.js', 'symbol-surface.js',
-  'dream-machine/index.html', 'dream-world/index.html', 'dream-maker/index.html', 'dream-unity/index.html',
-  'dream-machine/architect-of-sacred-ground/index.html', 'dream-machine/modules.css',
-  'assets/architect-of-sacred-ground.webp',
   'assets/dream-unity-portals-refined.webp', 'assets/parchment-texture.svg',
   ...Array.from({ length: 4 }, (_, i) => `assets/symbol-ring-${i}.webp`),
   ...Array.from({ length: 4 }, (_, i) => `assets/symbol-mask-${i}.png`),
   'vendor/three/three.module.min.js', 'vendor/three/three.core.min.js', 'vendor/three/LICENSE',
 ].sort();
 
-test('publication removes stale applications and contains only the shell and approved Architect module', async () => {
+test('publication removes stale applications and contains only the locked shell', async () => {
   assert.deepEqual([...PUBLIC_FILES].sort(), permitted);
   const stale = join(PUBLIC_DIRECTORY, 'prototype/index.html');
   await mkdir(dirname(stale), { recursive: true });
@@ -94,4 +91,11 @@ test('Pages checks the staged shell before upload and checks the exact published
   assert.ok(workflow.indexOf('actions/deploy-pages') < workflow.indexOf('name: Verify the published four-portal shell'));
   assert.match(workflow, /DREAMUNITY_BASE_URL: \$\{\{ steps\.deployment\.outputs\.page_url \}\}/);
   assert.match(workflow, /if: always\(\)[\s\S]*?path: output\/shell-browser/);
+});
+
+test('all seven home controls are locked and local destinations are unpublished', async () => {
+  const home = await readFile(join(repository, 'index.html'), 'utf8');
+  assert.equal((home.match(/role="img" aria-label="[^"]+, locked"/g) || []).length, 7);
+  assert.doesNotMatch(home, /<a class="(?:portal portal-card|progression-link)/);
+  for (const portal of PORTALS) assert.ok(!PUBLIC_FILES.some(file => file.startsWith(`dream-${portal}/`)));
 });
